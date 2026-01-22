@@ -2,7 +2,7 @@
 % Please edit documentation in R/multiggm_mcmc.R
 \name{.multiggm_mcmc_single}
 \alias{.multiggm_mcmc_single}
-\title{Internal single-chain engine (to be implemented)}
+\title{Internal single-chain engine}
 \usage{
 .multiggm_mcmc_single(
   S_list,
@@ -21,22 +21,7 @@
 )
 }
 \description{
-This placeholder exists to lock the API and the parallel orchestration.
-The full Wang-Li G-Wishart kernels will be wired here.
+Implements the MATLAB routine \code{MCMC_multiple_graphs.m} using the Wang–Li
+G-Wishart kernels (ported to RcppArmadillo).
 }
-\keyword{(ported}
-\keyword{G-Wishart}
-\keyword{Implements}
-\keyword{Internal}
-\keyword{MATLAB}
-\keyword{RcppArmadillo).}
-\keyword{Wang–Li}
-\keyword{\code{MCMC_multiple_graphs.m}}
-\keyword{engine}
 \keyword{internal}
-\keyword{kernels}
-\keyword{routine}
-\keyword{single-chain}
-\keyword{the}
-\keyword{to}
-\keyword{using}

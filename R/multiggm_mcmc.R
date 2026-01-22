@@ -26,6 +26,8 @@ multiggm_mcmc <- function(S_list, n_vec,
                           ...) {
 
   if (!is.list(S_list) || length(S_list) < 1L) stop("S_list must be a non-empty list of covariance matrices.")
+
+  #number of sample groups
   K <- length(S_list)
   n_vec <- as.integer(n_vec)
   if (length(n_vec) != K) stop("n_vec must have length equal to length(S_list).")
@@ -69,20 +71,13 @@ multiggm_mcmc <- function(S_list, n_vec,
   out
 }
 
-#' Internal single-chain engine (to be implemented)
-#'
-#' This placeholder exists to lock the API and the parallel orchestration.
-#' The full Wang-Li G-Wishart kernels will be wired here.
-#'
-#' @keywords internal
-
 #' Internal single-chain engine
 #'
 #' Implements the MATLAB routine \code{MCMC_multiple_graphs.m} using the Wang–Li
 #' G-Wishart kernels (ported to RcppArmadillo).
 #'
-#' @keywords internal
-.multiggm_mcmc_single <- function(S_list, n_vec, burnin, nsave, thin,
+#' @export
+multiggm_mcmc_single <- function(S_list, n_vec, burnin, nsave, thin,
                                  chain_id = 1L,
                                  Theta_init = NULL,
                                  nu_init = NULL,
@@ -99,7 +94,8 @@ multiggm_mcmc <- function(S_list, n_vec,
         D_prior = diag(p),
         a = 1, b = 1,
         alpha = 2, beta = 2,
-        w = 0.1
+        w = 0.1,
+        alpha_prop = 1, beta_prop = 1
       )
     }
 
@@ -109,13 +105,16 @@ multiggm_mcmc <- function(S_list, n_vec,
     a <- hyper$a; b <- hyper$b
     alpha <- hyper$alpha; beta <- hyper$beta
     my_w <- hyper$w
+    alpha_prop <- hyper$alpha_prop
+    beta_prop <- hyper$beta_prop
 
   stopifnot(is.list(S_list), length(S_list) >= 1L)
   K <- length(S_list)
   p <- nrow(S_list[[1L]])
   if (is.null(D_prior)) D_prior <- diag(p)
   if (is.null(Theta_init)) Theta <- matrix(0, K, K) else Theta <- as.matrix(Theta_init)
-  if (is.null(nu_init)) nu <- matrix(-1, p, p) else nu <- as.matrix(nu_init)
+  # why is nu starting out as all -1?
+  if (is.null(nu_init)) nu <- matrix(0, p, p) else nu <- as.matrix(nu_init)
   if (is.null(C_init)) C_arr <- array(diag(p), dim = c(p, p, K)) else C_arr <- C_init
 
   if (!all(dim(D_prior) == c(p, p))) stop("D_prior must be p x p.")
@@ -149,21 +148,24 @@ multiggm_mcmc <- function(S_list, n_vec,
 
 
   # Proposal hyperparameters (as in MATLAB)
-  alpha_prop <- 1
-  beta_prop <- 1
+  # TODO should these be a and be or alpha and beta? or static within?
   a_prop <- 2
   b_prop <- 4
 
   nmc <- as.integer(nsave) * as.integer(thin)
   niter <- as.integer(burnin) + nmc
 
+  # set up matrices for return values
   C_save <- array(0, dim = c(p, p, K, nsave))
   Sig_save <- array(0, dim = c(p, p, K, nsave))
   adj_save <- array(0L, dim = c(p, p, K, nsave))
   Theta_save <- array(0, dim = c(K, K, nsave))
   nu_save <- array(0, dim = c(p, p, nsave))
 
+  # acceptance rate for gamma based on number of between model moves
   ar_gamma <- matrix(0, K, K)
+
+  # acceptance rate for theta based on number of within model moves
   ar_theta <- matrix(0, K, K)
   n_within_model <- matrix(0, K, K)
   ar_nu <- matrix(0, p, p)
@@ -175,6 +177,20 @@ multiggm_mcmc <- function(S_list, n_vec,
   # bookkeeping for within-slab Theta proposals (optional, but useful)
   theta_attempt  <- matrix(0L, K, K)
   theta_accept   <- matrix(0L, K, K)
+  # DEBUG: theta toggle diagnostics (do not leave on forever)
+  dbg_theta_prop_pos <- 0L      # number of times theta_prop > 0 is proposed
+  dbg_theta_logar_finite <- 0L  # number of times log_ar is finite
+  dbg_theta_logar_gt0 <- 0L     # number of times log_ar > 0 (would accept with prob > 0.5)
+  dbg_theta_accept <- 0L
+  dbg_toggle_up_attempt <- 0L   # theta_curr==0, propose >0
+  dbg_toggle_up_accept  <- 0L
+  dbg_toggle_dn_attempt <- 0L   # theta_curr>0, propose 0
+  dbg_toggle_dn_accept  <- 0L
+  dbg_logar_up_gt0 <- 0L
+  dbg_logar_dn_gt0 <- 0L
+  dbg_w <- 0L
+  dbg_r2_infinite <- 0L
+
 
   save_idx <- 0L
 
@@ -192,9 +208,10 @@ multiggm_mcmc <- function(S_list, n_vec,
       diag(adjk) <- 0L
       adjk <- ((adjk + t(adjk)) > 0L) * 1L
 
+      # sample off-diagonal elements for each graph
       for (ii in 1:(p - 1)) {
         for (jj in (ii + 1):p) {
-
+      #Step 1(a) Bernoulli proposal
           # log odds (MATLAB uses log_H - (nu + 2 Theta*adj))
           logH <- log_H_cpp(b_prior_vec[cur_graph],
                             D_prior_arr[, , cur_graph],
@@ -203,7 +220,9 @@ multiggm_mcmc <- function(S_list, n_vec,
                             Ck, ii, jj)
 
           # similarity penalty term
+          #?? where dis? is this the bernoulli prob?
           sim_term <- nu[ii, jj] + 2 * sum(Theta[cur_graph, ] * as.numeric(adj_arr[ii, jj, ]))
+
           # compute w safely; if undefined, skip this edge update
           w_logodds <- logH - sim_term
 
@@ -235,12 +254,20 @@ multiggm_mcmc <- function(S_list, n_vec,
 
           if (!is.finite(w) || is.na(w)) next
 
+          # indicates whether edge [[i,j]] is in G
           current_ij <- adjk[ii, jj]
+
+          # indicates whether edge [[i,j]] is in G'
+          # proposal will be 1 if runif(1)<w (i.e. will be an edge) with probability w
           propose_ij <- as.integer(stats::runif(1) < w)  # force 0/1 integer
+
+          ## TODO add check here to collect the ws to see if this is a problem?
+          dbg_w <- dbg_w + as.integer(stats::runif(1) < w)
 
           if (is.na(propose_ij) || is.na(current_ij)) next
           if (isTRUE(propose_ij != current_ij)) {
             # Step 1(b): sample proposal C under prior
+            ## function adapted from from Wang/Li paper and is in wangli.cpp
             out_prior <- GWishart_NOij_Gibbs_cpp(
               b_prior_vec[cur_graph],
               D_prior_arr[, , cur_graph],
@@ -248,9 +275,14 @@ multiggm_mcmc <- function(S_list, n_vec,
               as.integer(propose_ij),
               0L, 1L
             )
+            # soft move on if it didn't work in one iter
             if (isFALSE(out_prior$ok)) next
+            # otherwise collect it and move on
             C_prop <- out_prior$C
 
+            # Step 2(b) from expression at top of p.189 of Wang/Li paper (function adapted from them, contained in wangli.cpp)
+            ### TODO this is infinite!! problem??
+            # if it's alwasy infinite then  acceptance will always happen
             r2 <- log_GWishart_NOij_pdf_cpp(b_prior_vec[cur_graph],
                                            D_prior_arr[, , cur_graph],
                                            C_prop, ii, jj,
@@ -260,6 +292,7 @@ multiggm_mcmc <- function(S_list, n_vec,
                                         C_prop, ii, jj,
                                         as.integer(propose_ij))
 
+            # acceptance rate alpha = min(1, e^r2)
             if (log(stats::runif(1)) < r2) {
               adjk[ii, jj] <- propose_ij
               adjk[jj, ii] <- propose_ij
@@ -274,7 +307,7 @@ multiggm_mcmc <- function(S_list, n_vec,
                                           as.integer(current_ij),
                                           0L, 0L)
           if (isFALSE(out_g$ok)) {
-            # reject/skip update
+            # reject/skip update if it doesn't work in one iter rather than burn everything down
             next
           }
           Ck <- out_g$C
@@ -287,7 +320,7 @@ multiggm_mcmc <- function(S_list, n_vec,
                                                   D_post_arr[, , cur_graph],
                                                   adjk*1L, Ck, 0L, 1L)
       if (isFALSE(out_bips$ok)) {
-        # Numerical failure inside BIPS update; reject/skip and keep current state
+        # Numerical failure inside BIPS update; reject/skip and keep current state instead of burning everything downnnn
         next
       }
       C_arr[, , cur_graph] <- out_bips$C
@@ -297,106 +330,174 @@ multiggm_mcmc <- function(S_list, n_vec,
       if (iter > burnin && ((iter - burnin) %% thin == 0L)) {
         # Sig stored with thinning
         # will be copied below at save time
+        # MJ TODO:: Double check this happens?? why is this blank
       }
     }
 
-    # --- update Theta (network relatedness) ---
+    # --- update Theta (network relatedness): MATLAB-faithful Gamma proposals ---
     for (k in 1:(K - 1)) {
       for (m in (k + 1):K) {
-
+        # -----------------------------
         # Between-model (spike/slab) move
-        theta_prop <- if (Theta[k, m] == 0) stats::rgamma(1, shape = alpha_prop, scale = beta_prop) else 0
-        # bookkeeping
+        # MATLAB: if theta==0 propose Gamma; else propose 0
+        # -----------------------------
+        theta_curr <- Theta[k, m]
+        # DEBUG
+        if (theta_curr == 0) {
+          dbg_toggle_up_attempt <- dbg_toggle_up_attempt + 1L
+        } else {
+          dbg_toggle_dn_attempt <- dbg_toggle_dn_attempt + 1L
+        }
+        # end debug
+        theta_prop <- if (theta_curr == 0) stats::rgamma(1, shape = alpha_prop, scale = beta_prop) else 0
+
+        # bookkeeping: attempted toggle
         toggle_attempt[k, m] <- toggle_attempt[k, m] + 1L
+        if (theta_prop > 0) dbg_theta_prop_pos <- dbg_theta_prop_pos + 1L
 
         Theta_prop <- Theta
         Theta_prop[k, m] <- theta_prop
         Theta_prop[m, k] <- theta_prop
 
+        # get terms that are a sum over all edges on log scale
         sum_over_edges <- 0
         for (ii in 1:(p - 1)) {
           for (jj in (ii + 1):p) {
-            # log C(Theta, nu) terms
             sum_over_edges <- sum_over_edges +
-              calc_mrf_logC(Theta, nu[ii, jj]) +
-              2 * (theta_prop - Theta[m, k]) * as.numeric(adj_arr[ii, jj, k]) * as.numeric(adj_arr[ii, jj, m]) -
-              calc_mrf_logC(Theta_prop, nu[ii, jj])
+              ### is this where there's a discrepancy??
+              # TODO double check calc_mrf_logC function
+              calc_mrf_logC(Theta_prop,      nu[ii, jj]) +
+              2 * (theta_prop - theta_curr) *
+              as.numeric(adj_arr[ii, jj, k]) * as.numeric(adj_arr[ii, jj, m]) -
+              calc_mrf_logC(Theta, nu[ii, jj])
           }
-        }
+        } # in my testing one iteration this val was 183.01... is that too big?
 
-        if (theta_prop == 0) {
-          log_ar <- alpha_prop * log(beta_prop) - lgamma(alpha_prop) +
-            lgamma(alpha) - alpha * log(beta) -
-            (alpha - alpha_prop) * log(Theta[m, k]) +
-            (beta - beta_prop) * (Theta[m, k]) + sum_over_edges +
-            log(1 - my_w) - log(my_w)
+        # MATLAB-style log acceptance ratio
+
+        ## MJ modifying original to more closely follow matlab code
+
+        if (theta_prop ==0) {
+          log_ar = alpha_prop*log(beta_prop) - log(gamma(alpha_prop)) +
+            log(gamma(alpha)) - alpha*log(beta) - (alpha - alpha_prop)*log(theta_curr) +
+            sum_over_edges + log(1-my_w) - log(my_w)
         } else {
-          log_ar <- alpha * log(beta) - lgamma(alpha) +
-            lgamma(alpha_prop) - alpha_prop * log(beta_prop) -
-            (alpha - alpha_prop) * log(theta_prop) -
-            (beta - beta_prop) * theta_prop + sum_over_edges +
-            log(my_w) - log(1 - my_w)
-        }
+          log_ar = alpha*log(beta) - log(gamma(alpha)) + log(gamma(alpha_prop)) -
+            alpha_prop*log(beta_prop) - (alpha-alpha_prop)*log(theta_prop)-
+            (beta-beta_prop)*theta_prop + sum_over_edges + log(my_w) - log(1-my_w)
+        } ## then the log_ar was 178.6 mainly bc of the sum of edges
 
-        if (log_ar > log(stats::runif(1))) {
+       #  # Prior mixture on theta (spike at 0 with prob 1-w; slab Gamma(alpha,beta))
+       #  log_prior_prop <- if (theta_prop == 0) log(1 - my_w) else (log(my_w) + stats::dgamma(theta_prop, shape = alpha, scale = beta, log = TRUE))
+       #  ## another fix possibly - this previously was both log(1-my_w)
+       #  log_prior_curr <- if (theta_curr == 0) log(1- my_w) else (log(my_w) + stats::dgamma(theta_curr, shape = alpha, scale = beta, log = TRUE))
+       #
+       #  # Proposal densities: q(theta_prop | theta_curr)
+       #  # if leaving spike: propose from Gamma(alpha_prop,beta_prop)
+       #  # if leaving slab: propose 0 deterministically
+       #  log_q_prop_given_curr <- if (theta_curr == 0) stats::dgamma(theta_prop, shape = alpha_prop, scale = beta_prop, log = TRUE) else 0
+       #  log_q_curr_given_prop <- if (theta_prop == 0) stats::dgamma(theta_curr, shape = alpha_prop, scale = beta_prop, log = TRUE) else 0
+       #
+       #  log_ar <- (log_prior_prop - log_prior_curr) + sum_over_edges + (log_q_curr_given_prop - log_q_prop_given_curr)
+       # #debug below
+         if (is.finite(log_ar)) dbg_theta_logar_finite <- dbg_theta_logar_finite + 1L
+        if (is.finite(log_ar) && log_ar > 0) dbg_theta_logar_gt0 <- dbg_theta_logar_gt0 + 1L
+        if (theta_curr == 0 && is.finite(log_ar) && log_ar > 0) dbg_logar_up_gt0 <- dbg_logar_up_gt0 + 1L
+        if (theta_curr != 0 && is.finite(log_ar) && log_ar > 0) dbg_logar_dn_gt0 <- dbg_logar_dn_gt0 + 1L
+#end debug
+
+        # accept proposal with given prob
+        # will this always be accepted bc of log_ar bweing so big?
+        if (is.finite(log_ar) && log_ar > log(stats::runif(1))) {
           Theta[k, m] <- theta_prop
           Theta[m, k] <- theta_prop
-          toggle_accept[k, m] <- toggle_accept[k, m] + 1L #bookkeeping
+
+          # bookkeeping: toggle accepted
+          toggle_accept[k, m] <- toggle_accept[k, m] + 1L
+          # increment acceptance rate
           ar_gamma[k, m] <- ar_gamma[k, m] + 1 / niter
+          dbg_theta_accept <- dbg_theta_accept + 1L
+          if (theta_curr == 0) dbg_toggle_up_accept <- dbg_toggle_up_accept + 1L
+          if (theta_curr != 0) dbg_toggle_dn_accept <- dbg_toggle_dn_accept + 1L
+          #end bookkeeping
         }
 
-        # Within-model move (only if slab)
+        # -----------------------------
+        # Within-model (slab) move
+        # MATLAB: if theta!=0 propose Gamma(alpha_prop,beta_prop) (independence proposal)
+        # -----------------------------
         if (Theta[k, m] != 0) {
-          theta_attempt[k, m] <- theta_attempt[k, m] + 1L #bookeeping
+          # TODO find the n_within_model(k,m)
+
+          theta_curr2 <- Theta[k, m]
+          # so this is basically saying, if Theta is not zero, sample from gamma distribution.
+          # average rgamma() when alpha_prop = beta_prop = 1 should be 1
+          theta_prop2 <- stats::rgamma(1, shape = alpha_prop, scale = beta_prop)
+
+          # bookkeeping: within-slab attempt
+          theta_attempt[k, m] <- theta_attempt[k, m] + 1L
           n_within_model[k, m] <- n_within_model[k, m] + 1
-          # log-random-walk proposal (local move)
-          sd_rw <- .6
-          theta_curr <- Theta[k, m]
-          theta_prop2 <- theta_curr * exp(stats::rnorm(1, mean = 0, sd = sd_rw))
 
           Theta_prop2 <- Theta
           Theta_prop2[k, m] <- theta_prop2
           Theta_prop2[m, k] <- theta_prop2
 
+          # get terms that are a sum over all edges on log scale
           sum_over_edges2 <- 0
           for (ii in 1:(p - 1)) {
             for (jj in (ii + 1):p) {
               sum_over_edges2 <- sum_over_edges2 +
-                calc_mrf_logC(Theta, nu[ii, jj]) +
-                2 * (theta_prop2 - theta_curr) *
+                # MJ TODO double check this function - I think this is the root of the problem?
+                calc_mrf_logC(Theta_prop2,       nu[ii, jj]) +
+                2 * (theta_prop2 - theta_curr2) *
                 as.numeric(adj_arr[ii, jj, k]) * as.numeric(adj_arr[ii, jj, m]) -
-                calc_mrf_logC(Theta_prop2, nu[ii, jj])
+                calc_mrf_logC(Theta, nu[ii, jj])
             }
           }
 
-          # Prior ratio under Gamma(alpha, rate=beta):  (alpha-1)log(theta) - beta*theta
-          log_prior_ratio <- (alpha - 1) * (log(theta_prop2) - log(theta_curr)) -
-            beta * (theta_prop2 - theta_curr)
+          # Target ratio in slab: Gamma(alpha,beta) prior for theta * exp(sum_over_edges2)
+          # log_target_ratio <- (stats::dgamma(theta_prop2, shape = alpha, scale = beta, log = TRUE) -
+          #                        stats::dgamma(theta_curr2, shape = alpha, scale = beta, log = TRUE)) +
+          #   sum_over_edges2
+          #
+          # # Hastings for independence proposal q(.) = Gamma(alpha_prop,beta_prop)
+          # log_hastings <- stats::dgamma(theta_curr2, shape = alpha_prop, scale = beta_prop, log = TRUE) -
+          #   stats::dgamma(theta_prop2, shape = alpha_prop, scale = beta_prop, log = TRUE)
+          #
+          # log_theta_ar <- log_target_ratio + log_hastings
 
-          # Hastings correction for log-normal RW: q(curr|prop)/q(prop|curr) = prop/curr
-          log_hastings <- log(theta_prop2) - log(theta_curr)
+          #MJ redoing the above to match the matlab code better
+          log_theta_ar = (alpha - alpha_prop)*(log(theta_prop2) - log(theta_curr2)) +
+            (beta - beta_prop)*(theta_curr2 - theta_prop2) + sum_over_edges2
 
-          log_theta_ar <- log_prior_ratio + sum_over_edges2 + log_hastings
-
-          if (log_theta_ar > log(stats::runif(1))) {
+          # accept proposal with given probability
+          if (is.finite(log_theta_ar) && log_theta_ar > log(stats::runif(1))) {
             Theta[k, m] <- theta_prop2
             Theta[m, k] <- theta_prop2
+            # track number of proposals accepted
             ar_theta[k, m] <- ar_theta[k, m] + 1
-            # bookeeping
-            theta_accept[k, m] <- theta_accept[k, m] + 1L #bookeeping
+  #TODO go through and remove redundant bookkeeping
+            # bookkeeping: within-slab accept
+            theta_accept[k, m] <- theta_accept[k, m] + 1L
           }
         }
+
       }
     }
-    pos <- 0; tot <- 0
+    pos <- 0; tot <- 0 # TODO label these
+
+    # generate independent proposals for q from beta(aprop, bprop) density
     # --- update nu ---
     for (ii in 1:(p - 1)) {
       for (jj in (ii + 1):p) {
         q <- stats::rbeta(1, a_prop, b_prop)
         nu_prop <- log(q) - log(1 - q)
 
+        # calculate MH ratio on log scale
+
         log_nu_ar <- (nu_prop - nu[ii, jj]) * (sum(adj_arr[ii, jj, ]) + a - a_prop) -
           (a + b - a_prop - b_prop) * log(1 + exp(nu_prop)) -
+          # TODO check this function
           calc_mrf_logC(Theta, nu_prop) +
           (a + b - a_prop - b_prop) * log(1 + exp(nu[ii, jj])) +
           calc_mrf_logC(Theta, nu[ii, jj])
@@ -448,6 +549,20 @@ multiggm_mcmc <- function(S_list, n_vec,
     toggle_accept  = toggle_accept,
     theta_attempt  = theta_attempt,
     theta_accept   = theta_accept,
+      # number of accepted toggles (should match toggle_accept sum)
+    dbg_theta = list(
+      theta_prop_pos = dbg_theta_prop_pos,
+      logar_finite   = dbg_theta_logar_finite,
+      logar_gt0      = dbg_theta_logar_gt0,
+      accept         = dbg_theta_accept,
+      dbg_toggle_up_attempt = dbg_toggle_up_attempt,   # theta_curr==0, propose >0
+      dbg_toggle_up_accept  =dbg_toggle_up_accept,
+      dbg_toggle_dn_attempt =dbg_toggle_dn_attempt,   # theta_curr>0, propose 0
+      dbg_toggle_dn_accept  =dbg_toggle_dn_accept,
+      dbg_logar_up_gt0 =dbg_logar_up_gt0,
+      dbg_logar_dn_gt0 =dbg_logar_dn_gt0,
+      dbg_w = dbg_w
+    ),
     hyper = list(alpha = alpha, beta = beta, a = a, b = b, my_w = my_w,
                  alpha_prop = alpha_prop, beta_prop = beta_prop, a_prop = a_prop, b_prop = b_prop),
     call = match.call()
