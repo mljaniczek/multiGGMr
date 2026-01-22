@@ -37,69 +37,116 @@ static inline double log_gwishart_complete_pdf(const arma::mat& K, double b, con
   return ((b-2.0)/2.0)*logdetK - 0.5*trDK - logZ;
 }
 
+//Another helper
+static inline bool safe_chol_try(arma::mat& L,
+                                 const arma::mat& Ain,
+                                 const char* which = "lower",
+                                 double jitter0 = 1e-10,
+                                 int max_tries = 10) {
+  arma::mat A = 0.5 * (Ain + Ain.t()); // enforce symmetry
+
+  bool ok = arma::chol(L, A, which);
+  if (ok) return true;
+
+  double eps = jitter0;
+  for (int t = 0; t < max_tries; ++t) {
+    arma::mat Aj = A + eps * arma::eye(A.n_rows, A.n_cols);
+    ok = arma::chol(L, Aj, which);
+    if (ok) return true;
+    eps *= 10.0;
+  }
+  return false;
+}
+
+
 // Armadillo's inv_sympd() throws if the matrix is not numerically SPD.
 // In MCMC updates it is common to encounter matrices that are theoretically SPD
 // but fail due to floating point tolerances (near-zero eigenvalues).
 // This helper attempts a symmetric-PD inverse, adding a small diagonal jitter
 // if needed. It fails fast with an informative error if inversion is impossible.
-static inline arma::mat safe_inv_sympd(const arma::mat& A_in,
+
+// Attempt a symmetric positive definite inverse without throwing.
+// Returns true on success, false if not SPD even after adding diagonal jitter.
+static inline bool safe_inv_sympd_try(arma::mat& Ainv,
+                                      const arma::mat& A_in,
                                       double jitter0 = 1e-10,
-                                      int max_tries = 10){
+                                      int max_tries = 10) {
   arma::mat A = 0.5 * (A_in + A_in.t());
 
   // Fast path for 1x1
-  if(A.n_rows == 1u && A.n_cols == 1u){
+  if (A.n_rows == 1u && A.n_cols == 1u) {
     double a = A(0,0);
-    if(!(a > 0.0)){
-      // try jitter
-      a += jitter0;
-    }
-    if(!(a > 0.0)){
-      Rcpp::stop("safe_inv_sympd: 1x1 matrix not positive after jitter");
-    }
-    arma::mat out(1,1);
-    out(0,0) = 1.0 / a;
-    return out;
+    if (!(a > 0.0)) a += jitter0;
+    if (!(a > 0.0)) return false;
+    Ainv.set_size(1u,1u);
+    Ainv(0,0) = 1.0 / a;
+    return true;
   }
 
-  arma::mat Ainv;
   bool ok = arma::inv_sympd(Ainv, A);
-  if(ok) return Ainv;
+  if (ok) return true;
 
   double jitter = jitter0;
-  for(int t = 0; t < max_tries && !ok; ++t){
+  for (int t = 0; t < max_tries; ++t) {
     arma::mat Aj = A + jitter * arma::eye(A.n_rows, A.n_cols);
     ok = arma::inv_sympd(Ainv, Aj);
+    if (ok) return true;
     jitter *= 10.0;
   }
+  return false;
+}
+
+// Backwards-compatible wrapper: stop() if inversion fails.
+static inline arma::mat safe_inv_sympd(const arma::mat& A_in,
+                                      double jitter0 = 1e-10,
+                                      int max_tries = 10){
+  arma::mat Ainv;
+  bool ok = safe_inv_sympd_try(Ainv, A_in, jitter0, max_tries);
   if(!ok){
     Rcpp::stop("safe_inv_sympd: matrix not SPD even after diagonal jitter");
   }
-  return Ainv; // not reached
+  return Ainv;
 }
 
-static inline arma::mat wishart_rnd(const arma::mat& Sigma, double df){
-  // Bartlett decomposition: W = L * A * A' * L'
-  // where L = chol(Sigma) (upper); using lower for convenience
+
+static inline bool wishart_rnd_try(arma::mat& W_out,
+                                   const arma::mat& Sigma,
+                                   double df,
+                                   double jitter0 = 1e-10,
+                                   int max_tries = 10) {
+
   int p = (int)Sigma.n_rows;
-  arma::mat L = arma::chol(Sigma, "lower");
-  arma::mat A(p,p,fill::zeros);
-  for(int i=0;i<p;i++){
-    // diagonal sqrt(chi-square)
+
+  arma::mat L;
+  if (!safe_chol_try(L, Sigma, "lower", jitter0, max_tries)) {
+    return false;
+  }
+
+  arma::mat A(p, p, arma::fill::zeros);
+  for (int i = 0; i < p; i++) {
     A(i,i) = std::sqrt(R::rchisq(df - i));
-    for(int j=0;j<i;j++){
-      A(i,j) = R::rnorm(0.0,1.0);
+    for (int j = 0; j < i; j++) {
+      A(i,j) = R::rnorm(0.0, 1.0);
     }
   }
+
   arma::mat LA = L * A;
-  arma::mat W = LA * LA.t();
-  return 0.5*(W + W.t());
+  arma::mat W  = LA * LA.t();
+  W_out = 0.5 * (W + W.t());
+  return true;
 }
+
 
 // [[Rcpp::export]]
 arma::mat wishrnd_cpp(const arma::mat& Sigma, double df){
-  return wishart_rnd(Sigma, df);
+  arma::mat W;
+  bool ok = wishart_rnd_try(W, Sigma, df);
+  if(!ok){
+    Rcpp::stop("wishrnd_cpp: chol failed (Sigma not SPD even after jitter)");
+  }
+  return W;
 }
+
 
 // [[Rcpp::export]]
 double log_iwishart_invA_const_cpp(double df, const arma::mat& S){
@@ -293,13 +340,22 @@ arma::umat maximal_cliques_cpp(const arma::umat& adj0){
 }
 
 // [[Rcpp::export]]
+
 Rcpp::List GWishart_BIPS_maximumClique_cpp(double bG, const arma::mat& DG, const arma::umat& adj, arma::mat C, int burnin, int nmc){
+  // Port of Wang/Li GWishart_BIPS_maximumClique with robust SPD handling.
   int p = (int)DG.n_rows;
+
+  arma::umat adj_orig = adj;
+  arma::mat  C_orig  = C;
+
   arma::umat adj0 = adj;
   adj0.diag().zeros();
   arma::umat cliqueMatrix = maximal_cliques_cpp(adj0);
   int nc = (int)cliqueMatrix.n_cols;
+
+  // Respect sparsity pattern implied by adj (off-diagonal). Keep diagonal as-is.
   C = C % arma::conv_to<arma::mat>::from(adj);
+  C = 0.5*(C + C.t());
 
   arma::mat Sig(p,p,fill::zeros);
 
@@ -307,30 +363,55 @@ Rcpp::List GWishart_BIPS_maximumClique_cpp(double bG, const arma::mat& DG, const
     for(int ci=0; ci<nc; ci++){
       arma::uvec cliqueid = arma::find(cliqueMatrix.col(ci)==1);
       int cs = (int)cliqueid.n_elem;
-      arma::mat Sigma = safe_inv_sympd(DG.submat(cliqueid, cliqueid));
-      arma::mat A = wishart_rnd(Sigma, bG + cs - 1.0);
+
+      arma::mat Sigma;
+      if(!safe_inv_sympd_try(Sigma, DG.submat(cliqueid, cliqueid))) {
+        return Rcpp::List::create(_["C"]=C_orig, _["Sig"]=arma::mat(), _["adj"]=adj_orig, _["ok"]=false);
+      }
+
+      arma::mat A;
+      if (!wishart_rnd_try(A, Sigma, bG + cs - 1.0)) {
+        return Rcpp::List::create(
+          Rcpp::_["C"]   = C_orig,
+          Rcpp::_["Sig"] = arma::mat(),
+          Rcpp::_["adj"] = adj_orig,
+          Rcpp::_["ok"]  = false
+        );
+      }
 
       arma::mat C_12 = C.rows(cliqueid);
       C_12.shed_cols(cliqueid);
+
       arma::mat C_22 = C;
-      // remove clique rows/cols
       for(int k=(int)cliqueid.n_elem-1; k>=0; k--){
         C_22.shed_row(cliqueid(k));
         C_22.shed_col(cliqueid(k));
       }
-      arma::mat invC_22 = safe_inv_sympd(C_22);
+
+      arma::mat invC_22;
+      if(!safe_inv_sympd_try(invC_22, C_22)) {
+        return Rcpp::List::create(_["C"]=C_orig, _["Sig"]=arma::mat(), _["adj"]=adj_orig, _["ok"]=false);
+      }
+
       arma::mat C121 = C_12 * invC_22 * C_12.t();
       C121 = 0.5*(C121 + C121.t());
+
       arma::mat K_c = A + C121;
       K_c = 0.5*(K_c + K_c.t());
+
       C.submat(cliqueid, cliqueid) = K_c;
     }
+
     if(iter > burnin){
-      Sig = safe_inv_sympd(C);
+      if(!safe_inv_sympd_try(Sig, C)) {
+        return Rcpp::List::create(_["C"]=C_orig, _["Sig"]=arma::mat(), _["adj"]=adj_orig, _["ok"]=false);
+      }
     }
   }
-  return Rcpp::List::create(_["C"]=C, _["Sig"]=Sig);
+
+  return Rcpp::List::create(_["C"]=C, _["Sig"]=Sig, _["adj"]=adj_orig, _["ok"]=true);
 }
+
 
 // [[Rcpp::export]]
 Rcpp::List GWishart_NOij_Gibbs_cpp(double bG, const arma::mat& DG, arma::umat adj, arma::mat C, int i, int j, int edgeij, int burnin, int nmc){
@@ -338,23 +419,27 @@ Rcpp::List GWishart_NOij_Gibbs_cpp(double bG, const arma::mat& DG, arma::umat ad
   int p = (int)DG.n_rows;
   int ii=i-1, jj=j-1;
 
+  arma::umat adj_orig = adj;
+  arma::mat  C_orig  = C;
   // Ensure symmetry in C and adj
   C = 0.5*(C + C.t());
   arma::umat adjt = adj.t();
   arma::umat sum = adj + adjt;
   sum.transform( [](arma::uword x) { return (x > 0u) ? 1u : 0u; } );
   adj = sum;
-  adj.diag().ones();
+  adj.diag().zeros();
 
   // Apply constraint edgeij on (i,j)
   if(edgeij==0){
     C(ii,jj)=0; C(jj,ii)=0;
-    arma::mat Sigma = safe_inv_sympd( arma::mat(1,1,fill::value( DG(jj,jj) )) ); // placeholder
+    arma::mat Sigma;
+    if(!safe_inv_sympd_try(Sigma,  arma::mat(1,1,fill::value( DG(jj,jj) )) )) { return Rcpp::List::create(_["C"]=C_orig, _["Sig"]=arma::mat(), _["adj"]=adj_orig, _["ok"]=false); }
     // sample diagonal C(j,j)
     double A = R::rgamma(bG/2.0, 2.0/DG(jj,jj)); // gamma(shape, scale)
     arma::rowvec C_12 = C.row(jj); C_12.shed_col(jj);
     arma::mat C_22 = C; C_22.shed_row(jj); C_22.shed_col(jj);
-    arma::mat invC_22 = safe_inv_sympd(C_22);
+    arma::mat invC_22;
+    if(!safe_inv_sympd_try(invC_22, C_22)) { return Rcpp::List::create(_["C"]=C_orig, _["Sig"]=arma::mat(), _["adj"]=adj_orig, _["ok"]=false); }
     double c = as_scalar(C_12 * invC_22 * C_12.t());
     C(jj,jj) = A + c;
   } else {
@@ -364,7 +449,16 @@ Rcpp::List GWishart_NOij_Gibbs_cpp(double bG, const arma::mat& DG, arma::umat ad
     for(int k=0;k<p;k++) if(k!=ii && k!=jj) reorder(idx++)=k;
     reorder(idx++)=ii; reorder(idx++)=jj;
     arma::mat C_re = C.submat(reorder,reorder);
-    arma::mat R = arma::chol(C_re);
+    arma::mat R;
+    if (!safe_chol_try(R, C_re, "upper", 1e-10, 10)) {
+      return Rcpp::List::create(
+        Rcpp::_["C"]   = C_orig,
+        Rcpp::_["Sig"] = arma::mat(),
+        Rcpp::_["adj"] = adj_orig,
+        Rcpp::_["ok"]  = false
+      );
+    }
+
     double b = R(p-2,p-2); // p-1 in matlab => p-2
     double m_post = -b*DG(ii,jj)/DG(jj,jj);
     double sig_post = 1.0/std::sqrt(DG(jj,jj));
@@ -379,13 +473,14 @@ Rcpp::List GWishart_NOij_Gibbs_cpp(double bG, const arma::mat& DG, arma::umat ad
     C(jj,jj)=C_updated(1);
   }
 
-  arma::mat Sig = safe_inv_sympd(C);
+  arma::mat Sig;
+  if(!safe_inv_sympd_try(Sig, C)) { return Rcpp::List::create(_["C"]=C_orig, _["Sig"]=arma::mat(), _["adj"]=adj_orig, _["ok"]=false); }
   // isolated nodes
   // NOTE: qualify with arma::sum to avoid Rcpp sugar `sum()` overloads.
   // For `arma::umat`, `arma::sum(adj, 1)` returns an Armadillo column of uword;
   // convert explicitly to `arma::uvec`.
   arma::uvec deg = arma::conv_to<arma::uvec>::from(arma::sum(adj, 1)); // includes diagonal ones
-  arma::uvec isolated = find(deg==1);
+  arma::uvec isolated = find(deg==0);
   for(unsigned int t=0;t<isolated.n_elem;t++){
     int node = isolated(t);
     double Kc = R::rgamma(bG/2.0, 2.0/DG(node,node));
@@ -398,8 +493,17 @@ Rcpp::List GWishart_NOij_Gibbs_cpp(double bG, const arma::mat& DG, arma::umat ad
       for(int bidx=a+1;bidx<p;bidx++){
         if(adj(a,bidx)==1 && !(a==ii && bidx==jj)){
           arma::uvec cliqueid(2); cliqueid(0)=a; cliqueid(1)=bidx;
-          arma::mat Sigma = safe_inv_sympd(DG.submat(cliqueid,cliqueid));
-          arma::mat A = wishart_rnd(Sigma, bG + 1.0);
+          arma::mat Sigma;
+          if(!safe_inv_sympd_try(Sigma, DG.submat(cliqueid,cliqueid))) { return Rcpp::List::create(_["C"]=C_orig, _["Sig"]=arma::mat(), _["adj"]=adj_orig, _["ok"]=false); }
+          arma::mat A;
+          if (!wishart_rnd_try(A, Sigma, bG + 1.0)) {
+            return Rcpp::List::create(
+              Rcpp::_["C"]   = C_orig,
+              Rcpp::_["Sig"] = arma::mat(),
+              Rcpp::_["adj"] = adj_orig,
+              Rcpp::_["ok"]  = false
+            );
+          }
           arma::mat C_12 = C.rows(cliqueid);
           C_12.shed_cols(cliqueid);
 
@@ -408,18 +512,21 @@ Rcpp::List GWishart_NOij_Gibbs_cpp(double bG, const arma::mat& DG, arma::umat ad
           arma::mat Sig_22 = Sig;
           Sig_22.shed_rows(cliqueid);
           Sig_22.shed_cols(cliqueid);
-          arma::mat invSig_11 = safe_inv_sympd(Sig.submat(cliqueid,cliqueid));
+          arma::mat invSig_11;
+          if(!safe_inv_sympd_try(invSig_11, Sig.submat(cliqueid,cliqueid))) { return Rcpp::List::create(_["C"]=C_orig, _["Sig"]=arma::mat(), _["adj"]=adj_orig, _["ok"]=false); }
           invSig_11 = 0.5*(invSig_11 + invSig_11.t());
           arma::mat invC_22 = Sig_22 - Sig_12.t()*invSig_11*Sig_12;
 
           arma::mat K_c = A + C_12*invC_22*C_12.t();
           K_c = 0.5*(K_c + K_c.t());
 
-          arma::mat Delta = safe_inv_sympd( C.submat(cliqueid,cliqueid) - K_c );
+          arma::mat Delta;
+          if(!safe_inv_sympd_try(Delta,  C.submat(cliqueid,cliqueid) - K_c )) { return Rcpp::List::create(_["C"]=C_orig, _["Sig"]=arma::mat(), _["adj"]=adj_orig, _["ok"]=false); }
           C.submat(cliqueid,cliqueid) = K_c;
 
           arma::mat Sig_bb = Sig.submat(cliqueid,cliqueid);
-          arma::mat aa = safe_inv_sympd( Delta - Sig_bb );
+          arma::mat aa;
+          if(!safe_inv_sympd_try(aa,  Delta - Sig_bb )) { return Rcpp::List::create(_["C"]=C_orig, _["Sig"]=arma::mat(), _["adj"]=adj_orig, _["ok"]=false); }
           aa = 0.5*(aa + aa.t());
           Sig = Sig + Sig.cols(cliqueid)*aa*Sig.rows(cliqueid);
         }
@@ -427,5 +534,5 @@ Rcpp::List GWishart_NOij_Gibbs_cpp(double bG, const arma::mat& DG, arma::umat ad
     }
   }
 
-  return Rcpp::List::create(_["C"]=C, _["Sig"]=Sig, _["adj"]=adj);
+  return Rcpp::List::create(_["C"]=C, _["Sig"]=Sig, _["adj"]=adj, _["ok"]=true);
 }

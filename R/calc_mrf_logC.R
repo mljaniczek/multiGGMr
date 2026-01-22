@@ -17,5 +17,5 @@
 calc_mrf_logC <- function(Theta, nu) {
   Theta <- as.matrix(Theta)
   nu <- as.numeric(nu)
-  .calc_mrf_logC_cpp(Theta, nu)
+  calc_mrf_logC_cpp(Theta, nu)
 }
