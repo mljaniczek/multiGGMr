@@ -24,4 +24,6 @@
 Implements the MATLAB routine \code{MCMC_multiple_graphs.m} using the Wang–Li
 G-Wishart kernels (ported to RcppArmadillo).
 }
-\keyword{internal}
+\note{
+internal
+}

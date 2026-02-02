@@ -76,8 +76,8 @@ multiggm_mcmc <- function(S_list, n_vec,
 #' Implements the MATLAB routine \code{MCMC_multiple_graphs.m} using the Wang–Li
 #' G-Wishart kernels (ported to RcppArmadillo).
 #'
-#' @export
-multiggm_mcmc_single <- function(S_list, n_vec, burnin, nsave, thin,
+#' @note internal
+.multiggm_mcmc_single <- function(S_list, n_vec, burnin, nsave, thin,
                                  chain_id = 1L,
                                  Theta_init = NULL,
                                  nu_init = NULL,
@@ -114,7 +114,7 @@ multiggm_mcmc_single <- function(S_list, n_vec, burnin, nsave, thin,
   if (is.null(D_prior)) D_prior <- diag(p)
   if (is.null(Theta_init)) Theta <- matrix(0, K, K) else Theta <- as.matrix(Theta_init)
   # why is nu starting out as all -1?
-  if (is.null(nu_init)) nu <- matrix(0, p, p) else nu <- as.matrix(nu_init)
+  if (is.null(nu_init)) nu <- matrix(-1, p, p) else nu <- as.matrix(nu_init)
   if (is.null(C_init)) C_arr <- array(diag(p), dim = c(p, p, K)) else C_arr <- C_init
 
   if (!all(dim(D_prior) == c(p, p))) stop("D_prior must be p x p.")
@@ -349,7 +349,7 @@ multiggm_mcmc_single <- function(S_list, n_vec, burnin, nsave, thin,
           dbg_toggle_dn_attempt <- dbg_toggle_dn_attempt + 1L
         }
         # end debug
-        theta_prop <- if (theta_curr == 0) stats::rgamma(1, shape = alpha_prop, scale = beta_prop) else 0
+        theta_prop <- if (theta_curr == 0) stats::rgamma(1, shape = alpha_prop, rate = beta_prop) else 0
 
         # bookkeeping: attempted toggle
         toggle_attempt[k, m] <- toggle_attempt[k, m] + 1L
@@ -366,37 +366,50 @@ multiggm_mcmc_single <- function(S_list, n_vec, burnin, nsave, thin,
             sum_over_edges <- sum_over_edges +
               ### is this where there's a discrepancy??
               # TODO double check calc_mrf_logC function
-              calc_mrf_logC(Theta_prop,      nu[ii, jj]) +
+              calc_mrf_logC(Theta,      nu[ii, jj]) +
               2 * (theta_prop - theta_curr) *
               as.numeric(adj_arr[ii, jj, k]) * as.numeric(adj_arr[ii, jj, m]) -
-              calc_mrf_logC(Theta, nu[ii, jj])
+              calc_mrf_logC(Theta_prop, nu[ii, jj])
           }
         } # in my testing one iteration this val was 183.01... is that too big?
 
         # MATLAB-style log acceptance ratio
 
+
+
         ## MJ modifying original to more closely follow matlab code
 
-        if (theta_prop ==0) {
-          log_ar = alpha_prop*log(beta_prop) - log(gamma(alpha_prop)) +
-            log(gamma(alpha)) - alpha*log(beta) - (alpha - alpha_prop)*log(theta_curr) +
-            sum_over_edges + log(1-my_w) - log(my_w)
-        } else {
-          log_ar = alpha*log(beta) - log(gamma(alpha)) + log(gamma(alpha_prop)) -
-            alpha_prop*log(beta_prop) - (alpha-alpha_prop)*log(theta_prop)-
-            (beta-beta_prop)*theta_prop + sum_over_edges + log(my_w) - log(1-my_w)
-        } ## then the log_ar was 178.6 mainly bc of the sum of edges
+        # if (theta_prop ==0) {
+        #   log_ar = alpha_prop*log(beta_prop) - log(gamma(alpha_prop)) +
+        #     log(gamma(alpha)) - alpha*log(beta) - (alpha - alpha_prop)*log(theta_curr) +
+        #     sum_over_edges + log(1-my_w) - log(my_w)
+        # } else {
+        #   log_ar = alpha*log(beta) - log(gamma(alpha)) + log(gamma(alpha_prop)) -
+        #     alpha_prop*log(beta_prop) - (alpha-alpha_prop)*log(theta_prop)-
+        #     (beta-beta_prop)*theta_prop + sum_over_edges + log(my_w) - log(1-my_w)
+        # } ## then the log_ar was 178.6 mainly bc of the sum of edges
+
+        #welp the above didn't work so going back to other
+        # Mixture prior on theta:
+        log_prior_prop <- if (theta_prop == 0) log(1 - my_w) else log(my_w) + dgamma(theta_prop, shape = alpha, rate = beta, log = TRUE)
+        log_prior_curr <- if (theta_curr == 0) log(1 - my_w) else log(my_w) + dgamma(theta_curr, shape = alpha, rate = beta, log = TRUE)
+
+        # Toggle proposal kernel:
+        log_q_prop_given_curr <- if (theta_curr == 0) dgamma(theta_prop, shape = alpha_prop, rate = beta_prop, log = TRUE) else 0
+        log_q_curr_given_prop <- if (theta_prop == 0) dgamma(theta_curr, shape = alpha_prop, rate = beta_prop, log = TRUE) else 0
+
+        log_ar <- (log_prior_prop - log_prior_curr) + sum_over_edges + (log_q_curr_given_prop - log_q_prop_given_curr)
 
        #  # Prior mixture on theta (spike at 0 with prob 1-w; slab Gamma(alpha,beta))
-       #  log_prior_prop <- if (theta_prop == 0) log(1 - my_w) else (log(my_w) + stats::dgamma(theta_prop, shape = alpha, scale = beta, log = TRUE))
+       #  log_prior_prop <- if (theta_prop == 0) log(1 - my_w) else (log(my_w) + stats::dgamma(theta_prop, shape = alpha, rate = beta, log = TRUE))
        #  ## another fix possibly - this previously was both log(1-my_w)
-       #  log_prior_curr <- if (theta_curr == 0) log(1- my_w) else (log(my_w) + stats::dgamma(theta_curr, shape = alpha, scale = beta, log = TRUE))
+       #  log_prior_curr <- if (theta_curr == 0) log(1- my_w) else (log(my_w) + stats::dgamma(theta_curr, shape = alpha, rate = beta, log = TRUE))
        #
        #  # Proposal densities: q(theta_prop | theta_curr)
        #  # if leaving spike: propose from Gamma(alpha_prop,beta_prop)
        #  # if leaving slab: propose 0 deterministically
-       #  log_q_prop_given_curr <- if (theta_curr == 0) stats::dgamma(theta_prop, shape = alpha_prop, scale = beta_prop, log = TRUE) else 0
-       #  log_q_curr_given_prop <- if (theta_prop == 0) stats::dgamma(theta_curr, shape = alpha_prop, scale = beta_prop, log = TRUE) else 0
+       #  log_q_prop_given_curr <- if (theta_curr == 0) stats::dgamma(theta_prop, shape = alpha_prop, rate = beta_prop, log = TRUE) else 0
+       #  log_q_curr_given_prop <- if (theta_prop == 0) stats::dgamma(theta_curr, shape = alpha_prop, rate = beta_prop, log = TRUE) else 0
        #
        #  log_ar <- (log_prior_prop - log_prior_curr) + sum_over_edges + (log_q_curr_given_prop - log_q_prop_given_curr)
        # #debug below
@@ -432,7 +445,7 @@ multiggm_mcmc_single <- function(S_list, n_vec, burnin, nsave, thin,
           theta_curr2 <- Theta[k, m]
           # so this is basically saying, if Theta is not zero, sample from gamma distribution.
           # average rgamma() when alpha_prop = beta_prop = 1 should be 1
-          theta_prop2 <- stats::rgamma(1, shape = alpha_prop, scale = beta_prop)
+          theta_prop2 <- stats::rgamma(1, shape = alpha_prop, rate = beta_prop)
 
           # bookkeeping: within-slab attempt
           theta_attempt[k, m] <- theta_attempt[k, m] + 1L
@@ -448,10 +461,10 @@ multiggm_mcmc_single <- function(S_list, n_vec, burnin, nsave, thin,
             for (jj in (ii + 1):p) {
               sum_over_edges2 <- sum_over_edges2 +
                 # MJ TODO double check this function - I think this is the root of the problem?
-                calc_mrf_logC(Theta_prop2,       nu[ii, jj]) +
+                calc_mrf_logC(Theta,       nu[ii, jj]) +
                 2 * (theta_prop2 - theta_curr2) *
                 as.numeric(adj_arr[ii, jj, k]) * as.numeric(adj_arr[ii, jj, m]) -
-                calc_mrf_logC(Theta, nu[ii, jj])
+                calc_mrf_logC(Theta_prop2, nu[ii, jj])
             }
           }
 
@@ -467,8 +480,19 @@ multiggm_mcmc_single <- function(S_list, n_vec, burnin, nsave, thin,
           # log_theta_ar <- log_target_ratio + log_hastings
 
           #MJ redoing the above to match the matlab code better
-          log_theta_ar = (alpha - alpha_prop)*(log(theta_prop2) - log(theta_curr2)) +
-            (beta - beta_prop)*(theta_curr2 - theta_prop2) + sum_over_edges2
+          # log_theta_ar = (alpha - alpha_prop)*(log(theta_prop2) - log(theta_curr2)) +
+          #   (beta - beta_prop)*(theta_curr2 - theta_prop2) + sum_over_edges2
+
+          # once again my try didnt work so going back to try below instead:
+          log_target_ratio <- (dgamma(theta_prop2, shape=alpha, rate=beta, log=TRUE) -
+                                 dgamma(theta_curr2, shape=alpha, rate=beta, log=TRUE)) +
+            sum_over_edges2
+
+          log_hastings <- dgamma(theta_curr2, shape=alpha_prop, rate=beta_prop, log=TRUE) -
+            dgamma(theta_prop2, shape=alpha_prop, rate=beta_prop, log=TRUE)
+
+          log_theta_ar <- log_target_ratio + log_hastings
+
 
           # accept proposal with given probability
           if (is.finite(log_theta_ar) && log_theta_ar > log(stats::runif(1))) {
