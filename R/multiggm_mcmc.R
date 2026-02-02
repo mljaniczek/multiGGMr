@@ -349,7 +349,7 @@ multiggm_mcmc <- function(S_list, n_vec,
           dbg_toggle_dn_attempt <- dbg_toggle_dn_attempt + 1L
         }
         # end debug
-        theta_prop <- if (theta_curr == 0) stats::rgamma(1, shape = alpha_prop, rate = beta_prop) else 0
+        theta_prop <- if (theta_curr == 0) stats::rgamma(1, shape = alpha_prop, scale = beta_prop) else 0
 
         # bookkeeping: attempted toggle
         toggle_attempt[k, m] <- toggle_attempt[k, m] + 1L
@@ -391,25 +391,25 @@ multiggm_mcmc <- function(S_list, n_vec,
 
         #welp the above didn't work so going back to other
         # Mixture prior on theta:
-        log_prior_prop <- if (theta_prop == 0) log(1 - my_w) else log(my_w) + dgamma(theta_prop, shape = alpha, rate = beta, log = TRUE)
-        log_prior_curr <- if (theta_curr == 0) log(1 - my_w) else log(my_w) + dgamma(theta_curr, shape = alpha, rate = beta, log = TRUE)
+        log_prior_prop <- if (theta_prop == 0) log(1 - my_w) else log(my_w) + dgamma(theta_prop, shape = alpha, scale = beta, log = TRUE)
+        log_prior_curr <- if (theta_curr == 0) log(1 - my_w) else log(my_w) + dgamma(theta_curr, shape = alpha, scale = beta, log = TRUE)
 
         # Toggle proposal kernel:
-        log_q_prop_given_curr <- if (theta_curr == 0) dgamma(theta_prop, shape = alpha_prop, rate = beta_prop, log = TRUE) else 0
-        log_q_curr_given_prop <- if (theta_prop == 0) dgamma(theta_curr, shape = alpha_prop, rate = beta_prop, log = TRUE) else 0
+        log_q_prop_given_curr <- if (theta_curr == 0) dgamma(theta_prop, shape = alpha_prop, scale = beta_prop, log = TRUE) else 0
+        log_q_curr_given_prop <- if (theta_prop == 0) dgamma(theta_curr, shape = alpha_prop, scale = beta_prop, log = TRUE) else 0
 
         log_ar <- (log_prior_prop - log_prior_curr) + sum_over_edges + (log_q_curr_given_prop - log_q_prop_given_curr)
 
        #  # Prior mixture on theta (spike at 0 with prob 1-w; slab Gamma(alpha,beta))
-       #  log_prior_prop <- if (theta_prop == 0) log(1 - my_w) else (log(my_w) + stats::dgamma(theta_prop, shape = alpha, rate = beta, log = TRUE))
+       #  log_prior_prop <- if (theta_prop == 0) log(1 - my_w) else (log(my_w) + stats::dgamma(theta_prop, shape = alpha, scale = beta, log = TRUE))
        #  ## another fix possibly - this previously was both log(1-my_w)
-       #  log_prior_curr <- if (theta_curr == 0) log(1- my_w) else (log(my_w) + stats::dgamma(theta_curr, shape = alpha, rate = beta, log = TRUE))
+       #  log_prior_curr <- if (theta_curr == 0) log(1- my_w) else (log(my_w) + stats::dgamma(theta_curr, shape = alpha, scale = beta, log = TRUE))
        #
        #  # Proposal densities: q(theta_prop | theta_curr)
        #  # if leaving spike: propose from Gamma(alpha_prop,beta_prop)
        #  # if leaving slab: propose 0 deterministically
-       #  log_q_prop_given_curr <- if (theta_curr == 0) stats::dgamma(theta_prop, shape = alpha_prop, rate = beta_prop, log = TRUE) else 0
-       #  log_q_curr_given_prop <- if (theta_prop == 0) stats::dgamma(theta_curr, shape = alpha_prop, rate = beta_prop, log = TRUE) else 0
+       #  log_q_prop_given_curr <- if (theta_curr == 0) stats::dgamma(theta_prop, shape = alpha_prop, scale = beta_prop, log = TRUE) else 0
+       #  log_q_curr_given_prop <- if (theta_prop == 0) stats::dgamma(theta_curr, shape = alpha_prop, scale = beta_prop, log = TRUE) else 0
        #
        #  log_ar <- (log_prior_prop - log_prior_curr) + sum_over_edges + (log_q_curr_given_prop - log_q_prop_given_curr)
        # #debug below
@@ -427,7 +427,7 @@ multiggm_mcmc <- function(S_list, n_vec,
 
           # bookkeeping: toggle accepted
           toggle_accept[k, m] <- toggle_accept[k, m] + 1L
-          # increment acceptance rate
+          # increment acceptance scale
           ar_gamma[k, m] <- ar_gamma[k, m] + 1 / niter
           dbg_theta_accept <- dbg_theta_accept + 1L
           if (theta_curr == 0) dbg_toggle_up_accept <- dbg_toggle_up_accept + 1L
@@ -445,7 +445,7 @@ multiggm_mcmc <- function(S_list, n_vec,
           theta_curr2 <- Theta[k, m]
           # so this is basically saying, if Theta is not zero, sample from gamma distribution.
           # average rgamma() when alpha_prop = beta_prop = 1 should be 1
-          theta_prop2 <- stats::rgamma(1, shape = alpha_prop, rate = beta_prop)
+          theta_prop2 <- stats::rgamma(1, shape = alpha_prop, scale = beta_prop)
 
           # bookkeeping: within-slab attempt
           theta_attempt[k, m] <- theta_attempt[k, m] + 1L
@@ -484,12 +484,12 @@ multiggm_mcmc <- function(S_list, n_vec,
           #   (beta - beta_prop)*(theta_curr2 - theta_prop2) + sum_over_edges2
 
           # once again my try didnt work so going back to try below instead:
-          log_target_ratio <- (dgamma(theta_prop2, shape=alpha, rate=beta, log=TRUE) -
-                                 dgamma(theta_curr2, shape=alpha, rate=beta, log=TRUE)) +
+          log_target_ratio <- (dgamma(theta_prop2, shape=alpha, scale=beta, log=TRUE) -
+                                 dgamma(theta_curr2, shape=alpha, scale=beta, log=TRUE)) +
             sum_over_edges2
 
-          log_hastings <- dgamma(theta_curr2, shape=alpha_prop, rate=beta_prop, log=TRUE) -
-            dgamma(theta_prop2, shape=alpha_prop, rate=beta_prop, log=TRUE)
+          log_hastings <- dgamma(theta_curr2, shape=alpha_prop, scale=beta_prop, log=TRUE) -
+            dgamma(theta_prop2, shape=alpha_prop, scale=beta_prop, log=TRUE)
 
           log_theta_ar <- log_target_ratio + log_hastings
 

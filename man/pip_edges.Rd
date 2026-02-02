@@ -6,6 +6,9 @@
 \usage{
 pip_edges(fit, chain = 1L)
 }
+\arguments{
+\item{fit}{a multi_ggm_fit_list object}
+}
 \value{
 array \link{p,p,K}
 }
