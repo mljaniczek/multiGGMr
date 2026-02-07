@@ -353,6 +353,7 @@ multiggm_mcmc <- function(S_list, n_vec,
 
         # bookkeeping: attempted toggle
         toggle_attempt[k, m] <- toggle_attempt[k, m] + 1L
+        #
         if (theta_prop > 0) dbg_theta_prop_pos <- dbg_theta_prop_pos + 1L
 
         Theta_prop <- Theta
