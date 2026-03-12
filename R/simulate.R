@@ -1,0 +1,187 @@
+#' Simulate data from multiple Gaussian graphical models
+#'
+#' Generates K precision matrices with controlled shared structure and draws
+#' multivariate normal data from each. Follows the simulation design in
+#' Peterson et al. (2015, JASA) Section 5.1.
+#'
+#' @param K Number of sample groups.
+#' @param p Number of variables (nodes).
+#' @param n Sample size per group (scalar or length-K vector).
+#' @param graph_type Type of base graph:
+#'   \describe{
+#'     \item{\code{"band"}}{AR(2)-like banded structure as in Peterson et al.}
+#'     \item{\code{"random"}}{Erdos-Renyi random graph with density \code{edge_prob}.}
+#'     \item{\code{"hub"}}{Star/hub graph with \code{floor(p/5)} hubs.}
+#'   }
+#' @param edge_prob Probability of edge in base graph (used for \code{"random"}).
+#'   For \code{"band"}, this is ignored. Default 0.1.
+#' @param perturb_prob For groups k=2,...,K, probability of each edge being
+#'   flipped (added or removed) relative to the base graph. Controls how
+#'   different the groups are. Default 0.1.
+#' @param signal Magnitude range for off-diagonal precision entries.
+#'   A length-2 vector \code{c(lo, hi)}; signs are random. Default \code{c(0.3, 0.6)}.
+#' @param seed Optional random seed for reproducibility.
+#'
+#' @return A list with components:
+#'   \describe{
+#'     \item{\code{Omega_list}}{List of K true precision matrices (p x p).}
+#'     \item{\code{adj_list}}{List of K true adjacency matrices (p x p, 0/1).}
+#'     \item{\code{data_list}}{List of K data matrices (n_k x p).}
+#'     \item{\code{S_list}}{List of K cross-product matrices (p x p).}
+#'     \item{\code{n_vec}}{Integer vector of sample sizes.}
+#'     \item{\code{K}}{Number of groups.}
+#'     \item{\code{p}}{Number of variables.}
+#'   }
+#'
+#' @examples
+#' sim <- simulate_multiggm(K = 2, p = 10, n = 100, seed = 42)
+#' str(sim, max.level = 1)
+#'
+#' @export
+simulate_multiggm <- function(K = 2, p = 20, n = 100,
+                               graph_type = c("band", "random", "hub"),
+                               edge_prob = 0.1,
+                               perturb_prob = 0.1,
+                               signal = c(0.3, 0.6),
+                               seed = NULL) {
+
+  graph_type <- match.arg(graph_type)
+  if (!is.null(seed)) set.seed(seed)
+  n_vec <- rep_len(as.integer(n), K)
+
+  # --- Step 1: Generate base adjacency matrix ---
+  adj_base <- matrix(0L, p, p)
+
+ if (graph_type == "band") {
+    # AR(2) structure as in Peterson et al. Section 5.1
+    for (i in 1:(p - 1)) adj_base[i, i + 1] <- adj_base[i + 1, i] <- 1L
+    if (p > 2) {
+      for (i in 1:(p - 2)) adj_base[i, i + 2] <- adj_base[i + 2, i] <- 1L
+    }
+  } else if (graph_type == "random") {
+    # Erdos-Renyi
+    for (i in 1:(p - 1)) {
+      for (j in (i + 1):p) {
+        if (stats::runif(1) < edge_prob) {
+          adj_base[i, j] <- adj_base[j, i] <- 1L
+        }
+      }
+    }
+  } else if (graph_type == "hub") {
+    n_hubs <- max(1L, floor(p / 5))
+    hub_nodes <- seq(1, p, length.out = n_hubs + 1)[1:n_hubs]
+    hub_nodes <- as.integer(round(hub_nodes))
+    for (h in hub_nodes) {
+      spokes <- setdiff(seq_len(p), h)
+      # Connect hub to ~40% of other nodes
+      connected <- spokes[stats::runif(length(spokes)) < 0.4]
+      for (s in connected) {
+        adj_base[h, s] <- adj_base[s, h] <- 1L
+      }
+    }
+  }
+
+  # --- Step 2: Generate group-specific adjacencies by perturbing base ---
+  adj_list <- vector("list", K)
+  adj_list[[1]] <- adj_base
+
+  for (k in 2:K) {
+    adj_k <- adj_base
+    for (i in 1:(p - 1)) {
+      for (j in (i + 1):p) {
+        if (stats::runif(1) < perturb_prob) {
+          # Flip edge
+          adj_k[i, j] <- 1L - adj_k[i, j]
+          adj_k[j, i] <- adj_k[i, j]
+        }
+      }
+    }
+    adj_list[[k]] <- adj_k
+  }
+
+  # --- Step 3: Generate precision matrices ---
+  Omega_list <- vector("list", K)
+
+  for (k in seq_len(K)) {
+    Omega_k <- matrix(0, p, p)
+    diag(Omega_k) <- 1
+
+    # Fill off-diagonal entries where edges exist
+    for (i in 1:(p - 1)) {
+      for (j in (i + 1):p) {
+        if (adj_list[[k]][i, j] == 1L) {
+          val <- stats::runif(1, signal[1], signal[2]) * sample(c(-1, 1), 1)
+          Omega_k[i, j] <- val
+          Omega_k[j, i] <- val
+        }
+      }
+    }
+
+    # Make positive definite using the approach from Peterson et al. / Danaher et al.:
+    # divide each off-diagonal by (1.5 * sum of abs off-diagonals in its row), then
+    # average with transpose
+    Omega_k <- .make_pd(Omega_k)
+    Omega_list[[k]] <- Omega_k
+  }
+
+  # --- Step 4: Draw data from N(0, Omega_k^{-1}) ---
+  data_list <- vector("list", K)
+  S_list    <- vector("list", K)
+
+  for (k in seq_len(K)) {
+    Sigma_k <- solve(Omega_list[[k]])
+    # Ensure symmetry for chol
+    Sigma_k <- (Sigma_k + t(Sigma_k)) / 2
+
+    L <- chol(Sigma_k)  # upper Cholesky: Sigma = L'L
+    Xk <- matrix(stats::rnorm(n_vec[k] * p), nrow = n_vec[k], ncol = p) %*% L
+    # Column-center
+    Xk <- scale(Xk, center = TRUE, scale = FALSE)
+    data_list[[k]] <- Xk
+    S_list[[k]]    <- crossprod(Xk)
+  }
+
+  list(
+    Omega_list = Omega_list,
+    adj_list   = adj_list,
+    data_list  = data_list,
+    S_list     = S_list,
+    n_vec      = n_vec,
+    K          = K,
+    p          = p
+  )
+}
+
+
+#' Make a symmetric matrix positive definite
+#'
+#' Rescales off-diagonal entries row-wise and adds diagonal loading if needed.
+#'
+#' @param A Symmetric matrix with unit diagonal.
+#' @param denom_factor Scale factor (larger = more shrinkage). Default 1.5.
+#' @return A symmetric positive definite matrix.
+#' @keywords internal
+.make_pd <- function(A, denom_factor = 1.5) {
+  p <- nrow(A)
+
+  # Row-normalize off-diagonals (similar to fix_matrix but keeps original diagonal)
+  for (i in seq_len(p)) {
+    off_diag_sum <- sum(abs(A[i, ])) - abs(A[i, i])
+    if (off_diag_sum > 0) {
+      scale_factor <- 1 / (denom_factor * off_diag_sum)
+      A[i, ] <- A[i, ] * scale_factor
+      A[i, i] <- 1  # restore diagonal
+    }
+  }
+
+  # Symmetrize
+  A <- (A + t(A)) / 2
+
+  # If still not PD, add diagonal loading
+  eig_min <- min(eigen(A, symmetric = TRUE, only.values = TRUE)$values)
+  if (eig_min <= 0) {
+    A <- A + (abs(eig_min) + 0.1) * diag(p)
+  }
+
+  A
+}
