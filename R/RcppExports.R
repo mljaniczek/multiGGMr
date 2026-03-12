@@ -14,6 +14,10 @@ calc_mrf_logC_cpp <- function(Theta, nu) {
     .Call(`_multiGGM_calc_mrf_logC_cpp`, Theta, nu)
 }
 
+mcmc_engine_cpp <- function(S_list_r, n_vec_r, burnin, nsave, thin, b_prior, D_prior_r, a, b_beta, alpha, beta_rate, w_prior, alpha_prop, beta_prop, a_prop, b_prop, Theta_init_r, nu_init_r, C_init_r, verbose, print_every) {
+    .Call(`_multiGGM_mcmc_engine_cpp`, S_list_r, n_vec_r, burnin, nsave, thin, b_prior, D_prior_r, a, b_beta, alpha, beta_rate, w_prior, alpha_prop, beta_prop, a_prop, b_prop, Theta_init_r, nu_init_r, C_init_r, verbose, print_every)
+}
+
 wishrnd_cpp <- function(Sigma, df) {
     .Call(`_multiGGM_wishrnd_cpp`, Sigma, df)
 }
