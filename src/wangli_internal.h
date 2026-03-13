@@ -94,6 +94,32 @@ inline bool safe_inv_sympd_try(arma::mat& Ainv, const arma::mat& A_in,
   return false;
 }
 
+// General symmetric matrix inverse (does NOT require positive-definiteness).
+// Used for Woodbury-update intermediates (C_old - K_new) and (Delta - Sig_bb)
+// which are differences of PD matrices and can be indefinite.
+inline bool safe_inv_general_try(arma::mat& Ainv, const arma::mat& A_in,
+                                  double jitter0 = 1e-10, int max_tries = 10) {
+  arma::mat A = 0.5 * (A_in + A_in.t());
+  if (A.n_rows == 1u && A.n_cols == 1u) {
+    double a = A(0, 0);
+    if (std::abs(a) < 1e-15) return false;
+    Ainv.set_size(1u, 1u);
+    Ainv(0, 0) = 1.0 / a;
+    return true;
+  }
+  bool ok = arma::inv(Ainv, A);
+  if (ok) return true;
+  // Try with small jitter if singular
+  double jitter = jitter0;
+  for (int t = 0; t < max_tries; ++t) {
+    arma::mat Aj = A + jitter * arma::eye(A.n_rows, A.n_cols);
+    ok = arma::inv(Ainv, Aj);
+    if (ok) return true;
+    jitter *= 10.0;
+  }
+  return false;
+}
+
 inline arma::mat safe_inv_sympd(const arma::mat& A_in,
                                 double jitter0 = 1e-10, int max_tries = 10) {
   arma::mat Ainv;
@@ -497,12 +523,15 @@ inline GWishartResult gwishart_NOij_gibbs_internal(double bG, const arma::mat& D
           K_c = 0.5 * (K_c + K_c.t());
 
           arma::mat Delta;
-          if (!safe_inv_sympd_try(Delta, C.submat(cliqueid, cliqueid) - K_c)) return fail_result;
+          // NB: C_old - K_c is a difference of PD matrices, NOT necessarily PD.
+          // Must use general inverse, not inv_sympd.
+          if (!safe_inv_general_try(Delta, C.submat(cliqueid, cliqueid) - K_c)) return fail_result;
           C.submat(cliqueid, cliqueid) = K_c;
 
           arma::mat Sig_bb = Sig.submat(cliqueid, cliqueid);
           arma::mat aa;
-          if (!safe_inv_sympd_try(aa, Delta - Sig_bb)) return fail_result;
+          // NB: Delta - Sig_bb is also not necessarily PD.
+          if (!safe_inv_general_try(aa, Delta - Sig_bb)) return fail_result;
           aa = 0.5 * (aa + aa.t());
           Sig = Sig + Sig.cols(cliqueid) * aa * Sig.rows(cliqueid);
         }
