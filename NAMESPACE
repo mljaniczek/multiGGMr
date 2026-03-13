@@ -2,6 +2,10 @@ useDynLib(multiGGM, .registration = TRUE)
 importFrom(Rcpp, evalCpp)
 importFrom(stats, dgamma, rgamma, rbeta, runif, rnorm, quantile, cov)
 import(parallel)
+import(ggplot2)
+importFrom(rlang, .data)
+importFrom(igraph, graph_from_adjacency_matrix, V, "V<-", layout_with_fr)
+importFrom(igraph, plot.igraph)
 
 # Main fitting function
 export(multiggm_mcmc)
@@ -20,6 +24,8 @@ export(precision_to_pcor)
 export(posterior_pcor)
 export(posterior_ci)
 export(diff_prob_pcor)
+export(posterior_precision)
+export(edge_counts)
 
 # Edge selection utilities
 export(pip_edges)
@@ -27,8 +33,18 @@ export(pip_diff_edge)
 export(confusion_at_threshold)
 export(roc_auc)
 
+# Visualization
+export(plot_pip_heatmap)
+export(plot_trace)
+export(plot_network)
+export(plot_roc)
+export(plot_recovery)
+
 # S3 methods
 S3method(print, multiggm_fit)
 S3method(print, multiggm_fit_list)
 S3method(summary, multiggm_fit)
 S3method(print, summary.multiggm_fit)
+S3method(coef, multiggm_fit)
+S3method(fitted, multiggm_fit)
+S3method(plot, multiggm_fit)
