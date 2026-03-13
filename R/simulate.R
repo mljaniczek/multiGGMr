@@ -2,41 +2,62 @@
 #'
 #' Generates K precision matrices with controlled shared structure and draws
 #' multivariate normal data from each. Follows the simulation design in
-#' Peterson et al. (2015, JASA) Section 5.1.
+#' Peterson et al. (2015, JASA) Section 5.1. Group 1 uses the base graph
+#' directly; groups 2 through K perturb the base graph by randomly flipping
+#' edges with probability \code{perturb_prob}.
 #'
-#' @param K Number of sample groups.
-#' @param p Number of variables (nodes).
-#' @param n Sample size per group (scalar or length-K vector).
-#' @param graph_type Type of base graph:
+#' @param K Integer; number of sample groups. Default 2.
+#' @param p Integer; number of variables (nodes). Default 20.
+#' @param n Integer (scalar or length-K vector); sample size per group.
+#'   If scalar, all groups have the same sample size. Default 100.
+#' @param graph_type Character; type of base graph:
 #'   \describe{
-#'     \item{\code{"band"}}{AR(2)-like banded structure as in Peterson et al.}
-#'     \item{\code{"random"}}{Erdos-Renyi random graph with density \code{edge_prob}.}
-#'     \item{\code{"hub"}}{Star/hub graph with \code{floor(p/5)} hubs.}
+#'     \item{\code{"band"}}{AR(2)-like banded structure: edges between all
+#'       nodes within distance 2 (i.e., (i, i+1) and (i, i+2)). Produces
+#'       approximately \code{2p - 3} edges. Matches Peterson et al. Section
+#'       5.1.}
+#'     \item{\code{"random"}}{Erdos-Renyi random graph where each edge is
+#'       included independently with probability \code{edge_prob}.}
+#'     \item{\code{"hub"}}{Star/hub graph with \code{floor(p/5)} hub nodes,
+#'       each connected to approximately 40\% of other nodes.}
 #'   }
-#' @param edge_prob Probability of edge in base graph (used for \code{"random"}).
-#'   For \code{"band"}, this is ignored. Default 0.1.
-#' @param perturb_prob For groups k=2,...,K, probability of each edge being
-#'   flipped (added or removed) relative to the base graph. Controls how
-#'   different the groups are. Default 0.1.
-#' @param signal Magnitude range for off-diagonal precision entries.
-#'   A length-2 vector \code{c(lo, hi)}; signs are random. Default \code{c(0.3, 0.6)}.
-#' @param seed Optional random seed for reproducibility.
+#' @param edge_prob Numeric; probability of each edge in the base graph
+#'   (used only for \code{graph_type = "random"}). Default 0.1.
+#' @param perturb_prob Numeric; for groups \code{k = 2, ..., K}, the
+#'   probability that each edge is flipped (added if absent, removed if
+#'   present) relative to the base graph. Controls how different the groups
+#'   are. Set to 0 for identical graphs. Default 0.1.
+#' @param signal Numeric vector of length 2; magnitude range
+#'   \code{c(lo, hi)} for off-diagonal precision entries where edges exist.
+#'   Signs are chosen randomly. Default \code{c(0.3, 0.6)}.
+#' @param seed Optional integer random seed for reproducibility.
 #'
 #' @return A list with components:
 #'   \describe{
-#'     \item{\code{Omega_list}}{List of K true precision matrices (p x p).}
-#'     \item{\code{adj_list}}{List of K true adjacency matrices (p x p, 0/1).}
-#'     \item{\code{data_list}}{List of K data matrices (n_k x p).}
-#'     \item{\code{S_list}}{List of K cross-product matrices (p x p).}
-#'     \item{\code{n_vec}}{Integer vector of sample sizes.}
-#'     \item{\code{K}}{Number of groups.}
-#'     \item{\code{p}}{Number of variables.}
+#'     \item{\code{Omega_list}}{List of K true precision matrices (each
+#'       p x p, symmetric positive definite). Off-diagonal entries are
+#'       non-zero only where edges exist, after row-normalization to ensure
+#'       positive definiteness.}
+#'     \item{\code{adj_list}}{List of K true binary adjacency matrices (each
+#'       p x p, 0/1). \code{adj_list[[k]][i,j] = 1} if edge (i,j) exists
+#'       in group k.}
+#'     \item{\code{data_list}}{List of K data matrices (each n_k x p),
+#'       drawn from \eqn{N(0, \Omega_k^{-1})} and column-centered.}
+#'     \item{\code{S_list}}{List of K cross-product matrices (each p x p),
+#'       where \code{S_list[[k]] = t(X_k) \%*\% X_k} after centering.}
+#'     \item{\code{n_vec}}{Integer vector of length K with sample sizes.}
+#'     \item{\code{K}}{Integer; number of groups.}
+#'     \item{\code{p}}{Integer; number of variables.}
 #'   }
 #'
 #' @examples
 #' sim <- simulate_multiggm(K = 2, p = 10, n = 100, seed = 42)
 #' str(sim, max.level = 1)
 #'
+#' # Check true edge counts
+#' sapply(sim$adj_list, function(a) sum(a[upper.tri(a)]))
+#'
+#' @seealso [multiggm_mcmc()]
 #' @export
 simulate_multiggm <- function(K = 2, p = 20, n = 100,
                                graph_type = c("band", "random", "hub"),

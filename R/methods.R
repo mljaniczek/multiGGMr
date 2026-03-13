@@ -1,3 +1,10 @@
+#' Print a multiggm_fit object
+#'
+#' Displays a concise summary of a fitted multi-GGM model.
+#'
+#' @param x A \code{multiggm_fit} object returned by \code{\link{multiggm_mcmc}}.
+#' @param ... Ignored.
+#' @return Invisible \code{x}.
 #' @export
 print.multiggm_fit <- function(x, ...) {
   cat("<multiggm_fit>\n")
@@ -8,6 +15,14 @@ print.multiggm_fit <- function(x, ...) {
   invisible(x)
 }
 
+#' Print a multiggm_fit_list object
+#'
+#' Displays a concise summary of a multi-chain multi-GGM fit.
+#'
+#' @param x A \code{multiggm_fit_list} object returned by
+#'   \code{\link{multiggm_mcmc}} with \code{nchains > 1}.
+#' @param ... Ignored.
+#' @return Invisible \code{x}.
 #' @export
 print.multiggm_fit_list <- function(x, ...) {
   cat("<multiggm_fit_list>\n")
@@ -18,13 +33,43 @@ print.multiggm_fit_list <- function(x, ...) {
 
 #' Summarize a multiggm_fit object
 #'
-#' Displays MCMC diagnostics, acceptance rates, edge counts, and graph
-#' similarity (theta) estimates.
+#' Displays MCMC diagnostics including acceptance rates, edge counts at a
+#' given PIP threshold, and graph similarity (theta) estimates.
 #'
-#' @param object A \code{multiggm_fit} object.
-#' @param pip_threshold Threshold for counting selected edges. Default 0.5.
+#' @param object A \code{multiggm_fit} object returned by
+#'   \code{\link{multiggm_mcmc}}.
+#' @param pip_threshold Numeric threshold for counting selected edges via
+#'   posterior inclusion probability (PIP). Default 0.5.
 #' @param ... Ignored.
-#' @return A \code{summary.multiggm_fit} object (printed invisibly).
+#'
+#' @return An object of class \code{"summary.multiggm_fit"} (printed
+#'   invisibly) with components:
+#'   \describe{
+#'     \item{\code{K}}{Integer; number of groups.}
+#'     \item{\code{p}}{Integer; number of variables.}
+#'     \item{\code{nsave}}{Integer; number of saved posterior draws.}
+#'     \item{\code{ar_gamma}}{Numeric; mean acceptance rate for between-model
+#'       (spike-slab toggle) moves on theta.}
+#'     \item{\code{ar_theta}}{Numeric; mean acceptance rate for within-model
+#'       (slab-to-slab) moves on theta.}
+#'     \item{\code{ar_nu}}{Numeric; mean acceptance rate for nu updates.}
+#'     \item{\code{edge_counts}}{Integer vector of length K; number of selected
+#'       edges per group at the given PIP threshold.}
+#'     \item{\code{pip_threshold}}{The PIP threshold used.}
+#'     \item{\code{theta_mean}}{Numeric matrix \code{[K, K]}; posterior mean of
+#'       theta (graph similarity) for each pair of groups. Upper triangle only.}
+#'     \item{\code{theta_nonzero_frac}}{Numeric matrix \code{[K, K]}; posterior
+#'       probability that theta > 0 for each pair. Upper triangle only.}
+#'     \item{\code{hyper}}{Named list of hyperparameters used in the fit.}
+#'   }
+#'
+#' @examples
+#' sim <- simulate_multiggm(K = 2, p = 8, n = 80, seed = 1)
+#' fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 200, nsave = 100)
+#' summary(fit)
+#' summary(fit, pip_threshold = 0.3)
+#'
+#' @seealso [multiggm_mcmc()], [pip_edges()]
 #' @export
 summary.multiggm_fit <- function(object, pip_threshold = 0.5, ...) {
   K <- object$K
@@ -112,11 +157,36 @@ print.summary.multiggm_fit <- function(x, ...) {
 
 #' Extract posterior mean precision matrices
 #'
-#' Returns a list of K posterior mean precision matrices.
+#' Returns a list of K posterior mean precision matrices from a fitted
+#' multi-GGM model. This is the \code{coef} S3 method for
+#' \code{multiggm_fit} objects.
 #'
-#' @param object A \code{multiggm_fit} object.
+#' @param object A \code{multiggm_fit} object returned by
+#'   \code{\link{multiggm_mcmc}}.
 #' @param ... Ignored.
-#' @return A list of K numeric matrices (p x p).
+#'
+#' @return A named list of K numeric matrices (each p x p). Each matrix is
+#'   the element-wise posterior mean of the precision matrix \eqn{\Omega_k}
+#'   across all saved MCMC iterations. List names are \code{"Group_1"},
+#'   \code{"Group_2"}, etc.
+#'
+#' @details
+#' The precision matrix \eqn{\Omega_k} encodes the conditional independence
+#' structure of group \code{k}: \eqn{\Omega_{ij}^{(k)} = 0} if and only if
+#' variables \code{i} and \code{j} are conditionally independent in group
+#' \code{k}. The posterior mean is computed from \code{object$C_save}.
+#'
+#' For partial correlations (standardized precision), use
+#' \code{\link{fitted.multiggm_fit}} instead.
+#'
+#' @examples
+#' sim <- simulate_multiggm(K = 2, p = 8, n = 80, seed = 1)
+#' fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 200, nsave = 100)
+#' omega_hat <- coef(fit)
+#' round(omega_hat$Group_1[1:5, 1:5], 3)
+#'
+#' @seealso [fitted.multiggm_fit()], [posterior_precision()],
+#'   [posterior_pcor()]
 #' @export
 coef.multiggm_fit <- function(object, ...) {
   K <- object$K
@@ -131,11 +201,34 @@ coef.multiggm_fit <- function(object, ...) {
 
 #' Extract posterior mean partial correlation matrices
 #'
-#' Returns a list of K posterior mean partial correlation matrices.
+#' Returns a list of K posterior mean partial correlation matrices from a
+#' fitted multi-GGM model. This is the \code{fitted} S3 method for
+#' \code{multiggm_fit} objects.
 #'
-#' @param object A \code{multiggm_fit} object.
+#' @param object A \code{multiggm_fit} object returned by
+#'   \code{\link{multiggm_mcmc}}.
 #' @param ... Ignored.
-#' @return A list of K numeric matrices (p x p).
+#'
+#' @return A named list of K numeric matrices (each p x p). Each matrix is
+#'   the element-wise posterior mean of the partial correlation matrix
+#'   \eqn{P_k} across all saved MCMC iterations, where
+#'   \eqn{P_{ij}^{(k)} = -\Omega_{ij}^{(k)} / \sqrt{\Omega_{ii}^{(k)} \Omega_{jj}^{(k)}}}.
+#'   Diagonal entries are 1. List names are \code{"Group_1"},
+#'   \code{"Group_2"}, etc.
+#'
+#' @details
+#' For each saved iteration, the precision matrix \eqn{\Omega_k} is
+#' converted to a partial correlation matrix, then the posterior mean is
+#' taken element-wise. This is computed via \code{\link{posterior_pcor}}.
+#'
+#' @examples
+#' sim <- simulate_multiggm(K = 2, p = 8, n = 80, seed = 1)
+#' fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 200, nsave = 100)
+#' pcor_hat <- fitted(fit)
+#' round(pcor_hat$Group_1[1:5, 1:5], 3)
+#'
+#' @seealso [coef.multiggm_fit()], [posterior_pcor()],
+#'   [precision_to_pcor()]
 #' @export
 fitted.multiggm_fit <- function(object, ...) {
   pcor <- posterior_pcor(object)

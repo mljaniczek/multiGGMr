@@ -1,8 +1,11 @@
-#' Fit multi-graph Gaussian graphical model via MCMC
+#' Fit multiple Gaussian graphical models via MCMC
 #'
 #' Implements Bayesian inference of multiple Gaussian graphical models following
-#' Peterson, Stingo & Vannucci (2015, JASA). Supports both raw data and
-#' pre-computed covariance matrices, with optional parallel multi-chain execution.
+#' Peterson, Stingo & Vannucci (2015, JASA). Simultaneously estimates K
+#' group-specific precision matrices and their conditional independence graphs,
+#' borrowing strength across groups through a Markov random field (MRF) prior.
+#' Supports both raw data and pre-computed cross-product matrices, with optional
+#' parallel multi-chain execution.
 #'
 #' @param data_list Optional list of K data matrices (each n_k x p). If provided,
 #'   \code{S_list} and \code{n_vec} are computed automatically. Column-centers
@@ -11,14 +14,22 @@
 #'   \code{S_list[[k]] = t(X_k) \%*\% X_k} after column-centering.
 #' @param n_vec Integer vector of length K with sample sizes. Required when
 #'   \code{S_list} is provided; ignored when \code{data_list} is provided.
-#' @param burnin Integer burn-in iterations.
-#' @param nsave Integer number of saved posterior draws per chain (after thinning).
-#' @param thin Integer thinning interval.
-#' @param nchains Number of independent MCMC chains.
-#' @param parallel Logical; if TRUE, run chains in parallel using \pkg{parallel}.
-#' @param ncores Number of cores/workers to use when \code{parallel=TRUE}.
-#' @param seed Optional integer seed. If provided, chains use deterministic offsets.
+#' @param burnin Integer number of burn-in iterations (discarded). Default 5000.
+#' @param nsave Integer number of posterior draws to save per chain (after
+#'   burn-in and thinning). Default 1000.
+#' @param thin Integer thinning interval; every \code{thin}-th post-burn-in
+#'   iteration is saved. Default 1 (no thinning).
+#' @param nchains Integer number of independent MCMC chains. Default 1.
+#' @param parallel Logical; if \code{TRUE}, run chains in parallel using
+#'   \pkg{parallel}. Default \code{FALSE}.
+#' @param ncores Integer number of cores/workers when \code{parallel = TRUE}.
+#'   Default is one less than the number of detected cores.
+#' @param seed Optional integer random seed. If provided, chain \code{i} uses
+#'   seed \code{seed + 1000 * (i - 1)} for reproducibility.
 #' @param hyper Optional named list of hyperparameters. See Details.
+#' @param engine Character; \code{"cpp"} (default) uses the high-performance C++
+#'   MCMC engine. \code{"R"} uses the pure R fallback (slower, mainly for
+#'   debugging).
 #' @param ... Additional arguments forwarded to the single-chain engine.
 #'
 #' @details
@@ -27,17 +38,76 @@
 #' \describe{
 #'   \item{\code{b_prior}}{G-Wishart degrees of freedom (default 3).}
 #'   \item{\code{D_prior}}{G-Wishart scale matrix, p x p (default \code{diag(p)}).}
-#'   \item{\code{a, b}}{Beta(a, b) prior on q_ij = logit^{-1}(nu_ij). Default a=1, b=4
-#'     giving prior edge probability ~0.20.}
-#'   \item{\code{alpha, beta}}{Gamma(shape=alpha, rate=beta) prior on theta_km.
-#'     NOTE: \code{beta} is a RATE parameter. Default alpha=2, beta=5 giving mean=0.4.}
-#'   \item{\code{w}}{Bernoulli prior probability that gamma_km=1. Default 0.9.}
-#'   \item{\code{alpha_prop, beta_prop}}{Gamma(shape=alpha_prop, rate=beta_prop)
-#'     proposal for theta_km. Default alpha_prop=2, beta_prop=5.}
+#'   \item{\code{a, b}}{Beta(a, b) prior on \eqn{q_{ij} = \text{logit}^{-1}(\nu_{ij})}.
+#'     Default a = 1, b = 4, giving prior edge probability \eqn{\approx 0.20}.}
+#'   \item{\code{alpha, beta}}{Gamma(shape = alpha, rate = beta) slab prior on
+#'     \eqn{\theta_{km}}. NOTE: \code{beta} is a RATE parameter. Default
+#'     alpha = 2, beta = 5, giving mean = 0.4.}
+#'   \item{\code{w}}{Bernoulli prior probability that \eqn{\gamma_{km} = 1}
+#'     (graph similarity active). Default 0.9 (strong prior belief that groups
+#'     are related).}
+#'   \item{\code{alpha_prop, beta_prop}}{Gamma(shape = alpha_prop, rate = beta_prop)
+#'     proposal distribution for \eqn{\theta_{km}} in MH steps.
+#'     Default alpha_prop = 2, beta_prop = 5.}
 #' }
 #'
-#' @return An object of class \code{"multiggm_fit"} (single chain) or
-#'   \code{"multiggm_fit_list"} (multiple chains).
+#' @return For a single chain (\code{nchains = 1}), an object of class
+#'   \code{"multiggm_fit"} with the following components:
+#'   \describe{
+#'     \item{\code{K}}{Integer; number of groups.}
+#'     \item{\code{p}}{Integer; number of variables (nodes).}
+#'     \item{\code{C_save}}{Numeric array \code{[p, p, K, nsave]}; posterior
+#'       draws of the precision matrices \eqn{\Omega_k}. \code{C_save[,,k,s]}
+#'       is the precision matrix for group \code{k} at saved iteration \code{s}.}
+#'     \item{\code{Sig_save}}{Numeric array \code{[p, p, K, nsave]}; posterior
+#'       draws of the covariance matrices \eqn{\Sigma_k = \Omega_k^{-1}}.
+#'       \code{Sig_save[,,k,s]} is the covariance matrix for group \code{k} at
+#'       saved iteration \code{s}.}
+#'     \item{\code{adj_save}}{Integer array \code{[p, p, K, nsave]}; posterior
+#'       draws of the adjacency matrices \eqn{G_k}. \code{adj_save[i,j,k,s]} is
+#'       1 if edge (i,j) is included in group \code{k} at iteration \code{s},
+#'       0 otherwise.}
+#'     \item{\code{Theta_save}}{Numeric array \code{[K, K, nsave]}; posterior
+#'       draws of the graph similarity parameters \eqn{\theta_{km}}.
+#'       \code{Theta_save[k,m,s]} measures similarity between graphs \code{k}
+#'       and \code{m} at iteration \code{s}. Values > 0 indicate the model
+#'       borrows strength between those groups.}
+#'     \item{\code{nu_save}}{Numeric array \code{[p, p, nsave]}; posterior draws
+#'       of the edge-specific log-odds parameters \eqn{\nu_{ij}}.
+#'       \code{nu_save[i,j,s]} controls the baseline edge inclusion probability
+#'       for edge (i,j) across all groups at iteration \code{s}.}
+#'     \item{\code{ar_gamma}}{Numeric matrix \code{[K, K]}; acceptance rates for
+#'       the between-model (spike-slab toggle) moves on \eqn{\theta_{km}}.
+#'       Upper triangle only.}
+#'     \item{\code{ar_theta}}{Numeric matrix \code{[K, K]}; acceptance rates for
+#'       the within-model (slab-to-slab) moves on \eqn{\theta_{km}}.
+#'       Upper triangle only. Only meaningful when \eqn{\theta_{km} > 0}.}
+#'     \item{\code{ar_nu}}{Numeric matrix \code{[p, p]}; acceptance rates for
+#'       the \eqn{\nu_{ij}} MH updates. Upper triangle only.}
+#'     \item{\code{hyper}}{Named list of the hyperparameters used.}
+#'     \item{\code{call}}{The matched function call.}
+#'   }
+#'   For multiple chains (\code{nchains > 1}), an object of class
+#'   \code{"multiggm_fit_list"} with components:
+#'   \describe{
+#'     \item{\code{chains}}{List of \code{nchains} \code{multiggm_fit} objects.}
+#'     \item{\code{call}}{The matched function call.}
+#'     \item{\code{K}}{Integer; number of groups.}
+#'     \item{\code{nchains}}{Integer; number of chains.}
+#'   }
+#'
+#' @examples
+#' sim <- simulate_multiggm(K = 2, p = 10, n = 100, seed = 42)
+#' fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 500, nsave = 200)
+#' summary(fit)
+#'
+#' @references
+#' Peterson, C.B., Stingo, F.C. & Vannucci, M. (2015). Bayesian inference
+#' of multiple Gaussian graphical models. *Journal of the American
+#' Statistical Association*, 110(509), 159-174.
+#'
+#' @seealso [pip_edges()], [posterior_precision()], [posterior_pcor()],
+#'   [summary.multiggm_fit()], [coef.multiggm_fit()], [fitted.multiggm_fit()]
 #' @export
 multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
                           burnin = 5e3, nsave = 1e3, thin = 1,

@@ -1,18 +1,39 @@
 #' Log normalizing constant for the MRF prior (per edge)
 #'
-#' Computes log C(Theta, nu) where
-#' C(Theta, nu) = sum_{g in {0,1}^K} exp( nu * sum(g) + g' Theta g ).
+#' Computes the log normalizing constant \eqn{\log C(\Theta, \nu)} for the
+#' Markov random field prior on graph edge indicators, as defined in
+#' Peterson et al. (2015), Equation 3.2:
+#' \deqn{C(\Theta, \nu) = \sum_{g \in \{0,1\}^K} \exp(\nu \cdot \mathbf{1}'g + g'\Theta g)}
+#' This is the computational hot spot in the MRF prior evaluation and is
+#' implemented in C++ via RcppArmadillo for performance.
 #'
-#' This is the computational hot spot in the reference MATLAB implementation
-#' and is implemented in C++ via RcppArmadillo.
+#' @param Theta Numeric matrix (K x K); symmetric graph similarity
+#'   parameters. Off-diagonal entry \eqn{\Theta_{km}} controls the tendency
+#'   for edge inclusion to be shared between groups k and m.
+#' @param nu Numeric vector of length 1 or more; edge-specific log-odds
+#'   parameters \eqn{\nu_{ij}}. Each value controls the baseline edge
+#'   inclusion probability for one edge across all groups.
 #'
-#' @param Theta K x K numeric matrix (graph similarity parameters).
-#' @param nu Numeric vector of length 1 or more (edge-specific log-odds).
-#' @return Numeric vector logC of the same length as nu.
+#' @return Numeric vector of the same length as \code{nu}, where each entry
+#'   is \eqn{\log C(\Theta, \nu_{ij})} for the corresponding \eqn{\nu_{ij}}.
+#'
+#' @details
+#' The computation requires summing over all \eqn{2^K} binary vectors in
+#' \eqn{\{0,1\}^K}, which is feasible for moderate K (the method is designed
+#' for K up to about 20). For each binary vector \eqn{g}, the term
+#' \eqn{\nu \cdot \mathbf{1}'g + g'\Theta g} is computed and the log-sum-exp
+#' trick is used for numerical stability.
+#'
 #' @examples
-#' Theta <- matrix(0, 3, 3)
-#' nu <- c(-1, 0, 1)
-#' calc_mrf_logC(Theta, nu)
+#' # Two groups, no similarity
+#' Theta <- matrix(0, 2, 2)
+#' calc_mrf_logC(Theta, nu = c(-1, 0, 1))
+#'
+#' # Two groups with similarity theta = 0.5
+#' Theta[1,2] <- Theta[2,1] <- 0.5
+#' calc_mrf_logC(Theta, nu = c(-1, 0, 1))
+#'
+#' @seealso [multiggm_mcmc()]
 #' @export
 calc_mrf_logC <- function(Theta, nu) {
   Theta <- as.matrix(Theta)
