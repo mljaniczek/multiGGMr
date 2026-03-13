@@ -372,7 +372,12 @@ inline GWishartResult gwishart_BIPS_internal(double bG, const arma::mat& DG,
   arma::umat cliqueMatrix = maximal_cliques_internal(adj0);
   int nc = (int)cliqueMatrix.n_cols;
 
-  C = C % arma::conv_to<arma::mat>::from(adj);
+  // Enforce graph sparsity: zero off-diagonal entries where no edge exists,
+  // but PRESERVE diagonal (diagonal entries are always present in precision
+  // matrices; zeroing them makes C singular and causes BIPS to fail).
+  arma::umat adj_with_diag = adj;
+  adj_with_diag.diag().ones();
+  C = C % arma::conv_to<arma::mat>::from(adj_with_diag);
   C = 0.5 * (C + C.t());
 
   arma::mat Sig(p, p, arma::fill::zeros);

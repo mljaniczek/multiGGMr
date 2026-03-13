@@ -2,17 +2,39 @@
 #'
 #' Produces diagnostic and summary plots for a fitted multi-GGM model.
 #'
-#' @param x A \code{multiggm_fit} object.
+#' @param x A \code{multiggm_fit} object returned by
+#'   \code{\link{multiggm_mcmc}}.
 #' @param type Character string specifying the plot type:
 #'   \describe{
-#'     \item{\code{"trace_theta"}}{Trace plots of theta (graph similarity) parameters.}
-#'     \item{\code{"trace_edges"}}{Trace of edge count per group across iterations.}
-#'     \item{\code{"pip"}}{Heatmap of posterior inclusion probabilities.}
-#'     \item{\code{"network"}}{Network plot of estimated graph at given PIP threshold.}
+#'     \item{\code{"trace_theta"}}{Trace plots of the graph similarity
+#'       parameter \eqn{\theta_{km}} across post-burn-in iterations. Values
+#'       > 0 indicate the model is borrowing strength between groups.
+#'       Requires K >= 2.}
+#'     \item{\code{"trace_edges"}}{Trace of the number of included edges per
+#'       group across iterations. Useful for assessing convergence and
+#'       stationarity of model complexity.}
+#'     \item{\code{"pip"}}{Heatmap of posterior inclusion probabilities (PIP)
+#'       for each edge, faceted by group. Uses viridis color scale.}
+#'     \item{\code{"network"}}{Network visualization of the estimated graph
+#'       at the given PIP threshold, using igraph. One plot per group.}
 #'   }
-#' @param pip_threshold PIP threshold for network plot. Default 0.5.
+#' @param pip_threshold Numeric; PIP threshold for edge selection in
+#'   network plots. Default 0.5. Ignored for other plot types.
 #' @param ... Additional arguments (currently ignored).
-#' @return A ggplot object (for trace/pip/roc) or NULL (for network, which uses igraph).
+#'
+#' @return For \code{"trace_theta"}, \code{"trace_edges"}, and \code{"pip"}:
+#'   a \code{ggplot} object (can be further customized). For
+#'   \code{"network"}: invisible \code{NULL} (plots are drawn as a side
+#'   effect using igraph).
+#'
+#' @examples
+#' sim <- simulate_multiggm(K = 2, p = 8, n = 80, seed = 1)
+#' fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 200, nsave = 100)
+#' plot(fit, type = "trace_edges")
+#' plot(fit, type = "pip")
+#'
+#' @seealso [plot_trace()], [plot_pip_heatmap()], [plot_network()],
+#'   [plot_roc()], [plot_recovery()]
 #' @export
 plot.multiggm_fit <- function(x, type = c("trace_theta", "trace_edges", "pip", "network"),
                                pip_threshold = 0.5, ...) {
@@ -36,10 +58,29 @@ plot.multiggm_fit <- function(x, type = c("trace_theta", "trace_edges", "pip", "
 
 #' Trace plots for MCMC diagnostics
 #'
-#' @param fit A \code{multiggm_fit} object.
-#' @param what Character: \code{"theta"} for graph similarity parameters,
-#'   \code{"edges"} for edge counts per group.
-#' @return A ggplot object.
+#' Creates trace plots to assess MCMC convergence. Supports plotting either
+#' the graph similarity parameter (theta) or the number of edges per group
+#' across saved iterations.
+#'
+#' @param fit A \code{multiggm_fit} object returned by
+#'   \code{\link{multiggm_mcmc}}.
+#' @param what Character; what to plot:
+#'   \describe{
+#'     \item{\code{"theta"}}{Graph similarity parameters \eqn{\theta_{km}}
+#'       for each pair of groups. Requires K >= 2.}
+#'     \item{\code{"edges"}}{Number of edges per group at each saved
+#'       iteration. Color-coded by group.}
+#'   }
+#'
+#' @return A \code{ggplot} object.
+#'
+#' @examples
+#' sim <- simulate_multiggm(K = 2, p = 8, n = 80, seed = 1)
+#' fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 200, nsave = 100)
+#' plot_trace(fit, "theta")
+#' plot_trace(fit, "edges")
+#'
+#' @seealso [plot.multiggm_fit()], [edge_counts()]
 #' @export
 plot_trace <- function(fit, what = c("theta", "edges")) {
   what <- match.arg(what)
@@ -106,10 +147,24 @@ plot_trace <- function(fit, what = c("theta", "edges")) {
 
 #' Heatmap of posterior inclusion probabilities
 #'
-#' @param pip An array of PIPs: either \code{[p, p]} (single group) or
-#'   \code{[p, p, K]} (multiple groups from \code{pip_edges()}).
-#' @param node_labels Optional character vector of node names.
-#' @return A ggplot object.
+#' Creates a heatmap of posterior inclusion probabilities (PIP) using
+#' ggplot2 with a viridis color scale. Only the upper triangle is shown.
+#'
+#' @param pip A numeric array of PIPs: either \code{[p, p]} (single group)
+#'   or \code{[p, p, K]} (multiple groups, as returned by
+#'   \code{\link{pip_edges}}).
+#' @param node_labels Optional character vector of length p with node names.
+#'   If \code{NULL}, nodes are labeled 1 through p.
+#'
+#' @return A \code{ggplot} object. For K > 1, faceted by group.
+#'
+#' @examples
+#' sim <- simulate_multiggm(K = 2, p = 8, n = 80, seed = 1)
+#' fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 200, nsave = 100)
+#' pip <- pip_edges(fit)
+#' plot_pip_heatmap(pip)
+#'
+#' @seealso [pip_edges()], [plot.multiggm_fit()]
 #' @export
 plot_pip_heatmap <- function(pip, node_labels = NULL) {
   dims <- dim(pip)
@@ -161,15 +216,26 @@ plot_pip_heatmap <- function(pip, node_labels = NULL) {
 
 #' Network plot of an adjacency matrix
 #'
-#' Uses igraph to visualize a graph.
+#' Visualizes a graph using igraph with Fruchterman-Reingold layout.
 #'
-#' @param adj A symmetric adjacency matrix (0/1 or weighted).
-#' @param layout igraph layout function or matrix. Default: Fruchterman-Reingold.
-#' @param node_labels Optional character vector of node names.
-#' @param main Plot title.
-#' @param vertex_size Node size. Default 15.
+#' @param adj A symmetric adjacency matrix (0/1 or weighted). Non-zero
+#'   entries are treated as edges.
+#' @param layout An igraph layout function or a two-column matrix of node
+#'   coordinates. Default: Fruchterman-Reingold (\code{layout_with_fr}).
+#' @param node_labels Optional character vector of node names. If
+#'   \code{NULL}, nodes are labeled 1 through p.
+#' @param main Character; plot title. Default \code{""}.
+#' @param vertex_size Numeric; node size. Default 15.
 #' @param ... Additional arguments passed to \code{igraph::plot.igraph()}.
-#' @return Invisible NULL. Plot is drawn as a side effect.
+#'
+#' @return Invisible \code{NULL}. The plot is drawn as a side effect.
+#'
+#' @examples
+#' adj <- matrix(0, 5, 5)
+#' adj[1,2] <- adj[2,1] <- adj[2,3] <- adj[3,2] <- 1
+#' plot_network(adj, main = "Simple graph")
+#'
+#' @seealso [plot.multiggm_fit()], [pip_edges()]
 #' @export
 plot_network <- function(adj, layout = NULL, node_labels = NULL,
                           main = "", vertex_size = 15, ...) {
@@ -199,11 +265,25 @@ plot_network <- function(adj, layout = NULL, node_labels = NULL,
   invisible(NULL)
 }
 
-#' Plot ROC curve from roc_auc output
+#' Plot ROC curve
 #'
-#' @param roc_obj Output from \code{roc_auc()}: a list with FPR, TPR, auc.
-#' @param main Optional title.
-#' @return A ggplot object.
+#' Creates a ROC curve plot from the output of \code{\link{roc_auc}},
+#' with AUC annotation.
+#'
+#' @param roc_obj A list as returned by \code{\link{roc_auc}}, with
+#'   components \code{FPR}, \code{TPR}, and \code{auc}.
+#' @param main Character; plot title. Default \code{"ROC Curve"}.
+#'
+#' @return A \code{ggplot} object.
+#'
+#' @examples
+#' sim <- simulate_multiggm(K = 2, p = 8, n = 80, seed = 1)
+#' fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 200, nsave = 100)
+#' pip <- pip_edges(fit)
+#' roc <- roc_auc(pip[,,1], sim$adj_list[[1]])
+#' plot_roc(roc)
+#'
+#' @seealso [roc_auc()], [plot_recovery()]
 #' @export
 plot_roc <- function(roc_obj, main = "ROC Curve") {
   df <- data.frame(FPR = roc_obj$FPR, TPR = roc_obj$TPR)
@@ -220,15 +300,28 @@ plot_roc <- function(roc_obj, main = "ROC Curve") {
 
 #' Compare estimated graph to ground truth
 #'
-#' Shows side-by-side heatmaps of true adjacency, PIP, and thresholded
-#' estimate. Returns confusion metrics invisibly.
+#' Shows side-by-side heatmaps of the true adjacency matrix, PIP, and
+#' thresholded estimate. Returns confusion metrics invisibly.
 #'
-#' @param fit A \code{multiggm_fit} object.
-#' @param true_adj A list of K true adjacency matrices, or a single matrix
-#'   (recycled for all groups).
-#' @param pip_threshold Threshold for edge selection. Default 0.5.
-#' @param groups Which groups to plot. Default: all.
-#' @return A list of confusion metrics per group (invisible).
+#' @param fit A \code{multiggm_fit} object returned by
+#'   \code{\link{multiggm_mcmc}}.
+#' @param true_adj A list of K true adjacency matrices (0/1), or a single
+#'   matrix (recycled for all groups).
+#' @param pip_threshold Numeric; threshold for edge selection. Default 0.5.
+#' @param groups Integer vector; which groups to plot. Default: all groups.
+#'
+#' @return A named list of confusion metric vectors per group (invisible).
+#'   Each element is a named numeric vector as returned by
+#'   \code{\link{confusion_at_threshold}}, with components \code{TP},
+#'   \code{FP}, \code{TN}, \code{FN}, \code{TPR}, \code{FPR}.
+#'
+#' @examples
+#' sim <- simulate_multiggm(K = 2, p = 8, n = 80, seed = 1)
+#' fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 200, nsave = 100)
+#' cm <- plot_recovery(fit, sim$adj_list)
+#' cm$Group_1  # confusion metrics for group 1
+#'
+#' @seealso [confusion_at_threshold()], [roc_auc()], [plot_roc()]
 #' @export
 plot_recovery <- function(fit, true_adj, pip_threshold = 0.5, groups = NULL) {
   pip <- pip_edges(fit)
