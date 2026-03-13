@@ -138,7 +138,53 @@ confusion_at_threshold <- function(score_mat, truth_mat, thr, upper_only = TRUE)
   c(TP=TP, FP=FP, TN=TN, FN=FN, TPR=TPR, FPR=FPR)
 }
 
-# TODO flesh out these last few functions, document everything
+#' Extract posterior summary of precision matrices
+#'
+#' Returns a list of K matrices summarizing the posterior precision draws.
+#'
+#' @param fit A \code{multiggm_fit} or \code{multiggm_fit_list} object.
+#' @param summary_fun Function to apply across posterior draws. Default \code{mean}.
+#' @param chain Which chain (if \code{fit_list}). Default 1.
+#' @return A list of K numeric matrices (p x p).
+#' @export
+posterior_precision <- function(fit, summary_fun = mean, chain = 1L) {
+  if (inherits(fit, "multiggm_fit_list")) fit <- fit$chains[[chain]]
+  K <- fit$K
+  out <- vector("list", K)
+  for (k in seq_len(K)) {
+    out[[k]] <- apply(fit$C_save[, , k, , drop = FALSE], c(1, 2), summary_fun)
+  }
+  names(out) <- paste0("Group_", seq_len(K))
+  out
+}
+
+#' Per-iteration edge counts for convergence checking
+#'
+#' Computes the number of edges in each group at each saved iteration.
+#' Useful for trace plots of model complexity.
+#'
+#' @param fit A \code{multiggm_fit} or \code{multiggm_fit_list} object.
+#' @param chain Which chain (if \code{fit_list}). Default 1.
+#' @return A matrix with \code{nsave} rows and K columns.
+#' @export
+edge_counts <- function(fit, chain = 1L) {
+  if (inherits(fit, "multiggm_fit_list")) fit <- fit$chains[[chain]]
+  A <- fit$adj_save  # [p, p, K, nsave]
+  nsave <- dim(A)[4]
+  K <- dim(A)[3]
+  p <- dim(A)[1]
+
+  ec <- matrix(0L, nsave, K)
+  for (s in seq_len(nsave)) {
+    for (k in seq_len(K)) {
+      # Count upper triangle edges
+      ec[s, k] <- sum(A[, , k, s][upper.tri(A[, , k, s])] > 0)
+    }
+  }
+  colnames(ec) <- paste0("Group_", seq_len(K))
+  ec
+}
+
 #' ROC and AUC from continuous scores
 #' @export
 roc_auc <- function(score_mat, truth_mat) {

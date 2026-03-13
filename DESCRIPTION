@@ -1,7 +1,7 @@
 Package: multiGGM
 Type: Package
 Title: Bayesian Inference of Multiple Gaussian Graphical Models
-Version: 0.0.3
+Version: 0.1.0
 Authors@R: c(
     person(given = "Christine B.", family = "Peterson", role = c("aut")),
     person(given = "First", family = "Last", role = c("cre"), email = "first.last@example.com"))
@@ -16,7 +16,9 @@ LazyData: true
 Imports:
     Matrix,
     stats,
-    parallel
+    parallel,
+    ggplot2,
+    igraph
 LinkingTo:
     Rcpp,
     RcppArmadillo
@@ -25,5 +27,6 @@ Suggests:
     knitr,
     rmarkdown
 Config/testthat/edition: 3
+VignetteBuilder: knitr
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2

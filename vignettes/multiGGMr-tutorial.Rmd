@@ -1,0 +1,207 @@
+---
+title: "Getting Started with multiGGM"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting Started with multiGGM}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 5
+)
+```
+
+## Introduction
+
+The **multiGGM** package implements the Bayesian method of Peterson, Stingo
+& Vannucci (2015, *JASA*) for joint inference of multiple Gaussian graphical
+models (GGMs). Given data from $K$ groups, the method simultaneously
+estimates group-specific precision matrices $\Omega_k$ and their
+associated conditional independence graphs $G_k$, while borrowing
+strength across groups through a Markov random field (MRF) prior.
+
+This vignette walks through:
+
+1. Simulating multi-group data with known graph structure
+2. Fitting the model with `multiggm_mcmc()`
+3. Checking convergence
+4. Extracting and interpreting results
+5. Comparing estimated graphs to ground truth
+
+## 1. Simulate data
+
+We generate data from two groups with $p = 15$ variables and $n = 100$
+observations each, using a banded (AR-2) graph structure.
+
+```{r simulate}
+library(multiGGM)
+
+sim <- simulate_multiggm(
+  K = 2, p = 15, n = 100,
+  graph_type = "band",
+  perturb_prob = 0.1,
+  seed = 42
+)
+
+cat("True edge counts:\n")
+for (k in 1:sim$K) {
+  adj_k <- sim$adj_list[[k]]
+  cat(sprintf("  Group %d: %d edges\n", k, sum(adj_k[upper.tri(adj_k)])))
+}
+```
+
+## 2. Fit the model
+
+We pass raw data matrices directly. The function computes cross-product
+matrices internally after column-centering.
+
+```{r fit, results='hide'}
+fit <- multiggm_mcmc(
+  data_list = sim$data_list,
+  burnin = 2000,
+  nsave = 1000,
+  thin = 1,
+  seed = 123
+)
+```
+
+```{r print-fit}
+fit
+```
+
+## 3. Check convergence
+
+### Summary
+
+The `summary()` method reports acceptance rates and edge counts.
+Acceptance rates between 20-60% are generally healthy.
+
+```{r summary}
+summary(fit)
+```
+
+### Trace plots
+
+Trace plots help assess mixing. The theta trace shows the graph similarity
+parameter -- values above zero indicate the model is borrowing strength
+across groups.
+
+```{r trace-theta, fig.height=3}
+plot(fit, type = "trace_theta")
+```
+
+```{r trace-edges, fig.height=3}
+plot(fit, type = "trace_edges")
+```
+
+## 4. Extract results
+
+### Posterior inclusion probabilities (PIP)
+
+PIPs indicate how often each edge was included across posterior samples.
+Higher PIP = stronger evidence for that edge.
+
+```{r pip}
+pip <- pip_edges(fit)
+```
+
+```{r pip-heatmap}
+plot(fit, type = "pip")
+```
+
+### Estimated precision and partial correlations
+
+The `coef()` method returns posterior mean precision matrices, while
+`fitted()` returns posterior mean partial correlations.
+
+```{r coef}
+omega_hat <- coef(fit)
+cat("Posterior mean precision (Group 1, first 5x5 block):\n")
+round(omega_hat[[1]][1:5, 1:5], 3)
+```
+
+```{r fitted}
+pcor_hat <- fitted(fit)
+cat("Posterior mean partial correlations (Group 1, first 5x5 block):\n")
+round(pcor_hat[[1]][1:5, 1:5], 3)
+```
+
+### Credible intervals
+
+```{r ci}
+pcor_draws <- posterior_pcor(fit)
+ci <- posterior_ci(pcor_draws)
+
+# Example: 95% CI for edge (1,2) in group 1
+cat(sprintf("pcor[1,2] Group 1: %.3f (%.3f, %.3f)\n",
+            ci$median[1, 2, 1], ci$lower[1, 2, 1], ci$upper[1, 2, 1]))
+```
+
+## 5. Compare to ground truth
+
+### Visual comparison
+
+`plot_recovery()` shows the true graph, PIP heatmap, and thresholded
+estimate side-by-side.
+
+```{r recovery, fig.width=9, fig.height=4}
+cm <- plot_recovery(fit, sim$adj_list, pip_threshold = 0.5)
+```
+
+### Confusion metrics
+
+```{r confusion}
+for (k in seq_along(cm)) {
+  cat(sprintf("Group %d: TP=%d, FP=%d, FN=%d, TN=%d, TPR=%.2f, FPR=%.2f\n",
+              k, cm[[k]]["TP"], cm[[k]]["FP"], cm[[k]]["FN"], cm[[k]]["TN"],
+              cm[[k]]["TPR"], cm[[k]]["FPR"]))
+}
+```
+
+### ROC curve
+
+The ROC curve evaluates edge selection across all possible thresholds.
+
+```{r roc, fig.height=4, fig.width=4.5}
+roc1 <- roc_auc(pip[, , 1], sim$adj_list[[1]])
+plot_roc(roc1, main = "ROC - Group 1")
+```
+
+## 6. Network visualization
+
+We can visualize the estimated graph as a network.
+
+```{r network, fig.height=5, fig.width=10}
+par(mfrow = c(1, 2))
+plot_network(sim$adj_list[[1]], main = "True - Group 1", vertex_size = 12)
+est_adj <- (pip[, , 1] >= 0.5) * 1L
+plot_network(est_adj, main = "Estimated - Group 1", vertex_size = 12)
+```
+
+## 7. Differential edges
+
+For $K = 2$ groups, we can identify edges that differ between groups.
+
+```{r diff-edges}
+pip_diff <- pip_diff_edge(fit)
+cat("Edges with P(differential) > 0.5:",
+    sum(pip_diff[upper.tri(pip_diff)] > 0.5), "\n")
+```
+
+```{r diff-pcor}
+pcor_draws <- posterior_pcor(fit)
+diff_prob <- diff_prob_pcor(pcor_draws, delta = 0.1)
+cat("Edges with P(|pcor diff| > 0.1) > 0.5:",
+    sum(diff_prob[upper.tri(diff_prob)] > 0.5), "\n")
+```
+
+## References
+
+Peterson, C.B., Stingo, F.C. & Vannucci, M. (2015). Bayesian inference
+of multiple Gaussian graphical models. *Journal of the American
+Statistical Association*, 110(509), 159-174.
