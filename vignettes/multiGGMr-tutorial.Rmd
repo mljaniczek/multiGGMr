@@ -42,8 +42,8 @@ observations each, using a banded (AR-2) graph structure.
 library(multiGGM)
 
 sim <- simulate_multiggm(
-  K = 2, p = 15, n = 100,
-  graph_type = "band",
+  K = 2, p = 20, n = 100,
+  graph_type = "random",
   perturb_prob = 0.1,
   seed = 42
 )
@@ -82,7 +82,7 @@ The `summary()` method reports acceptance rates and edge counts.
 Acceptance rates between 20-60% are generally healthy.
 
 ```{r summary}
-summary(fit)
+summary(fit, pip_threshold = .3)
 ```
 
 ### Trace plots
@@ -179,7 +179,7 @@ We can visualize the estimated graph as a network.
 ```{r network, fig.height=5, fig.width=10}
 par(mfrow = c(1, 2))
 plot_network(sim$adj_list[[1]], main = "True - Group 1", vertex_size = 12)
-est_adj <- (pip[, , 1] >= 0.5) * 1L
+est_adj <- (pip[, , 1] >= 0.3) * 1L
 plot_network(est_adj, main = "Estimated - Group 1", vertex_size = 12)
 ```
 

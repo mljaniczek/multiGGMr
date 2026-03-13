@@ -11,16 +11,14 @@
 #' @param n Integer (scalar or length-K vector); sample size per group.
 #'   If scalar, all groups have the same sample size. Default 100.
 #' @param graph_type Character; type of base graph:
-#'   \describe{
-#'     \item{\code{"band"}}{AR(2)-like banded structure: edges between all
+#' * `band`: AR(2)-like banded structure: edges between all
 #'       nodes within distance 2 (i.e., (i, i+1) and (i, i+2)). Produces
 #'       approximately \code{2p - 3} edges. Matches Peterson et al. Section
-#'       5.1.}
-#'     \item{\code{"random"}}{Erdos-Renyi random graph where each edge is
-#'       included independently with probability \code{edge_prob}.}
-#'     \item{\code{"hub"}}{Star/hub graph with \code{floor(p/5)} hub nodes,
-#'       each connected to approximately 40\% of other nodes.}
-#'   }
+#'       5.1.
+#' * `random`: Erdos-Renyi random graph where each edge is
+#'       included independently with probability \code{edge_prob}.
+#' * `hub`: Star/hub graph with \code{floor(p/5)} hub nodes,
+#'       each connected to approximately 40\% of other nodes.
 #' @param edge_prob Numeric; probability of each edge in the base graph
 #'   (used only for \code{graph_type = "random"}). Default 0.1.
 #' @param perturb_prob Numeric; for groups \code{k = 2, ..., K}, the
@@ -33,22 +31,21 @@
 #' @param seed Optional integer random seed for reproducibility.
 #'
 #' @return A list with components:
-#'   \describe{
-#'     \item{\code{Omega_list}}{List of K true precision matrices (each
+#' * `Omega_list`: List of K true precision matrices (each
 #'       p x p, symmetric positive definite). Off-diagonal entries are
 #'       non-zero only where edges exist, after row-normalization to ensure
-#'       positive definiteness.}
-#'     \item{\code{adj_list}}{List of K true binary adjacency matrices (each
+#'       positive definiteness.
+#' * `adj_list`: List of K true binary adjacency matrices (each
 #'       p x p, 0/1). \code{adj_list[[k]][i,j] = 1} if edge (i,j) exists
-#'       in group k.}
-#'     \item{\code{data_list}}{List of K data matrices (each n_k x p),
-#'       drawn from \eqn{N(0, \Omega_k^{-1})} and column-centered.}
-#'     \item{\code{S_list}}{List of K cross-product matrices (each p x p),
-#'       where \code{S_list[[k]] = t(X_k) \%*\% X_k} after centering.}
-#'     \item{\code{n_vec}}{Integer vector of length K with sample sizes.}
-#'     \item{\code{K}}{Integer; number of groups.}
-#'     \item{\code{p}}{Integer; number of variables.}
-#'   }
+#'       in group k.
+#' * `data_list`: List of K data matrices (each n_k x p),
+#'       drawn from \eqn{N(0, \Omega_k^{-1})} and column-centered.
+#' * `S_list`: List of K cross-product matrices (each p x p),
+#'       where \code{S_list[[k]] = t(X_k) \%*\% X_k} after centering.
+#' * `n_vec`: Integer vector of length K with sample sizes.
+#' * `K`: Integer; number of groups.
+#' * `p`: Integer; number of variables.
+#'
 #'
 #' @examples
 #' sim <- simulate_multiggm(K = 2, p = 10, n = 100, seed = 42)
