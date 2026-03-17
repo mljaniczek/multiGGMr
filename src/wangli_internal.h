@@ -58,17 +58,31 @@ inline double log_gwishart_complete_pdf(const arma::mat& K, double b, const arma
 inline bool safe_chol_try(arma::mat& L, const arma::mat& Ain,
                           const char* which = "lower",
                           double jitter0 = 1e-10, int max_tries = 10) {
-  arma::mat A = 0.5 * (Ain + Ain.t());
+  arma::mat A = arma::symmatu(0.5 * (Ain + Ain.t()));
   bool ok = arma::chol(L, A, which);
   if (ok) return true;
   double eps = jitter0;
   for (int t = 0; t < max_tries; ++t) {
-    arma::mat Aj = A + eps * arma::eye(A.n_rows, A.n_cols);
+    arma::mat Aj = arma::symmatu(A + eps * arma::eye(A.n_rows, A.n_cols));
     ok = arma::chol(L, Aj, which);
     if (ok) return true;
     eps *= 10.0;
   }
   return false;
+}
+
+// Helper: invert SPD matrix via Cholesky.
+// Uses arma::symmatu() to force exact bit-for-bit symmetry.
+inline bool chol_inv(arma::mat& Ainv, const arma::mat& A) {
+  arma::mat Asym = arma::symmatu(A);
+  arma::mat L;
+  if (!arma::chol(L, Asym, "lower")) return false;
+  // L * L' = A  =>  A^{-1} = L'^{-1} * L^{-1}
+  arma::mat Linv;
+  if (!arma::solve(Linv, arma::trimatl(L),
+                   arma::eye(A.n_rows, A.n_cols))) return false;
+  Ainv = Linv.t() * Linv;
+  return true;
 }
 
 inline bool safe_inv_sympd_try(arma::mat& Ainv, const arma::mat& A_in,
@@ -82,13 +96,11 @@ inline bool safe_inv_sympd_try(arma::mat& Ainv, const arma::mat& A_in,
     Ainv(0, 0) = 1.0 / a;
     return true;
   }
-  bool ok = arma::inv_sympd(Ainv, A);
-  if (ok) return true;
+  if (chol_inv(Ainv, A)) return true;
   double jitter = jitter0;
   for (int t = 0; t < max_tries; ++t) {
     arma::mat Aj = A + jitter * arma::eye(A.n_rows, A.n_cols);
-    ok = arma::inv_sympd(Ainv, Aj);
-    if (ok) return true;
+    if (chol_inv(Ainv, Aj)) return true;
     jitter *= 10.0;
   }
   return false;
@@ -181,6 +193,8 @@ inline double log_J_internal(double h, const arma::mat& B, double a11) {
 inline double compute_log_H(double b_prior, const arma::mat& D_prior,
                             double n, const arma::mat& S,
                             const arma::mat& C, int ii, int jj) {
+  const double NaN = std::numeric_limits<double>::quiet_NaN();
+
   // (i,j)=0 case
   arma::mat C0 = C;
   C0(ii, jj) = 0;
@@ -191,7 +205,8 @@ inline double compute_log_H(double b_prior, const arma::mat& D_prior,
   arma::mat C_22 = C0;
   C_22.shed_row(e);
   C_22.shed_col(e);
-  arma::mat invC_22 = safe_inv_sympd(C_22);
+  arma::mat invC_22;
+  if (!safe_inv_sympd_try(invC_22, C_22)) return NaN;
   double c = arma::as_scalar(C_12 * invC_22 * C_12.t());
   arma::mat C0_ij(2, 2, arma::fill::zeros);
   C0_ij(0, 0) = C(ii, ii);
@@ -209,7 +224,8 @@ inline double compute_log_H(double b_prior, const arma::mat& D_prior,
   C_22b.shed_col(rem(0));
   C_22b.shed_row(rem(1));
   C_22b.shed_col(rem(1));
-  arma::mat invC_22b = safe_inv_sympd(C_22b);
+  arma::mat invC_22b;
+  if (!safe_inv_sympd_try(invC_22b, C_22b)) return NaN;
   arma::mat Ce = C_12b * invC_22b * C_12b.t();
   arma::mat A = C.submat(evec, evec) - Ce;
   double a11 = A(0, 0);
@@ -234,6 +250,7 @@ inline double compute_log_H(double b_prior, const arma::mat& D_prior,
 
 inline double compute_log_GWishart_NOij_pdf(double b_prior, const arma::mat& D_prior,
                                             arma::mat C, int ii, int jj, int edgeij) {
+  const double NaN = std::numeric_limits<double>::quiet_NaN();
   if (edgeij == 0) {
     C(ii, jj) = 0;
     C(jj, ii) = 0;
@@ -242,7 +259,8 @@ inline double compute_log_GWishart_NOij_pdf(double b_prior, const arma::mat& D_p
     arma::mat C_22 = C;
     C_22.shed_row(jj);
     C_22.shed_col(jj);
-    arma::mat invC_22 = safe_inv_sympd(C_22);
+    arma::mat invC_22;
+    if (!safe_inv_sympd_try(invC_22, C_22)) return NaN;
     double c = arma::as_scalar(C_12 * invC_22 * C_12.t());
     arma::mat C0_ij(2, 2, arma::fill::zeros);
     C0_ij(0, 0) = C(ii, ii);
@@ -258,7 +276,8 @@ inline double compute_log_GWishart_NOij_pdf(double b_prior, const arma::mat& D_p
     arma::mat D2 = D_prior.submat(evec, evec);
     double logK2 = log_gwishart_complete_pdf(C0_ij, b_prior, D2);
 
-    arma::mat V = safe_inv_sympd(D2);
+    arma::mat V;
+    if (!safe_inv_sympd_try(V, D2)) return NaN;
     double D_priorii = 1.0 / V(0, 0);
     arma::mat K1(1, 1);
     K1(0, 0) = C0_ij(0, 0);
@@ -279,7 +298,8 @@ inline double compute_log_GWishart_NOij_pdf(double b_prior, const arma::mat& D_p
     C_22b.shed_col(rem(0));
     C_22b.shed_row(rem(1));
     C_22b.shed_col(rem(1));
-    arma::mat invC_22 = safe_inv_sympd(C_22b);
+    arma::mat invC_22;
+    if (!safe_inv_sympd_try(invC_22, C_22b)) return NaN;
     arma::mat Ce = C_12b * invC_22 * C_12b.t();
     arma::mat A = C.submat(evec, evec) - Ce;
 
@@ -290,7 +310,8 @@ inline double compute_log_GWishart_NOij_pdf(double b_prior, const arma::mat& D_p
     arma::mat D2 = D_prior.submat(evec, evec);
     double logK2 = log_gwishart_complete_pdf(A, b_prior, D2);
 
-    arma::mat V = safe_inv_sympd(D2);
+    arma::mat V;
+    if (!safe_inv_sympd_try(V, D2)) return NaN;
     double D_priorii = 1.0 / V(0, 0);
     arma::mat K1(1, 1);
     K1(0, 0) = A(0, 0);
