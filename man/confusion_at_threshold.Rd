@@ -2,10 +2,46 @@
 % Please edit documentation in R/pcor.R
 \name{confusion_at_threshold}
 \alias{confusion_at_threshold}
-\title{Confusion metrics at a threshold}
+\title{Confusion metrics at a PIP threshold}
 \usage{
 confusion_at_threshold(score_mat, truth_mat, thr, upper_only = TRUE)
 }
+\arguments{
+\item{score_mat}{Numeric matrix \code{[p, p]}; continuous edge scores
+(e.g., posterior inclusion probabilities from \code{\link{pip_edges}}).}
+
+\item{truth_mat}{Numeric matrix \code{[p, p]}; binary ground truth
+adjacency (1 = edge present, 0 = absent).}
+
+\item{thr}{Numeric; threshold for edge selection. An edge is selected if
+\code{score_mat[i,j] >= thr}.}
+
+\item{upper_only}{Logical; if \code{TRUE} (default), only the upper
+triangle is evaluated (appropriate for undirected graphs).}
+}
+\value{
+A named numeric vector with components:
+\describe{
+\item{\code{TP}}{True positives (correctly selected edges).}
+\item{\code{FP}}{False positives (incorrectly selected non-edges).}
+\item{\code{TN}}{True negatives (correctly excluded non-edges).}
+\item{\code{FN}}{False negatives (missed true edges).}
+\item{\code{TPR}}{True positive rate (sensitivity / recall).}
+\item{\code{FPR}}{False positive rate (1 - specificity).}
+}
+}
 \description{
-Confusion metrics at a threshold
+Computes true/false positive/negative counts and rates by comparing a
+continuous score matrix (e.g., PIP) against a binary ground truth
+adjacency matrix at a given threshold. Only the upper triangle is used.
+}
+\examples{
+sim <- simulate_multiggm(K = 2, p = 8, n = 80, seed = 1)
+fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 200, nsave = 100)
+pip <- pip_edges(fit)
+confusion_at_threshold(pip[,,1], sim$adj_list[[1]], thr = 0.5)
+
+}
+\seealso{
+\code{\link[=roc_auc]{roc_auc()}}, \code{\link[=pip_edges]{pip_edges()}}
 }

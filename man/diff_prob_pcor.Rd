@@ -7,13 +7,31 @@
 diff_prob_pcor(pcor, delta = 0)
 }
 \arguments{
-\item{pcor}{array \link{p,p,2,nsave}}
+\item{pcor}{A numeric array of dimension \code{[p, p, 2, nsave]},
+as returned by \code{\link{posterior_pcor}} with \code{K = 2}.}
 
-\item{delta}{practical difference threshold (0 = any difference)}
+\item{delta}{Numeric; practical difference threshold. Default 0 (any
+difference). Set to e.g. 0.1 to detect meaningful differences only.}
 }
 \value{
-matrix \link{p,p} of posterior probabilities
+A symmetric numeric matrix \code{[p, p]} where entry \code{[i,j]}
+is the posterior probability that
+\eqn{|\rho_{ij}^{(1)} - \rho_{ij}^{(2)}| > \delta}.
 }
 \description{
-Posterior probability of differential partial correlation (K=2)
+For two-group models, computes the posterior probability that the partial
+correlation between each pair of variables differs between groups by
+more than a threshold \code{delta}.
+}
+\examples{
+sim <- simulate_multiggm(K = 2, p = 8, n = 80, seed = 1)
+fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 200, nsave = 100)
+pcor_draws <- posterior_pcor(fit)
+diff_prob <- diff_prob_pcor(pcor_draws, delta = 0.1)
+# Edges with high probability of differential partial correlation
+sum(diff_prob[upper.tri(diff_prob)] > 0.5)
+
+}
+\seealso{
+\code{\link[=posterior_pcor]{posterior_pcor()}}, \code{\link[=pip_diff_edge]{pip_diff_edge()}}
 }

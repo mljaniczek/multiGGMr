@@ -2,7 +2,7 @@
 % Please edit documentation in R/multiggm_mcmc.R
 \name{.multiggm_mcmc_single}
 \alias{.multiggm_mcmc_single}
-\title{Internal single-chain engine}
+\title{Internal single-chain MCMC engine}
 \usage{
 .multiggm_mcmc_single(
   S_list,
@@ -15,15 +15,14 @@
   nu_init = NULL,
   C_init = NULL,
   disp = FALSE,
+  method = "gwishart",
   hyper = NULL,
-  seed = NULL,
+  engine = "cpp",
   ...
 )
 }
 \description{
-Implements the MATLAB routine \code{MCMC_multiple_graphs.m} using the Wang–Li
-G-Wishart kernels (ported to RcppArmadillo).
+Thin R wrapper that calls the C++ MCMC engine. Falls back to pure R
+if \code{engine = "R"}.
 }
-\note{
-internal
-}
+\keyword{internal}

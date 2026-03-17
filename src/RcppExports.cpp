@@ -54,6 +54,39 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// mcmc_ssvs_engine_cpp
+Rcpp::List mcmc_ssvs_engine_cpp(Rcpp::List S_list_r, Rcpp::NumericVector n_vec_r, int burnin, int nsave, int thin, double v0, double v1, double lambda_param, double a, double b_beta, double alpha, double beta_rate, double w_prior, double alpha_prop, double beta_prop, double a_prop, double b_prop, Rcpp::NumericMatrix Theta_init_r, Rcpp::NumericMatrix nu_init_r, Rcpp::NumericVector C_init_r, Rcpp::NumericVector Sig_init_r, bool verbose, int print_every);
+RcppExport SEXP _multiGGM_mcmc_ssvs_engine_cpp(SEXP S_list_rSEXP, SEXP n_vec_rSEXP, SEXP burninSEXP, SEXP nsaveSEXP, SEXP thinSEXP, SEXP v0SEXP, SEXP v1SEXP, SEXP lambda_paramSEXP, SEXP aSEXP, SEXP b_betaSEXP, SEXP alphaSEXP, SEXP beta_rateSEXP, SEXP w_priorSEXP, SEXP alpha_propSEXP, SEXP beta_propSEXP, SEXP a_propSEXP, SEXP b_propSEXP, SEXP Theta_init_rSEXP, SEXP nu_init_rSEXP, SEXP C_init_rSEXP, SEXP Sig_init_rSEXP, SEXP verboseSEXP, SEXP print_everySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type S_list_r(S_list_rSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type n_vec_r(n_vec_rSEXP);
+    Rcpp::traits::input_parameter< int >::type burnin(burninSEXP);
+    Rcpp::traits::input_parameter< int >::type nsave(nsaveSEXP);
+    Rcpp::traits::input_parameter< int >::type thin(thinSEXP);
+    Rcpp::traits::input_parameter< double >::type v0(v0SEXP);
+    Rcpp::traits::input_parameter< double >::type v1(v1SEXP);
+    Rcpp::traits::input_parameter< double >::type lambda_param(lambda_paramSEXP);
+    Rcpp::traits::input_parameter< double >::type a(aSEXP);
+    Rcpp::traits::input_parameter< double >::type b_beta(b_betaSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< double >::type beta_rate(beta_rateSEXP);
+    Rcpp::traits::input_parameter< double >::type w_prior(w_priorSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha_prop(alpha_propSEXP);
+    Rcpp::traits::input_parameter< double >::type beta_prop(beta_propSEXP);
+    Rcpp::traits::input_parameter< double >::type a_prop(a_propSEXP);
+    Rcpp::traits::input_parameter< double >::type b_prop(b_propSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type Theta_init_r(Theta_init_rSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type nu_init_r(nu_init_rSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type C_init_r(C_init_rSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type Sig_init_r(Sig_init_rSEXP);
+    Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
+    Rcpp::traits::input_parameter< int >::type print_every(print_everySEXP);
+    rcpp_result_gen = Rcpp::wrap(mcmc_ssvs_engine_cpp(S_list_r, n_vec_r, burnin, nsave, thin, v0, v1, lambda_param, a, b_beta, alpha, beta_rate, w_prior, alpha_prop, beta_prop, a_prop, b_prop, Theta_init_r, nu_init_r, C_init_r, Sig_init_r, verbose, print_every));
+    return rcpp_result_gen;
+END_RCPP
+}
 // wishrnd_cpp
 arma::mat wishrnd_cpp(const arma::mat& Sigma, double df);
 RcppExport SEXP _multiGGM_wishrnd_cpp(SEXP SigmaSEXP, SEXP dfSEXP) {
@@ -174,6 +207,7 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_multiGGM_calc_mrf_logC_cpp", (DL_FUNC) &_multiGGM_calc_mrf_logC_cpp, 2},
     {"_multiGGM_mcmc_engine_cpp", (DL_FUNC) &_multiGGM_mcmc_engine_cpp, 21},
+    {"_multiGGM_mcmc_ssvs_engine_cpp", (DL_FUNC) &_multiGGM_mcmc_ssvs_engine_cpp, 23},
     {"_multiGGM_wishrnd_cpp", (DL_FUNC) &_multiGGM_wishrnd_cpp, 2},
     {"_multiGGM_log_iwishart_invA_const_cpp", (DL_FUNC) &_multiGGM_log_iwishart_invA_const_cpp, 2},
     {"_multiGGM_log_J_cpp", (DL_FUNC) &_multiGGM_log_J_cpp, 3},

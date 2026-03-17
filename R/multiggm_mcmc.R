@@ -26,18 +26,28 @@
 #'   Default is one less than the number of detected cores.
 #' @param seed Optional integer random seed. If provided, chain \code{i} uses
 #'   seed \code{seed + 1000 * (i - 1)} for reproducibility.
+#' @param method Character; \code{"gwishart"} (default) uses the G-Wishart prior
+#'   with the Wang-Li exchange algorithm (Peterson et al. 2015). \code{"ssvs"}
+#'   uses a spike-and-slab normal prior on precision elements with column-wise
+#'   Gibbs sampling (Shaddox et al. 2018), which scales to larger dimensions.
 #' @param hyper Optional named list of hyperparameters. See Details.
 #' @param engine Character; \code{"cpp"} (default) uses the high-performance C++
 #'   MCMC engine. \code{"R"} uses the pure R fallback (slower, mainly for
-#'   debugging).
+#'   debugging). Only applies when \code{method = "gwishart"}.
 #' @param ... Additional arguments forwarded to the single-chain engine.
 #'
 #' @details
-#' The \code{hyper} list may contain any of the following (with defaults from
-#' Peterson et al. 2015, Section 5.1):
+#' \strong{Method selection:} \code{method = "gwishart"} uses the G-Wishart
+#' prior on precision matrices with the Wang-Li (2012) exchange algorithm.
+#' Accurate but computationally expensive for \eqn{p > 30}.
+#' \code{method = "ssvs"} replaces this with a spike-and-slab normal prior,
+#' enabling column-wise Gibbs sampling that scales to \eqn{p > 100}. Both
+#' methods use the same MRF prior for borrowing strength across groups.
+#'
+#' The \code{hyper} list may contain any of the following:
+#'
+#' \strong{Common hyperparameters (both methods):}
 #' \describe{
-#'   \item{\code{b_prior}}{G-Wishart degrees of freedom (default 3).}
-#'   \item{\code{D_prior}}{G-Wishart scale matrix, p x p (default \code{diag(p)}).}
 #'   \item{\code{a, b}}{Beta(a, b) prior on \eqn{q_{ij} = \text{logit}^{-1}(\nu_{ij})}.
 #'     Default a = 1, b = 4, giving prior edge probability \eqn{\approx 0.20}.}
 #'   \item{\code{alpha, beta}}{Gamma(shape = alpha, rate = beta) slab prior on
@@ -46,9 +56,25 @@
 #'   \item{\code{w}}{Bernoulli prior probability that \eqn{\gamma_{km} = 1}
 #'     (graph similarity active). Default 0.9 (strong prior belief that groups
 #'     are related).}
-#'   \item{\code{alpha_prop, beta_prop}}{Gamma(shape = alpha_prop, rate = beta_prop)
-#'     proposal distribution for \eqn{\theta_{km}} in MH steps.
-#'     Default alpha_prop = 2, beta_prop = 5.}
+#'   \item{\code{alpha_prop, beta_prop}}{Gamma(shape = alpha_prop,
+#'     rate = beta_prop) proposal for \eqn{\theta_{km}}. Default alpha_prop = 2,
+#'     beta_prop = 5 for G-Wishart; alpha_prop = 1, beta_prop = 1 for SSVS.}
+#' }
+#'
+#' \strong{G-Wishart-specific hyperparameters (\code{method = "gwishart"}):}
+#' \describe{
+#'   \item{\code{b_prior}}{G-Wishart degrees of freedom (default 3).}
+#'   \item{\code{D_prior}}{G-Wishart scale matrix, p x p (default \code{diag(p)}).}
+#' }
+#'
+#' \strong{SSVS-specific hyperparameters (\code{method = "ssvs"}):}
+#' \describe{
+#'   \item{\code{v0}}{Spike variance for off-diagonal precision elements
+#'     (default \code{0.02^2 = 0.0004}).}
+#'   \item{\code{v1}}{Slab variance for off-diagonal precision elements
+#'     (default \code{50^2 * v0 = 1.0}).}
+#'   \item{\code{lambda}}{Exponential rate hyperparameter for diagonal elements
+#'     (default 1).}
 #' }
 #'
 #' @return For a single chain (\code{nchains = 1}), an object of class
@@ -106,6 +132,10 @@
 #' of multiple Gaussian graphical models. *Journal of the American
 #' Statistical Association*, 110(509), 159-174.
 #'
+#' Shaddox, E., Stingo, F.C., Peterson, C.B., et al. (2018). A Bayesian
+#' approach for learning gene networks underlying disease severity in COPD.
+#' *Statistics in Biosciences*, 10(1), 59-85.
+#'
 #' @seealso [pip_edges()], [posterior_precision()], [posterior_pcor()],
 #'   [summary.multiggm_fit()], [coef.multiggm_fit()], [fitted.multiggm_fit()]
 #' @export
@@ -114,6 +144,7 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
                           nchains = 1,
                           parallel = FALSE, ncores = max(1L, parallel::detectCores() - 1L),
                           seed = NULL,
+                          method = c("gwishart", "ssvs"),
                           hyper = NULL,
                           engine = c("cpp", "R"),
                           ...) {
@@ -146,6 +177,7 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
     if (length(n_vec) != K) stop("n_vec must have length equal to length(S_list).")
   }
 
+  method <- match.arg(method)
   engine <- match.arg(engine)
   if (!is.null(seed)) seed <- as.integer(seed)
 
@@ -153,7 +185,7 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
     if (!is.null(seed)) set.seed(seed + 1000L * (chain_id - 1L))
     .multiggm_mcmc_single(S_list = S_list, n_vec = n_vec,
                          burnin = burnin, nsave = nsave, thin = thin,
-                         chain_id = chain_id, hyper = hyper,
+                         chain_id = chain_id, method = method, hyper = hyper,
                          engine = engine, ...)
   }
 
@@ -199,6 +231,7 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
                                  nu_init = NULL,
                                  C_init = NULL,
                                  disp = FALSE,
+                                 method = "gwishart",
                                  hyper = NULL,
                                  engine = "cpp", ...) {
 
@@ -206,40 +239,50 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
   K <- length(S_list)
   p <- nrow(S_list[[1L]])
 
-  # --- Default hyperparameters (Peterson et al. 2015, Section 5.1) ---
+  # --- Default hyperparameters ---
   if (is.null(hyper)) {
-    hyper <- list(
-      b_prior = 3,                # G-Wishart df (Section 3.5)
-      D_prior = diag(p),          # G-Wishart scale (Section 3.5)
-      a = 1, b = 4,               # Beta(1,4) prior on q_ij -> prior P(edge) ~ 0.20 (Section 3.4)
-      alpha = 2, beta = 5,        # Gamma(2, rate=5) prior on theta_km -> mean=0.4 (Section 3.3)
-      w = 0.9,                    # P(gamma_km=1) -> strong relatedness belief (Section 3.3)
-      alpha_prop = 2, beta_prop = 5  # Gamma proposal for theta (Appendix A.2)
-    )
+    if (method == "ssvs") {
+      # Shaddox et al. (2018) defaults
+      hyper <- list(
+        v0 = 0.02^2,               # Spike variance (Section 3.1)
+        v1 = 50^2 * 0.02^2,        # Slab variance = h * v0, h=2500 (Section 3.1)
+        lambda = 1,                 # Diagonal hyperparameter
+        a = 1, b = 4,              # Beta(1,4) prior on q_ij
+        alpha = 2, beta = 5,       # Gamma slab on theta_km (rate param)
+        w = 0.9,                   # P(gamma_km=1)
+        alpha_prop = 1, beta_prop = 1  # Gamma proposal for theta (scale param)
+      )
+    } else {
+      # Peterson et al. (2015) defaults
+      hyper <- list(
+        b_prior = 3,                # G-Wishart df (Section 3.5)
+        D_prior = diag(p),          # G-Wishart scale (Section 3.5)
+        a = 1, b = 4,               # Beta(1,4) prior on q_ij (Section 3.4)
+        alpha = 2, beta = 5,        # Gamma(2, rate=5) on theta_km (Section 3.3)
+        w = 0.9,                    # P(gamma_km=1) (Section 3.3)
+        alpha_prop = 2, beta_prop = 5  # Gamma proposal for theta (Appendix A.2)
+      )
+    }
   }
 
-  # Unpack hyperparameters
-  b_prior    <- hyper$b_prior
-  D_prior    <- hyper$D_prior
+  # Unpack common hyperparameters
   a          <- hyper$a
   b          <- hyper$b
   alpha      <- hyper$alpha
   beta       <- hyper$beta       # NOTE: this is a RATE parameter
   my_w       <- hyper$w
   alpha_prop <- hyper$alpha_prop
-  beta_prop  <- hyper$beta_prop  # NOTE: this is a RATE parameter
+  beta_prop  <- hyper$beta_prop
 
-  # Beta proposal for nu (Appendix A.3: "propose q* from Beta(2,4)")
+  # Beta proposal for nu
   a_prop <- 2
   b_prop <- 4
 
   # --- Initialization ---
-  if (is.null(D_prior)) D_prior <- diag(p)
   if (is.null(Theta_init)) Theta <- matrix(0, K, K) else Theta <- as.matrix(Theta_init)
   if (is.null(nu_init)) nu <- matrix(-1, p, p) else nu <- as.matrix(nu_init)
   if (is.null(C_init)) C_arr <- array(diag(p), dim = c(p, p, K)) else C_arr <- C_init
 
-  if (!all(dim(D_prior) == c(p, p))) stop("D_prior must be p x p.")
   if (!all(dim(Theta) == c(K, K))) stop("Theta_init must be K x K.")
   if (!all(dim(nu) == c(p, p))) stop("nu_init must be p x p.")
   if (!all(dim(C_arr) == c(p, p, K))) stop("C_init must be p x p x K.")
@@ -250,7 +293,70 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
   Theta <- (Theta + t(Theta)) / 2
   diag(Theta) <- 0
 
-  # --- C++ engine ---
+  # --- SSVS engine ---
+  if (method == "ssvs") {
+    v0_val     <- hyper$v0
+    v1_val     <- hyper$v1
+    lambda_val <- hyper$lambda
+
+    # Initialize covariance as inverse of precision
+    Sig_arr <- array(NA_real_, dim = c(p, p, K))
+    for (k in seq_len(K)) Sig_arr[, , k] <- solve(C_arr[, , k])
+
+    # For SSVS, Theta proposal uses SCALE parameterization (Matlab convention)
+    # beta_prop in hyper is already scale for SSVS defaults
+    res <- mcmc_ssvs_engine_cpp(
+      S_list_r     = S_list,
+      n_vec_r      = as.numeric(n_vec),
+      burnin       = as.integer(burnin),
+      nsave        = as.integer(nsave),
+      thin         = as.integer(thin),
+      v0           = v0_val,
+      v1           = v1_val,
+      lambda_param = lambda_val,
+      a            = a,
+      b_beta       = b,
+      alpha        = alpha,
+      beta_rate    = beta,
+      w_prior      = my_w,
+      alpha_prop   = alpha_prop,
+      beta_prop    = beta_prop,
+      a_prop       = a_prop,
+      b_prop       = b_prop,
+      Theta_init_r = Theta,
+      nu_init_r    = nu,
+      C_init_r     = as.numeric(C_arr),
+      Sig_init_r   = as.numeric(Sig_arr),
+      verbose      = isTRUE(disp),
+      print_every  = 500L
+    )
+
+    return(structure(list(
+      K = K,
+      p = p,
+      method     = "ssvs",
+      C_save     = res$C_save,
+      Sig_save   = res$Sig_save,
+      adj_save   = res$adj_save,
+      Theta_save = res$Theta_save,
+      nu_save    = res$nu_save,
+      ar_gamma   = res$ar_gamma,
+      ar_theta   = res$ar_theta,
+      ar_nu      = res$ar_nu,
+      hyper = list(v0 = v0_val, v1 = v1_val, lambda = lambda_val,
+                   alpha = alpha, beta = beta, a = a, b = b, w = my_w,
+                   alpha_prop = alpha_prop, beta_prop = beta_prop,
+                   a_prop = a_prop, b_prop = b_prop),
+      call = match.call()
+    ), class = "multiggm_fit"))
+  }
+
+  # --- G-Wishart C++ engine ---
+  b_prior <- hyper$b_prior
+  D_prior <- hyper$D_prior
+  if (is.null(D_prior)) D_prior <- diag(p)
+  if (!all(dim(D_prior) == c(p, p))) stop("D_prior must be p x p.")
+
   if (engine == "cpp") {
     res <- mcmc_engine_cpp(
       S_list_r    = S_list,
@@ -279,6 +385,7 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
     return(structure(list(
       K = K,
       p = p,
+      method     = "gwishart",
       C_save     = res$C_save,
       Sig_save   = res$Sig_save,
       adj_save   = res$adj_save,
@@ -444,7 +551,8 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
     if (n_within_model[k, m] > 0) ar_theta[k, m] <- ar_theta[k, m] / n_within_model[k, m]
 
   structure(list(
-    K = K, p = p, C_save = C_save, Sig_save = Sig_save, adj_save = adj_save,
+    K = K, p = p, method = "gwishart",
+    C_save = C_save, Sig_save = Sig_save, adj_save = adj_save,
     Theta_save = Theta_save, nu_save = nu_save, ar_gamma = ar_gamma,
     ar_theta = ar_theta, ar_nu = ar_nu,
     hyper = list(alpha = alpha, beta = beta, a = a, b = b, w = my_w,

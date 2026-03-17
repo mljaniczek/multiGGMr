@@ -1,24 +1,27 @@
 Package: multiGGM
 Type: Package
 Title: Bayesian Inference of Multiple Gaussian Graphical Models
-Version: 0.1.0
+Version: 0.2.0
 Authors@R: c(
     person(given = "Christine B.", family = "Peterson", role = c("aut")),
     person(given = "First", family = "Last", role = c("cre"), email = "first.last@example.com"))
 Description: Utilities and MCMC implementation for Bayesian inference of multiple
-    Gaussian graphical models as in Peterson, Stingo, and Vannucci (2015, JASA).
-    Includes a high-performance implementation of the Markov random field (MRF)
-    normalizing constant used for edge-sharing priors, plus parallel multi-chain
-    orchestration and helpers to convert precision matrices to partial correlations.
+    Gaussian graphical models. Supports both G-Wishart (Peterson, Stingo, and
+    Vannucci, 2015, JASA) and scalable spike-and-slab (Shaddox et al., 2018,
+    Stat Biosci) methods. Includes MRF-coupled edge priors for borrowing strength
+    across groups, parallel multi-chain orchestration, and helpers to convert
+    precision matrices to partial correlations.
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
 Imports:
+    Rcpp,
     Matrix,
     stats,
     parallel,
     ggplot2,
-    igraph
+    igraph,
+    rlang
 LinkingTo:
     Rcpp,
     RcppArmadillo
