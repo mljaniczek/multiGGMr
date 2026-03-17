@@ -2,13 +2,34 @@
 % Please edit documentation in R/pcor.R
 \name{pip_diff_edge}
 \alias{pip_diff_edge}
-\title{Posterior inclusion probabilities (PIP) per group differential edges}
+\title{Posterior probability of differential edge inclusion (K=2)}
 \usage{
 pip_diff_edge(fit, chain = 1L)
 }
+\arguments{
+\item{fit}{A \code{multiggm_fit} object (single chain) or
+\code{multiggm_fit_list} object. Must have \code{K = 2}.}
+
+\item{chain}{Integer; which chain to use if \code{fit} is a
+\code{multiggm_fit_list}. Default 1.}
+}
 \value{
-array \link{p,p,K}
+A symmetric numeric matrix \code{[p, p]} where entry \code{[i,j]}
+is the posterior probability that edge (i,j) has different inclusion
+status between groups 1 and 2. Values range from 0 to 1.
 }
 \description{
-Posterior inclusion probabilities (PIP) per group differential edges
+For two-group models, computes the posterior probability that each edge
+has different inclusion status between the two groups (i.e., present in
+one group but absent in the other).
+}
+\examples{
+sim <- simulate_multiggm(K = 2, p = 8, n = 80, seed = 1)
+fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 200, nsave = 100)
+pip_diff <- pip_diff_edge(fit)
+sum(pip_diff[upper.tri(pip_diff)] > 0.5)
+
+}
+\seealso{
+\code{\link[=pip_edges]{pip_edges()}}, \code{\link[=diff_prob_pcor]{diff_prob_pcor()}}
 }

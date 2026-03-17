@@ -7,11 +7,32 @@
 pip_edges(fit, chain = 1L)
 }
 \arguments{
-\item{fit}{a multi_ggm_fit_list object}
+\item{fit}{A \code{multiggm_fit} object (single chain) or
+\code{multiggm_fit_list} object.}
+
+\item{chain}{Integer; which chain to use if \code{fit} is a
+\code{multiggm_fit_list}. Default 1.}
 }
 \value{
-array \link{p,p,K}
+A numeric array of dimension \code{[p, p, K]}. Entry
+\code{pip[i, j, k]} is the posterior probability that edge (i,j) is
+present in the graph of group \code{k}. Values range from 0 to 1.
+The matrix is symmetric for each group (\code{pip[i,j,k] = pip[j,i,k]}).
+Diagonal entries are 0.
 }
 \description{
-Posterior inclusion probabilities (PIP) per group
+Computes the posterior inclusion probability for each edge in each group.
+The PIP is the fraction of saved MCMC iterations in which each edge was
+included in the graph.
+}
+\examples{
+sim <- simulate_multiggm(K = 2, p = 8, n = 80, seed = 1)
+fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 200, nsave = 100)
+pip <- pip_edges(fit)
+# Edges with PIP >= 0.5 in group 1
+sum(pip[,,1][upper.tri(pip[,,1])] >= 0.5)
+
+}
+\seealso{
+\code{\link[=pip_diff_edge]{pip_diff_edge()}}, \code{\link[=confusion_at_threshold]{confusion_at_threshold()}}, \code{\link[=roc_auc]{roc_auc()}}
 }

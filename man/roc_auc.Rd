@@ -2,10 +2,42 @@
 % Please edit documentation in R/pcor.R
 \name{roc_auc}
 \alias{roc_auc}
-\title{ROC and AUC from continuous scores}
+\title{ROC curve and AUC from continuous scores}
 \usage{
 roc_auc(score_mat, truth_mat)
 }
+\arguments{
+\item{score_mat}{Numeric matrix \code{[p, p]}; continuous edge scores
+(e.g., posterior inclusion probabilities from \code{\link{pip_edges}}).}
+
+\item{truth_mat}{Numeric matrix \code{[p, p]}; binary ground truth
+adjacency (1 = edge present, 0 = absent).}
+}
+\value{
+A list with three components:
+\describe{
+\item{\code{FPR}}{Numeric vector; false positive rates at each
+threshold (starts at 0, ends at 1).}
+\item{\code{TPR}}{Numeric vector; true positive rates at each
+threshold (starts at 0, ends at 1).}
+\item{\code{auc}}{Numeric scalar; area under the ROC curve.
+Values near 1 indicate excellent discrimination.}
+}
+}
 \description{
-ROC and AUC from continuous scores
+Computes the receiver operating characteristic (ROC) curve and area
+under the curve (AUC) by comparing a continuous score matrix (e.g., PIP)
+against a binary ground truth adjacency matrix. Only the upper triangle
+is used.
+}
+\examples{
+sim <- simulate_multiggm(K = 2, p = 8, n = 80, seed = 1)
+fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 200, nsave = 100)
+pip <- pip_edges(fit)
+roc <- roc_auc(pip[,,1], sim$adj_list[[1]])
+cat("AUC:", roc$auc, "\n")
+
+}
+\seealso{
+\code{\link[=plot_roc]{plot_roc()}}, \code{\link[=confusion_at_threshold]{confusion_at_threshold()}}, \code{\link[=pip_edges]{pip_edges()}}
 }

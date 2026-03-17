@@ -7,13 +7,39 @@
 posterior_ci(pcor, probs = c(0.025, 0.975))
 }
 \arguments{
-\item{pcor}{array \link{p,p,K,nsave}}
+\item{pcor}{A numeric array of dimension \code{[p, p, K, nsave]},
+as returned by \code{\link{posterior_pcor}}.}
 
-\item{probs}{numeric length-2, e.g. c(0.025, 0.975)}
+\item{probs}{Numeric vector of length 2 giving the lower and upper
+quantile probabilities. Default \code{c(0.025, 0.975)} for 95\\%
+credible intervals.}
 }
 \value{
-list with lower/median/upper arrays \link{p,p,K}
+A list with four components:
+\describe{
+\item{\code{lower}}{Numeric array \code{[p, p, K]}; lower quantile
+of each partial correlation.}
+\item{\code{median}}{Numeric array \code{[p, p, K]}; posterior median
+of each partial correlation.}
+\item{\code{upper}}{Numeric array \code{[p, p, K]}; upper quantile
+of each partial correlation.}
+\item{\code{probs}}{The quantile probabilities used.}
+}
 }
 \description{
-Posterior credible intervals for partial correlations
+Computes pointwise posterior credible intervals for each partial
+correlation entry across groups.
+}
+\examples{
+sim <- simulate_multiggm(K = 2, p = 8, n = 80, seed = 1)
+fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 200, nsave = 100)
+pcor_draws <- posterior_pcor(fit)
+ci <- posterior_ci(pcor_draws)
+# 95\% CI for edge (1,2) in group 1
+cat(sprintf("pcor[1,2]: \%.3f (\%.3f, \%.3f)\n",
+    ci$median[1,2,1], ci$lower[1,2,1], ci$upper[1,2,1]))
+
+}
+\seealso{
+\code{\link[=posterior_pcor]{posterior_pcor()}}, \code{\link[=diff_prob_pcor]{diff_prob_pcor()}}
 }

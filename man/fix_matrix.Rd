@@ -2,20 +2,29 @@
 % Please edit documentation in R/fix_matrix.R
 \name{fix_matrix}
 \alias{fix_matrix}
-\title{Ensure a symmetric positive-definite-ish correlation/precision template}
+\title{Rescale a symmetric matrix toward positive definiteness}
 \usage{
 fix_matrix(A, denom_factor = 1)
 }
 \arguments{
-\item{A}{Numeric square matrix.}
+\item{A}{Numeric square matrix with unit diagonal.}
 
-\item{denom_factor}{Positive scalar. Values > 1 shrink off-diagonals more.}
+\item{denom_factor}{Positive scalar controlling shrinkage of off-diagonal
+entries. Values > 1 shrink off-diagonals more aggressively. Default 1.}
 }
 \value{
-A symmetric matrix with unit diagonal.
+A symmetric numeric matrix with unit diagonal, where each row's
+off-diagonal entries have been rescaled so their absolute sum is at
+most \code{1 / denom_factor}.
 }
 \description{
 Port of the helper in the MATLAB reference code. For each row, rescales
-off-diagonal entries by the (denom_factor * row L1 norm of off-diagonals),
-then enforces unit diagonal and symmetry.
+off-diagonal entries by \code{(denom_factor * row L1 norm of off-diagonals)},
+then enforces unit diagonal and symmetry. This makes the matrix
+diagonally dominant (hence positive definite) when \code{denom_factor > 1}.
+}
+\examples{
+A <- matrix(c(1, 0.8, 0.8, 1), 2, 2)
+fix_matrix(A, denom_factor = 1.5)
+
 }
