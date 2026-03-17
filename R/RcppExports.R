@@ -22,6 +22,10 @@ mcmc_ssvs_engine_cpp <- function(S_list_r, n_vec_r, burnin, nsave, thin, v0, v1,
     .Call(`_multiGGM_mcmc_ssvs_engine_cpp`, S_list_r, n_vec_r, burnin, nsave, thin, v0, v1, lambda_param, a, b_beta, alpha, beta_rate, w_prior, alpha_prop, beta_prop, a_prop, b_prop, Theta_init_r, nu_init_r, C_init_r, Sig_init_r, verbose, print_every)
 }
 
+mcmc_ssvs_platform_engine_cpp <- function(platform_S_lists, platform_n_vecs, p_vec_r, K, burnin, nsave, thin, v0, v1, lambda_param, a, b_beta, alpha, beta_rate, w_prior, alpha_prop, beta_prop, a_prop, b_prop, eta, kappa, eta_prop, kappa_prop, d_plat, f_plat, d_prop, f_prop, u_prior, Theta_init_list, nu_init_list, C_init_list, Sig_init_list, Phi_init_r, w_init_r, verbose, print_every) {
+    .Call(`_multiGGM_mcmc_ssvs_platform_engine_cpp`, platform_S_lists, platform_n_vecs, p_vec_r, K, burnin, nsave, thin, v0, v1, lambda_param, a, b_beta, alpha, beta_rate, w_prior, alpha_prop, beta_prop, a_prop, b_prop, eta, kappa, eta_prop, kappa_prop, d_plat, f_plat, d_prop, f_prop, u_prior, Theta_init_list, nu_init_list, C_init_list, Sig_init_list, Phi_init_r, w_init_r, verbose, print_every)
+}
+
 wishrnd_cpp <- function(Sigma, df) {
     .Call(`_multiGGM_wishrnd_cpp`, Sigma, df)
 }

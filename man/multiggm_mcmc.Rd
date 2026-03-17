@@ -15,7 +15,8 @@ multiggm_mcmc(
   parallel = FALSE,
   ncores = max(1L, parallel::detectCores() - 1L),
   seed = NULL,
-  method = c("gwishart", "ssvs"),
+  method = c("gwishart", "ssvs", "ssvs_platform"),
+  platform_data = NULL,
   hyper = NULL,
   engine = c("cpp", "R"),
   ...
@@ -54,7 +55,15 @@ seed \code{seed + 1000 * (i - 1)} for reproducibility.}
 \item{method}{Character; \code{"gwishart"} (default) uses the G-Wishart prior
 with the Wang-Li exchange algorithm (Peterson et al. 2015). \code{"ssvs"}
 uses a spike-and-slab normal prior on precision elements with column-wise
-Gibbs sampling (Shaddox et al. 2018), which scales to larger dimensions.}
+Gibbs sampling (Shaddox et al. 2018), which scales to larger dimensions.
+\code{"ssvs_platform"} extends the SSVS approach to jointly model multiple
+data platforms (Shaddox et al. 2020, Biostatistics) with a hierarchical
+MRF coupling group similarity across platforms. Requires \code{platform_data}.}
+
+\item{platform_data}{For \code{method = "ssvs_platform"} only. A list of S
+elements (one per platform), each a list with components \code{data_list}
+or \code{S_list} and \code{n_vec}. Each platform may have different
+dimensions \code{p_s}, but must have the same number of groups K.}
 
 \item{hyper}{Optional named list of hyperparameters. See Details.}
 
@@ -149,7 +158,7 @@ beta_prop = 5 for G-Wishart; alpha_prop = 1, beta_prop = 1 for SSVS.}
 \item{\code{D_prior}}{G-Wishart scale matrix, p x p (default \code{diag(p)}).}
 }
 
-\strong{SSVS-specific hyperparameters (\code{method = "ssvs"}):}
+\strong{SSVS-specific hyperparameters (\code{method = "ssvs"} or \code{"ssvs_platform"}):}
 \describe{
 \item{\code{v0}}{Spike variance for off-diagonal precision elements
 (default \code{0.02^2 = 0.0004}).}
@@ -157,6 +166,20 @@ beta_prop = 5 for G-Wishart; alpha_prop = 1, beta_prop = 1 for SSVS.}
 (default \code{50^2 * v0 = 1.0}).}
 \item{\code{lambda}}{Exponential rate hyperparameter for diagonal elements
 (default 1).}
+}
+
+\strong{Platform-level hyperparameters (\code{method = "ssvs_platform"} only):}
+\describe{
+\item{\code{eta, kappa}}{Gamma(shape = eta, scale = kappa) slab prior on
+platform similarity \eqn{\Phi_{st}}. Default eta = 4, kappa = 5.}
+\item{\code{eta_prop, kappa_prop}}{Gamma proposal for \eqn{\Phi_{st}}.
+Default eta_prop = 1, kappa_prop = 1.}
+\item{\code{d, f}}{Beta(d, f) prior on platform-level edge log-odds
+\eqn{w_{km}}. Default d = 1, f = 19.}
+\item{\code{d_prop, f_prop}}{Beta proposal for \eqn{w_{km}}.
+Default d_prop = 2, f_prop = 4.}
+\item{\code{u_prior}}{Bernoulli prior probability \eqn{P(\zeta_{st} = 1)}.
+Default 0.1.}
 }
 }
 \examples{
@@ -173,6 +196,10 @@ Statistical Association}, 110(509), 159-174.
 Shaddox, E., Stingo, F.C., Peterson, C.B., et al. (2018). A Bayesian
 approach for learning gene networks underlying disease severity in COPD.
 \emph{Statistics in Biosciences}, 10(1), 59-85.
+
+Shaddox, E., Peterson, C.B., Stingo, F.C., et al. (2020). Bayesian
+inference of networks across multiple sample groups and data types.
+\emph{Biostatistics}, 21(3), 561-576.
 }
 \seealso{
 \code{\link[=pip_edges]{pip_edges()}}, \code{\link[=posterior_precision]{posterior_precision()}}, \code{\link[=posterior_pcor]{posterior_pcor()}},
