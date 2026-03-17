@@ -12,6 +12,7 @@ export(multiggm_mcmc)
 
 # Simulation
 export(simulate_multiggm)
+export(simulate_multiggm_platform)
 
 # MRF normalizing constant
 export(calc_mrf_logC)
@@ -48,3 +49,8 @@ S3method(print, summary.multiggm_fit)
 S3method(coef, multiggm_fit)
 S3method(fitted, multiggm_fit)
 S3method(plot, multiggm_fit)
+S3method(print, multiggm_platform_fit)
+S3method(summary, multiggm_platform_fit)
+S3method(print, summary.multiggm_platform_fit)
+S3method(coef, multiggm_platform_fit)
+S3method(fitted, multiggm_platform_fit)

@@ -87,6 +87,52 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// mcmc_ssvs_platform_engine_cpp
+Rcpp::List mcmc_ssvs_platform_engine_cpp(Rcpp::List platform_S_lists, Rcpp::List platform_n_vecs, Rcpp::IntegerVector p_vec_r, int K, int burnin, int nsave, int thin, double v0, double v1, double lambda_param, double a, double b_beta, double alpha, double beta_rate, double w_prior, double alpha_prop, double beta_prop, double a_prop, double b_prop, double eta, double kappa, double eta_prop, double kappa_prop, double d_plat, double f_plat, double d_prop, double f_prop, double u_prior, Rcpp::List Theta_init_list, Rcpp::List nu_init_list, Rcpp::List C_init_list, Rcpp::List Sig_init_list, Rcpp::NumericMatrix Phi_init_r, Rcpp::NumericMatrix w_init_r, bool verbose, int print_every);
+RcppExport SEXP _multiGGM_mcmc_ssvs_platform_engine_cpp(SEXP platform_S_listsSEXP, SEXP platform_n_vecsSEXP, SEXP p_vec_rSEXP, SEXP KSEXP, SEXP burninSEXP, SEXP nsaveSEXP, SEXP thinSEXP, SEXP v0SEXP, SEXP v1SEXP, SEXP lambda_paramSEXP, SEXP aSEXP, SEXP b_betaSEXP, SEXP alphaSEXP, SEXP beta_rateSEXP, SEXP w_priorSEXP, SEXP alpha_propSEXP, SEXP beta_propSEXP, SEXP a_propSEXP, SEXP b_propSEXP, SEXP etaSEXP, SEXP kappaSEXP, SEXP eta_propSEXP, SEXP kappa_propSEXP, SEXP d_platSEXP, SEXP f_platSEXP, SEXP d_propSEXP, SEXP f_propSEXP, SEXP u_priorSEXP, SEXP Theta_init_listSEXP, SEXP nu_init_listSEXP, SEXP C_init_listSEXP, SEXP Sig_init_listSEXP, SEXP Phi_init_rSEXP, SEXP w_init_rSEXP, SEXP verboseSEXP, SEXP print_everySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type platform_S_lists(platform_S_listsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type platform_n_vecs(platform_n_vecsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type p_vec_r(p_vec_rSEXP);
+    Rcpp::traits::input_parameter< int >::type K(KSEXP);
+    Rcpp::traits::input_parameter< int >::type burnin(burninSEXP);
+    Rcpp::traits::input_parameter< int >::type nsave(nsaveSEXP);
+    Rcpp::traits::input_parameter< int >::type thin(thinSEXP);
+    Rcpp::traits::input_parameter< double >::type v0(v0SEXP);
+    Rcpp::traits::input_parameter< double >::type v1(v1SEXP);
+    Rcpp::traits::input_parameter< double >::type lambda_param(lambda_paramSEXP);
+    Rcpp::traits::input_parameter< double >::type a(aSEXP);
+    Rcpp::traits::input_parameter< double >::type b_beta(b_betaSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< double >::type beta_rate(beta_rateSEXP);
+    Rcpp::traits::input_parameter< double >::type w_prior(w_priorSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha_prop(alpha_propSEXP);
+    Rcpp::traits::input_parameter< double >::type beta_prop(beta_propSEXP);
+    Rcpp::traits::input_parameter< double >::type a_prop(a_propSEXP);
+    Rcpp::traits::input_parameter< double >::type b_prop(b_propSEXP);
+    Rcpp::traits::input_parameter< double >::type eta(etaSEXP);
+    Rcpp::traits::input_parameter< double >::type kappa(kappaSEXP);
+    Rcpp::traits::input_parameter< double >::type eta_prop(eta_propSEXP);
+    Rcpp::traits::input_parameter< double >::type kappa_prop(kappa_propSEXP);
+    Rcpp::traits::input_parameter< double >::type d_plat(d_platSEXP);
+    Rcpp::traits::input_parameter< double >::type f_plat(f_platSEXP);
+    Rcpp::traits::input_parameter< double >::type d_prop(d_propSEXP);
+    Rcpp::traits::input_parameter< double >::type f_prop(f_propSEXP);
+    Rcpp::traits::input_parameter< double >::type u_prior(u_priorSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type Theta_init_list(Theta_init_listSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type nu_init_list(nu_init_listSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type C_init_list(C_init_listSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type Sig_init_list(Sig_init_listSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type Phi_init_r(Phi_init_rSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type w_init_r(w_init_rSEXP);
+    Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
+    Rcpp::traits::input_parameter< int >::type print_every(print_everySEXP);
+    rcpp_result_gen = Rcpp::wrap(mcmc_ssvs_platform_engine_cpp(platform_S_lists, platform_n_vecs, p_vec_r, K, burnin, nsave, thin, v0, v1, lambda_param, a, b_beta, alpha, beta_rate, w_prior, alpha_prop, beta_prop, a_prop, b_prop, eta, kappa, eta_prop, kappa_prop, d_plat, f_plat, d_prop, f_prop, u_prior, Theta_init_list, nu_init_list, C_init_list, Sig_init_list, Phi_init_r, w_init_r, verbose, print_every));
+    return rcpp_result_gen;
+END_RCPP
+}
 // wishrnd_cpp
 arma::mat wishrnd_cpp(const arma::mat& Sigma, double df);
 RcppExport SEXP _multiGGM_wishrnd_cpp(SEXP SigmaSEXP, SEXP dfSEXP) {
@@ -208,6 +254,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_multiGGM_calc_mrf_logC_cpp", (DL_FUNC) &_multiGGM_calc_mrf_logC_cpp, 2},
     {"_multiGGM_mcmc_engine_cpp", (DL_FUNC) &_multiGGM_mcmc_engine_cpp, 21},
     {"_multiGGM_mcmc_ssvs_engine_cpp", (DL_FUNC) &_multiGGM_mcmc_ssvs_engine_cpp, 23},
+    {"_multiGGM_mcmc_ssvs_platform_engine_cpp", (DL_FUNC) &_multiGGM_mcmc_ssvs_platform_engine_cpp, 36},
     {"_multiGGM_wishrnd_cpp", (DL_FUNC) &_multiGGM_wishrnd_cpp, 2},
     {"_multiGGM_log_iwishart_invA_const_cpp", (DL_FUNC) &_multiGGM_log_iwishart_invA_const_cpp, 2},
     {"_multiGGM_log_J_cpp", (DL_FUNC) &_multiGGM_log_J_cpp, 3},

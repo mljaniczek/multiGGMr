@@ -194,10 +194,12 @@ diff_prob_pcor <- function(pcor, delta = 0) {
 #' The PIP is the fraction of saved MCMC iterations in which each edge was
 #' included in the graph.
 #'
-#' @param fit A \code{multiggm_fit} object (single chain) or
-#'   \code{multiggm_fit_list} object.
+#' @param fit A \code{multiggm_fit} object (single chain),
+#'   \code{multiggm_fit_list} object, or \code{multiggm_platform_fit} object.
 #' @param chain Integer; which chain to use if \code{fit} is a
 #'   \code{multiggm_fit_list}. Default 1.
+#' @param platform Integer; which platform to extract (required for
+#'   \code{multiggm_platform_fit} objects). Ignored for single-platform fits.
 #'
 #' @return A numeric array of dimension \code{[p, p, K]}. Entry
 #'   \code{pip[i, j, k]} is the posterior probability that edge (i,j) is
@@ -214,7 +216,13 @@ diff_prob_pcor <- function(pcor, delta = 0) {
 #'
 #' @seealso [pip_diff_edge()], [confusion_at_threshold()], [roc_auc()]
 #' @export
-pip_edges <- function(fit, chain = 1L) {
+pip_edges <- function(fit, chain = 1L, platform = NULL) {
+  if (inherits(fit, "multiggm_platform_fit")) {
+    if (is.null(platform)) stop("For multiggm_platform_fit, specify 'platform' argument.")
+    plat <- fit$platforms[[platform]]
+    A <- plat$adj_save
+    return(apply(A, c(1,2,3), mean, na.rm = TRUE))
+  }
   if (inherits(fit, "multiggm_fit_list")) fit <- fit$chains[[chain]]
   A <- fit$adj_save
   # A is [p,p,K,nsave] integer

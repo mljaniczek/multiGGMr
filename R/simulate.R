@@ -171,6 +171,130 @@ simulate_multiggm <- function(K = 2, p = 20, n = 100,
 }
 
 
+#' Simulate multi-platform data from multiple Gaussian graphical models
+#'
+#' Generates S platforms of data, each with K groups sharing structure across
+#' groups (controlled by \code{perturb_prob}) and across platforms (controlled
+#' by \code{platform_perturb_prob}). Follows Shaddox et al. (2020) simulation
+#' design. Platform 1 uses the base graph; platforms 2..S perturb it.
+#'
+#' @param K Integer; number of sample groups. Default 2.
+#' @param S Integer; number of platforms (data types). Default 2.
+#' @param p_vec Integer vector of length S; number of variables per platform.
+#'   Default \code{c(20, 15)}.
+#' @param n Integer (scalar or length-K vector); sample size per group
+#'   (same across platforms). Default 100.
+#' @param graph_type Character; type of base graph. See
+#'   \code{\link{simulate_multiggm}}.
+#' @param perturb_prob Numeric; probability of edge flip between groups within
+#'   a platform. Default 0.1.
+#' @param platform_perturb_prob Numeric; probability of edge flip between
+#'   platforms. Default 0.2.
+#' @param signal Numeric vector of length 2; magnitude range for off-diagonal
+#'   precision entries. Default \code{c(0.3, 0.6)}.
+#' @param seed Optional integer random seed.
+#'
+#' @return A list with components:
+#' * \code{platform_data}: List of S elements, each suitable as input
+#'       to \code{multiggm_mcmc(method = "ssvs_platform", platform_data = ...)}.
+#'       Each element is a list with \code{data_list}, \code{S_list},
+#'       \code{n_vec}, \code{Omega_list}, and \code{adj_list}.
+#' * \code{K}, \code{S}, \code{p_vec}: Dimensions.
+#'
+#' @examples
+#' sim <- simulate_multiggm_platform(K = 2, S = 2, p_vec = c(10, 8),
+#'                                    n = 80, seed = 42)
+#' str(sim, max.level = 2)
+#'
+#' @seealso [simulate_multiggm()], [multiggm_mcmc()]
+#' @export
+simulate_multiggm_platform <- function(K = 2, S = 2, p_vec = c(20, 15),
+                                        n = 100,
+                                        graph_type = c("band", "random", "hub"),
+                                        perturb_prob = 0.1,
+                                        platform_perturb_prob = 0.2,
+                                        signal = c(0.3, 0.6),
+                                        seed = NULL) {
+
+  graph_type <- match.arg(graph_type)
+  if (!is.null(seed)) set.seed(seed)
+  p_vec <- as.integer(p_vec)
+  if (length(p_vec) != S) stop("p_vec must have length S.")
+  n_vec <- rep_len(as.integer(n), K)
+
+  platform_data <- vector("list", S)
+
+  for (s in seq_len(S)) {
+    p_s <- p_vec[s]
+
+    # Use simulate_multiggm for this platform, optionally perturbing from
+    # a common base graph pattern
+    sim_s <- simulate_multiggm(
+      K = K, p = p_s, n = n_vec,
+      graph_type = graph_type,
+      perturb_prob = perturb_prob,
+      signal = signal,
+      seed = NULL  # seed already set globally
+    )
+
+    # For platforms 2..S, additionally perturb the adjacency
+    if (s > 1 && platform_perturb_prob > 0) {
+      for (k in seq_len(K)) {
+        adj_k <- sim_s$adj_list[[k]]
+        for (i in 1:(p_s - 1)) {
+          for (j in (i + 1):p_s) {
+            if (stats::runif(1) < platform_perturb_prob) {
+              adj_k[i, j] <- 1L - adj_k[i, j]
+              adj_k[j, i] <- adj_k[i, j]
+            }
+          }
+        }
+        sim_s$adj_list[[k]] <- adj_k
+
+        # Regenerate precision from new adjacency
+        Omega_k <- matrix(0, p_s, p_s)
+        diag(Omega_k) <- 1
+        for (i in 1:(p_s - 1)) {
+          for (j in (i + 1):p_s) {
+            if (adj_k[i, j] == 1L) {
+              val <- stats::runif(1, signal[1], signal[2]) * sample(c(-1, 1), 1)
+              Omega_k[i, j] <- val
+              Omega_k[j, i] <- val
+            }
+          }
+        }
+        Omega_k <- .make_pd(Omega_k)
+        sim_s$Omega_list[[k]] <- Omega_k
+
+        # Regenerate data
+        Sigma_k <- solve(Omega_k)
+        Sigma_k <- (Sigma_k + t(Sigma_k)) / 2
+        L <- chol(Sigma_k)
+        Xk <- matrix(stats::rnorm(n_vec[k] * p_s), nrow = n_vec[k], ncol = p_s) %*% L
+        Xk <- scale(Xk, center = TRUE, scale = FALSE)
+        sim_s$data_list[[k]] <- Xk
+        sim_s$S_list[[k]] <- crossprod(Xk)
+      }
+    }
+
+    platform_data[[s]] <- list(
+      data_list  = sim_s$data_list,
+      S_list     = sim_s$S_list,
+      n_vec      = n_vec,
+      Omega_list = sim_s$Omega_list,
+      adj_list   = sim_s$adj_list
+    )
+  }
+
+  list(
+    platform_data = platform_data,
+    K             = K,
+    S             = S,
+    p_vec         = p_vec
+  )
+}
+
+
 #' Make a symmetric matrix positive definite
 #'
 #' Rescales off-diagonal entries row-wise and adds diagonal loading if needed.

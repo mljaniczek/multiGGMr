@@ -30,6 +30,13 @@
 #'   with the Wang-Li exchange algorithm (Peterson et al. 2015). \code{"ssvs"}
 #'   uses a spike-and-slab normal prior on precision elements with column-wise
 #'   Gibbs sampling (Shaddox et al. 2018), which scales to larger dimensions.
+#'   \code{"ssvs_platform"} extends the SSVS approach to jointly model multiple
+#'   data platforms (Shaddox et al. 2020, Biostatistics) with a hierarchical
+#'   MRF coupling group similarity across platforms. Requires \code{platform_data}.
+#' @param platform_data For \code{method = "ssvs_platform"} only. A list of S
+#'   elements (one per platform), each a list with components \code{data_list}
+#'   or \code{S_list} and \code{n_vec}. Each platform may have different
+#'   dimensions \code{p_s}, but must have the same number of groups K.
 #' @param hyper Optional named list of hyperparameters. See Details.
 #' @param engine Character; \code{"cpp"} (default) uses the high-performance C++
 #'   MCMC engine. \code{"R"} uses the pure R fallback (slower, mainly for
@@ -67,7 +74,7 @@
 #'   \item{\code{D_prior}}{G-Wishart scale matrix, p x p (default \code{diag(p)}).}
 #' }
 #'
-#' \strong{SSVS-specific hyperparameters (\code{method = "ssvs"}):}
+#' \strong{SSVS-specific hyperparameters (\code{method = "ssvs"} or \code{"ssvs_platform"}):}
 #' \describe{
 #'   \item{\code{v0}}{Spike variance for off-diagonal precision elements
 #'     (default \code{0.02^2 = 0.0004}).}
@@ -75,6 +82,20 @@
 #'     (default \code{50^2 * v0 = 1.0}).}
 #'   \item{\code{lambda}}{Exponential rate hyperparameter for diagonal elements
 #'     (default 1).}
+#' }
+#'
+#' \strong{Platform-level hyperparameters (\code{method = "ssvs_platform"} only):}
+#' \describe{
+#'   \item{\code{eta, kappa}}{Gamma(shape = eta, scale = kappa) slab prior on
+#'     platform similarity \eqn{\Phi_{st}}. Default eta = 4, kappa = 5.}
+#'   \item{\code{eta_prop, kappa_prop}}{Gamma proposal for \eqn{\Phi_{st}}.
+#'     Default eta_prop = 1, kappa_prop = 1.}
+#'   \item{\code{d, f}}{Beta(d, f) prior on platform-level edge log-odds
+#'     \eqn{w_{km}}. Default d = 1, f = 19.}
+#'   \item{\code{d_prop, f_prop}}{Beta proposal for \eqn{w_{km}}.
+#'     Default d_prop = 2, f_prop = 4.}
+#'   \item{\code{u_prior}}{Bernoulli prior probability \eqn{P(\zeta_{st} = 1)}.
+#'     Default 0.1.}
 #' }
 #'
 #' @return For a single chain (\code{nchains = 1}), an object of class
@@ -136,6 +157,10 @@
 #' approach for learning gene networks underlying disease severity in COPD.
 #' *Statistics in Biosciences*, 10(1), 59-85.
 #'
+#' Shaddox, E., Peterson, C.B., Stingo, F.C., et al. (2020). Bayesian
+#' inference of networks across multiple sample groups and data types.
+#' *Biostatistics*, 21(3), 561-576.
+#'
 #' @seealso [pip_edges()], [posterior_precision()], [posterior_pcor()],
 #'   [summary.multiggm_fit()], [coef.multiggm_fit()], [fitted.multiggm_fit()]
 #' @export
@@ -144,10 +169,22 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
                           nchains = 1,
                           parallel = FALSE, ncores = max(1L, parallel::detectCores() - 1L),
                           seed = NULL,
-                          method = c("gwishart", "ssvs"),
+                          method = c("gwishart", "ssvs", "ssvs_platform"),
+                          platform_data = NULL,
                           hyper = NULL,
                           engine = c("cpp", "R"),
                           ...) {
+
+  method <- match.arg(method)
+
+  # --- Multi-platform dispatch ---
+  if (method == "ssvs_platform") {
+    return(.multiggm_mcmc_platform(platform_data = platform_data,
+                                    burnin = burnin, nsave = nsave, thin = thin,
+                                    nchains = nchains, parallel = parallel,
+                                    ncores = ncores, seed = seed,
+                                    hyper = hyper, ...))
+  }
 
   # --- Input validation: exactly one of data_list or S_list ---
   has_data <- !is.null(data_list)
@@ -177,7 +214,6 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
     if (length(n_vec) != K) stop("n_vec must have length equal to length(S_list).")
   }
 
-  method <- match.arg(method)
   engine <- match.arg(engine)
   if (!is.null(seed)) seed <- as.integer(seed)
 
@@ -559,4 +595,214 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
                  alpha_prop = alpha_prop, beta_prop = beta_prop, a_prop = a_prop, b_prop = b_prop),
     call = match.call()
   ), class = "multiggm_fit")
+}
+
+
+#' Internal multi-platform SSVS engine
+#'
+#' Implements Shaddox et al. (2020) multi-platform SSVS with hierarchical MRF
+#' coupling across S data platforms.
+#'
+#' @keywords internal
+.multiggm_mcmc_platform <- function(platform_data, burnin, nsave, thin,
+                                     nchains = 1L, parallel = FALSE, ncores = 1L,
+                                     seed = NULL, hyper = NULL, disp = FALSE, ...) {
+
+  # --- Validate platform_data ---
+  if (is.null(platform_data) || !is.list(platform_data) || length(platform_data) < 1L)
+    stop("platform_data must be a non-empty list of platform specifications.")
+
+  S_plat <- length(platform_data)
+  p_vec <- integer(S_plat)
+  platform_S_lists <- vector("list", S_plat)
+  platform_n_vecs <- vector("list", S_plat)
+  K <- NULL
+
+  for (s in seq_len(S_plat)) {
+    pd <- platform_data[[s]]
+    if (!is.list(pd)) stop("Each element of platform_data must be a list.")
+
+    has_data_s <- !is.null(pd$data_list)
+    has_S_s    <- !is.null(pd$S_list)
+    if (!has_data_s && !has_S_s)
+      stop(sprintf("Platform %d: provide at least one of 'data_list' or 'S_list'.", s))
+
+    if (has_data_s && has_S_s) {
+      # Both provided (e.g., from simulate_multiggm_platform); prefer data_list
+      has_S_s <- FALSE
+    }
+
+    if (has_data_s) {
+      K_s <- length(pd$data_list)
+      p_s <- ncol(pd$data_list[[1L]])
+      n_vec_s <- integer(K_s)
+      S_list_s <- vector("list", K_s)
+      for (k in seq_len(K_s)) {
+        Xk <- as.matrix(pd$data_list[[k]])
+        if (ncol(Xk) != p_s)
+          stop(sprintf("Platform %d: all data matrices must have the same number of columns.", s))
+        n_vec_s[k] <- nrow(Xk)
+        Xk <- scale(Xk, center = TRUE, scale = FALSE)
+        S_list_s[[k]] <- crossprod(Xk)
+      }
+    } else {
+      K_s <- length(pd$S_list)
+      p_s <- nrow(pd$S_list[[1L]])
+      n_vec_s <- as.integer(pd$n_vec)
+      if (length(n_vec_s) != K_s)
+        stop(sprintf("Platform %d: n_vec must have length equal to length(S_list).", s))
+      S_list_s <- pd$S_list
+    }
+
+    if (is.null(K)) {
+      K <- K_s
+    } else if (K_s != K) {
+      stop(sprintf("Platform %d has K=%d groups but platform 1 has K=%d. All must match.", s, K_s, K))
+    }
+
+    p_vec[s] <- p_s
+    platform_S_lists[[s]] <- S_list_s
+    platform_n_vecs[[s]] <- as.numeric(n_vec_s)
+  }
+
+  # --- Default hyperparameters ---
+  if (is.null(hyper)) {
+    hyper <- list(
+      v0 = 0.02^2,               # Spike variance
+      v1 = 50^2 * 0.02^2,        # Slab variance
+      lambda = 1,                 # Diagonal hyperparameter
+      a = 1, b = 4,              # Beta(1,4) prior on q_ij
+      alpha = 2, beta = 5,       # Gamma slab on theta_km (rate param)
+      w = 0.9,                   # P(gamma_km=1)
+      alpha_prop = 1, beta_prop = 1,  # Gamma proposal for theta (scale param)
+      # Platform-level (Shaddox et al. 2020 defaults)
+      eta = 4, kappa = 5,              # Gamma slab on Phi (shape, scale)
+      eta_prop = 1, kappa_prop = 1,    # Gamma proposal for Phi
+      d = 1, f = 19,                   # Beta(1,19) prior on w_platform
+      d_prop = 2, f_prop = 4,          # Beta proposal for w_platform
+      u_prior = 0.1                    # P(zeta=1)
+    )
+  }
+
+  # Unpack
+  v0_val     <- hyper$v0 %||% 0.02^2
+  v1_val     <- hyper$v1 %||% (50^2 * 0.02^2)
+  lambda_val <- hyper$lambda %||% 1
+  a_h        <- hyper$a %||% 1
+  b_h        <- hyper$b %||% 4
+  alpha_h    <- hyper$alpha %||% 2
+  beta_h     <- hyper$beta %||% 5
+  w_h        <- hyper$w %||% 0.9
+  alpha_prop <- hyper$alpha_prop %||% 1
+  beta_prop  <- hyper$beta_prop %||% 1
+  eta_h      <- hyper$eta %||% 4
+  kappa_h    <- hyper$kappa %||% 5
+  eta_prop   <- hyper$eta_prop %||% 1
+  kappa_prop <- hyper$kappa_prop %||% 1
+  d_h        <- hyper$d %||% 1
+  f_h        <- hyper$f %||% 19
+  d_prop     <- hyper$d_prop %||% 2
+  f_prop     <- hyper$f_prop %||% 4
+  u_prior    <- hyper$u_prior %||% 0.1
+
+  a_prop <- 2
+  b_prop <- 4
+
+  # --- Per-platform initialization ---
+  Theta_init_list <- vector("list", S_plat)
+  nu_init_list    <- vector("list", S_plat)
+  C_init_list     <- vector("list", S_plat)
+  Sig_init_list   <- vector("list", S_plat)
+
+  for (s in seq_len(S_plat)) {
+    p_s <- p_vec[s]
+    Theta_init_list[[s]] <- matrix(0, K, K)
+    nu_init_list[[s]]    <- matrix(-1, p_s, p_s)
+    diag(nu_init_list[[s]]) <- 0
+    C_arr_s <- array(diag(p_s), dim = c(p_s, p_s, K))
+    Sig_arr_s <- array(NA_real_, dim = c(p_s, p_s, K))
+    for (k in seq_len(K)) Sig_arr_s[, , k] <- solve(C_arr_s[, , k])
+    C_init_list[[s]]   <- as.numeric(C_arr_s)
+    Sig_init_list[[s]] <- as.numeric(Sig_arr_s)
+  }
+
+  # Platform-level initialization
+  Phi_init <- matrix(0, S_plat, S_plat)
+  w_init   <- matrix(-1, K, K)
+  diag(w_init) <- 0
+
+  if (!is.null(seed)) set.seed(seed)
+
+  # --- Call C++ engine ---
+  res <- mcmc_ssvs_platform_engine_cpp(
+    platform_S_lists = platform_S_lists,
+    platform_n_vecs  = platform_n_vecs,
+    p_vec_r          = as.integer(p_vec),
+    K                = as.integer(K),
+    burnin           = as.integer(burnin),
+    nsave            = as.integer(nsave),
+    thin             = as.integer(thin),
+    v0               = v0_val,
+    v1               = v1_val,
+    lambda_param     = lambda_val,
+    a                = a_h,
+    b_beta           = b_h,
+    alpha            = alpha_h,
+    beta_rate        = beta_h,
+    w_prior          = w_h,
+    alpha_prop       = alpha_prop,
+    beta_prop        = beta_prop,
+    a_prop           = a_prop,
+    b_prop           = b_prop,
+    eta              = eta_h,
+    kappa            = kappa_h,
+    eta_prop         = eta_prop,
+    kappa_prop       = kappa_prop,
+    d_plat           = d_h,
+    f_plat           = f_h,
+    d_prop           = d_prop,
+    f_prop           = f_prop,
+    u_prior          = u_prior,
+    Theta_init_list  = Theta_init_list,
+    nu_init_list     = nu_init_list,
+    C_init_list      = C_init_list,
+    Sig_init_list    = Sig_init_list,
+    Phi_init_r       = Phi_init,
+    w_init_r         = w_init,
+    verbose          = isTRUE(disp),
+    print_every      = 500L
+  )
+
+  # --- Build return object ---
+  platforms <- vector("list", S_plat)
+  for (s in seq_len(S_plat)) {
+    pr <- res$platform_results[[s]]
+    platforms[[s]] <- list(
+      p          = p_vec[s],
+      C_save     = pr$C_save,
+      Sig_save   = pr$Sig_save,
+      adj_save   = pr$adj_save,
+      Theta_save = pr$Theta_save,
+      nu_save    = pr$nu_save,
+      ar_gamma   = pr$ar_gamma,
+      ar_theta   = pr$ar_theta,
+      ar_nu      = pr$ar_nu
+    )
+  }
+  names(platforms) <- paste0("Platform_", seq_len(S_plat))
+
+  structure(list(
+    K          = K,
+    S          = S_plat,
+    p_vec      = p_vec,
+    method     = "ssvs_platform",
+    platforms  = platforms,
+    Phi_save   = res$Phi_save,
+    w_save     = res$w_save,
+    ar_phi_between = res$ar_phi_between,
+    ar_phi_within  = res$ar_phi_within,
+    ar_w       = res$ar_w,
+    hyper      = hyper,
+    call       = match.call()
+  ), class = "multiggm_platform_fit")
 }

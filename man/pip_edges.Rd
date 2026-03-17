@@ -4,14 +4,17 @@
 \alias{pip_edges}
 \title{Posterior inclusion probabilities (PIP) per group}
 \usage{
-pip_edges(fit, chain = 1L)
+pip_edges(fit, chain = 1L, platform = NULL)
 }
 \arguments{
-\item{fit}{A \code{multiggm_fit} object (single chain) or
-\code{multiggm_fit_list} object.}
+\item{fit}{A \code{multiggm_fit} object (single chain),
+\code{multiggm_fit_list} object, or \code{multiggm_platform_fit} object.}
 
 \item{chain}{Integer; which chain to use if \code{fit} is a
 \code{multiggm_fit_list}. Default 1.}
+
+\item{platform}{Integer; which platform to extract (required for
+\code{multiggm_platform_fit} objects). Ignored for single-platform fits.}
 }
 \value{
 A numeric array of dimension \code{[p, p, K]}. Entry
