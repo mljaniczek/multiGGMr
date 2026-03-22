@@ -216,6 +216,7 @@ diff_prob_pcor <- function(pcor, delta = 0) {
 #'
 #' @seealso [pip_diff_edge()], [confusion_at_threshold()], [roc_auc()]
 #' @export
+#'
 pip_edges <- function(fit, chain = 1L, platform = NULL) {
   if (inherits(fit, "multiggm_platform_fit")) {
     if (is.null(platform)) stop("For multiggm_platform_fit, specify 'platform' argument.")
@@ -227,6 +228,7 @@ pip_edges <- function(fit, chain = 1L, platform = NULL) {
   A <- fit$adj_save
   # A is [p,p,K,nsave] integer
   apply(A, c(1,2,3), mean, na.rm = TRUE)
+  # TODO make this a list of matrices rather than an array and label the rows and columns of the array by feature names
 }
 
 #' Posterior probability of differential edge inclusion (K=2)

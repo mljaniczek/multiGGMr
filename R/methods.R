@@ -1,3 +1,5 @@
+#TODO ensure all methods work when there is more than one chain in main multiggm_mcmc function
+
 #' Print a multiggm_fit object
 #'
 #' Displays a concise summary of a fitted multi-GGM model.

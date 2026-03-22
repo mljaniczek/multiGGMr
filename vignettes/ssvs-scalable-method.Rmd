@@ -64,6 +64,8 @@ fit <- multiggm_mcmc(
   nsave     = 1000,
   seed      = 123
 )
+
+# TODO add section on multiple chains, how to use them and how to evaluate convergence, and when it is recommended to use more than one chain
 ```
 
 ```{r ssvs-summary}
@@ -256,7 +258,7 @@ When $p$ is small enough to run both, comparing results provides a
 useful robustness check.
 
 ```{r compare, results='hide'}
-sim_small <- simulate_multiggm(K = 2, p = 15, n = 100, seed = 42)
+sim_small <- simulate_multiggm(K = 2, p = 15, n = 100, seed = 42, graph_type = "hub")
 
 fit_gw <- multiggm_mcmc(
   data_list = sim_small$data_list,
@@ -269,6 +271,14 @@ fit_gw <- multiggm_mcmc(
 fit_ssvs <- multiggm_mcmc(
   data_list = sim_small$data_list,
   method    = "ssvs",
+  hyper = list(
+  v0    = 0.001,   
+    v1    = 1,  
+    lambda = 1,       
+    a = 1, b = 4,    
+    alpha = 2, beta = 5,
+    w = 0.9,           # less certain groups are related
+    alpha_prop = 1, beta_prop = 1),
   burnin    = 2000,
   nsave     = 1000,
   seed      = 123
@@ -294,7 +304,7 @@ cat(sprintf("SSVS edges (PIP > 0.5):        %d\n",
 ```{r compare-recovery, fig.width=9, fig.height=7}
 par(mfrow = c(2, 1))
 cm_gw   <- plot_recovery(fit_gw,   sim_small$adj_list, pip_threshold = 0.5)
-cm_ssvs <- plot_recovery(fit_ssvs, sim_small$adj_list, pip_threshold = 0.5)
+cm_ssvs <- plot_recovery(fit_ssvs, sim_small$adj_list, pip_threshold = 0.3)
 ```
 
 ```{r compare-metrics}

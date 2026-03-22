@@ -177,6 +177,7 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
 
   method <- match.arg(method)
 
+  #TODO make sure methods work with more than one chain. provide documentation on how to evaluate multiple chains.
   # --- Multi-platform dispatch ---
   if (method == "ssvs_platform") {
     return(.multiggm_mcmc_platform(platform_data = platform_data,
