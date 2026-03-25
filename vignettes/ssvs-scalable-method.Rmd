@@ -307,6 +307,41 @@ for (method_name in c("G-Wishart", "SSVS")) {
 }
 ```
 
+## Running multiple chains
+
+Both methods support running multiple independent MCMC chains for
+convergence assessment. Because the SSVS method is faster per iteration,
+running multiple chains is more practical at larger dimensions:
+
+```{r multi-chain-ssvs, results='hide'}
+fit_mc <- multiggm_mcmc(
+  data_list = sim$data_list,
+  method    = "ssvs",
+  burnin    = 2000,
+  nsave     = 1000,
+  nchains   = 3,
+  parallel  = TRUE,
+  seed      = 42
+)
+```
+
+```{r multi-chain-compare}
+# Compare PIPs across chains to check convergence
+pip_c1 <- pip_edges(fit_mc, chain = 1)
+pip_c2 <- pip_edges(fit_mc, chain = 2)
+pip_c3 <- pip_edges(fit_mc, chain = 3)
+
+idx <- upper.tri(pip_c1[, , 1])
+cat(sprintf("PIP correlation (chains 1-2): %.3f\n",
+            cor(pip_c1[, , 1][idx], pip_c2[, , 1][idx])))
+cat(sprintf("PIP correlation (chains 1-3): %.3f\n",
+            cor(pip_c1[, , 1][idx], pip_c3[, , 1][idx])))
+```
+
+See the [Getting Started vignette](multiGGMr-tutorial.html) for a
+complete walkthrough of multi-chain diagnostics, including overlaid trace
+plots and pooling results across chains.
+
 ## References
 
 Peterson, C.B., Stingo, F.C. & Vannucci, M. (2015). Bayesian inference

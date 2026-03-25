@@ -32,6 +32,7 @@ This vignette walks through:
 3. Checking convergence
 4. Extracting and interpreting results
 5. Comparing estimated graphs to ground truth
+6. Running and summarizing multiple MCMC chains
 
 ## 1. Simulate data
 
@@ -199,6 +200,137 @@ diff_prob <- diff_prob_pcor(pcor_draws, delta = 0.1)
 cat("Edges with P(|pcor diff| > 0.1) > 0.5:",
     sum(diff_prob[upper.tri(diff_prob)] > 0.5), "\n")
 ```
+
+## 8. Running multiple chains
+
+Running multiple MCMC chains from different starting points is important
+for assessing convergence. The `multiggm_mcmc()` function supports this
+via the `nchains` argument. Chains can be run in parallel with
+`parallel = TRUE`.
+
+### Fitting multiple chains
+
+```{r multi-chain-fit, results='hide'}
+fit_mc <- multiggm_mcmc(
+  data_list = sim$data_list,
+  burnin    = 2000,
+  nsave     = 1000,
+  nchains   = 3,
+  parallel  = TRUE,
+  seed      = 42
+)
+```
+
+The result is a `multiggm_fit_list` object containing all chains:
+
+```{r multi-chain-print}
+fit_mc
+```
+
+### Accessing individual chains
+
+Each chain is a full `multiggm_fit` object. Access them via `$chains`:
+
+```{r multi-chain-access}
+# Summary of chain 1
+summary(fit_mc$chains[[1]], pip_threshold = 0.3)
+```
+
+Most utility functions accept a `chain` argument to select which chain
+to analyze:
+
+```{r multi-chain-pip}
+# PIPs from chain 1 vs chain 2
+pip_c1 <- pip_edges(fit_mc, chain = 1)
+pip_c2 <- pip_edges(fit_mc, chain = 2)
+
+idx <- upper.tri(pip_c1[, , 1])
+cat(sprintf("PIP correlation between chain 1 and 2 (Group 1): %.3f\n",
+            cor(pip_c1[, , 1][idx], pip_c2[, , 1][idx])))
+```
+
+### Comparing trace plots across chains
+
+Overlaying trace plots from multiple chains is one of the most effective
+visual convergence diagnostics. Chains that have converged will mix and
+overlap, while chains stuck in different modes will show persistent
+separation.
+
+```{r multi-chain-traces, fig.height=4}
+library(ggplot2)
+
+# Build a combined edge-count trace from all chains
+trace_df <- do.call(rbind, lapply(seq_len(fit_mc$nchains), function(ch) {
+  ec <- edge_counts(fit_mc, chain = ch)
+  data.frame(
+    iteration = seq_len(nrow(ec)),
+    edges     = ec[, 1],
+    chain     = paste("Chain", ch),
+    stringsAsFactors = FALSE
+  )
+}))
+
+ggplot(trace_df, aes(x = iteration, y = edges, color = chain)) +
+  geom_line(alpha = 0.6) +
+  labs(title = "Edge count trace (Group 1) across chains",
+       x = "Iteration (post-burnin)", y = "Number of edges") +
+  theme_minimal()
+```
+
+```{r multi-chain-theta-trace, fig.height=4}
+# Overlay theta traces from all chains
+theta_df <- do.call(rbind, lapply(seq_len(fit_mc$nchains), function(ch) {
+  data.frame(
+    iteration = seq_len(dim(fit_mc$chains[[ch]]$Theta_save)[3]),
+    theta     = fit_mc$chains[[ch]]$Theta_save[1, 2, ],
+    chain     = paste("Chain", ch),
+    stringsAsFactors = FALSE
+  )
+}))
+
+ggplot(theta_df, aes(x = iteration, y = theta, color = chain)) +
+  geom_line(alpha = 0.6) +
+  labs(title = "Trace: theta[1,2] across chains",
+       x = "Iteration (post-burnin)", y = "theta[1,2]") +
+  theme_minimal()
+```
+
+### Pooling results across chains
+
+To combine posterior samples from all chains, concatenate the saved
+arrays along the iteration dimension:
+
+```{r multi-chain-pool}
+# Pool precision draws across all chains
+pool_C <- abind::abind(
+  lapply(fit_mc$chains, function(ch) ch$C_save),
+  along = 4
+)
+cat(sprintf("Pooled draws: %d (from %d chains x %d draws each)\n",
+            dim(pool_C)[4], fit_mc$nchains, dim(fit_mc$chains[[1]]$C_save)[4]))
+
+# Pool adjacency draws for combined PIPs
+pool_adj <- abind::abind(
+  lapply(fit_mc$chains, function(ch) ch$adj_save),
+  along = 4
+)
+pip_pooled <- apply(pool_adj, c(1, 2, 3), mean)
+
+cat(sprintf("Pooled edges (PIP > 0.5, Group 1): %d\n",
+            sum(pip_pooled[, , 1][upper.tri(pip_pooled[, , 1])] > 0.5)))
+```
+
+### Summary of multi-chain functions
+
+| Task | Code |
+|------|------|
+| Fit multiple chains | `multiggm_mcmc(..., nchains = 4, parallel = TRUE)` |
+| Access chain $i$ | `fit$chains[[i]]` |
+| PIPs from chain $i$ | `pip_edges(fit, chain = i)` |
+| Partial correlations from chain $i$ | `posterior_pcor(fit, chain = i)` |
+| Precision matrices from chain $i$ | `posterior_precision(fit, chain = i)` |
+| Edge counts from chain $i$ | `edge_counts(fit, chain = i)` |
+| Pool draws across chains | `abind::abind(lapply(fit$chains, \(ch) ch$C_save), along = 4)` |
 
 ## References
 
