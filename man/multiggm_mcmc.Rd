@@ -187,6 +187,16 @@ sim <- simulate_multiggm(K = 2, p = 10, n = 100, seed = 42)
 fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 500, nsave = 200)
 summary(fit)
 
+# Multiple chains (parallel on Unix/macOS, sequential on Windows)
+fit_mc <- multiggm_mcmc(
+  data_list = sim$data_list, burnin = 500, nsave = 200,
+  nchains = 2, parallel = TRUE, seed = 42
+)
+fit_mc                          # prints chain count and K
+summary(fit_mc$chains[[1]])     # summarize first chain
+pip_edges(fit_mc, chain = 1)    # PIPs from chain 1
+pip_edges(fit_mc, chain = 2)    # PIPs from chain 2
+
 }
 \references{
 Peterson, C.B., Stingo, F.C. & Vannucci, M. (2015). Bayesian inference
