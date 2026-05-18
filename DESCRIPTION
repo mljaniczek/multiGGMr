@@ -3,8 +3,7 @@ Type: Package
 Title: Bayesian Inference of Multiple Gaussian Graphical Models
 Version: 0.3.0
 Authors@R: c(
-    person(given = "Christine B.", family = "Peterson", role = c("aut")),
-    person(given = "First", family = "Last", role = c("cre"), email = "first.last@example.com"))
+    person(given = "Margaret", family = "Janiczek", role = c("cre"), email = "mjaniczek@umass.edu"))
 Description: Utilities and MCMC implementation for Bayesian inference of multiple
     Gaussian graphical models. Supports G-Wishart (Peterson, Stingo, and
     Vannucci, 2015, JASA), scalable spike-and-slab (Shaddox et al., 2018,
