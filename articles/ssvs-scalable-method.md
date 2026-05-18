@@ -46,8 +46,8 @@ sim <- simulate_multiggm(K = 2, p = 30, n = 100, seed = 42)
 fit <- multiggm_mcmc(
   data_list = sim$data_list,
   method    = "ssvs",
-  burnin    = 2000,
-  nsave     = 1000,
+  burnin    = 200,
+  nsave     = 100,
   seed      = 123
 )
 
@@ -59,19 +59,19 @@ fit <- multiggm_mcmc(
 summary(fit, pip_threshold = 0.5)
 #> multiGGM MCMC Summary
 #> =====================
-#> Groups (K): 2   |  Nodes (p): 30   |  Posterior draws: 1000 
+#> Groups (K): 2   |  Nodes (p): 30   |  Posterior draws: 100 
 #> 
 #> Acceptance rates:
-#>   gamma (edge toggle): 29.3% 
-#>   theta (within-model): 10.1% 
-#>   nu (edge log-odds): 41.9% 
+#>   gamma (edge toggle): 24.0% 
+#>   theta (within-model): 2.3% 
+#>   nu (edge log-odds): 43.2% 
 #> 
 #> Selected edges (PIP >= 0.5 ):
-#>   Group 1 : 12 edges
-#>   Group 2 : 11 edges
+#>   Group 1 : 14 edges
+#>   Group 2 : 14 edges
 #> 
 #> Graph similarity (theta):
-#>   theta[1,2]: mean = 0.016, P(nonzero) = 21.1%
+#>   theta[1,2]: mean = 0.009, P(nonzero) = 9.0%
 ```
 
 ``` r

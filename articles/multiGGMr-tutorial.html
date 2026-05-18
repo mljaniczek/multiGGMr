@@ -124,8 +124,8 @@ cross-product matrices internally after column-centering.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/multiggm_mcmc.html">multiggm_mcmc</a></span><span class="op">(</span></span>
 <span>  data_list <span class="op">=</span> <span class="va">sim</span><span class="op">$</span><span class="va">data_list</span>,</span>
-<span>  burnin <span class="op">=</span> <span class="fl">2000</span>,</span>
-<span>  nsave <span class="op">=</span> <span class="fl">1000</span>,</span>
+<span>  burnin <span class="op">=</span> <span class="fl">200</span>,</span>
+<span>  nsave <span class="op">=</span> <span class="fl">100</span>,</span>
 <span>  thin <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  seed <span class="op">=</span> <span class="fl">123</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -134,7 +134,7 @@ cross-product matrices internally after column-centering.</p>
 <span><span class="co">#&gt; &lt;multiggm_fit&gt;</span></span>
 <span><span class="co">#&gt;   K groups: 2 </span></span>
 <span><span class="co">#&gt;   p nodes : 20 </span></span>
-<span><span class="co">#&gt;   Posterior draws: 1000</span></span></code></pre></div>
+<span><span class="co">#&gt;   Posterior draws: 100</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="check-convergence">3. Check convergence<a class="anchor" aria-label="anchor" href="#check-convergence"></a>
@@ -148,19 +148,19 @@ counts. Acceptance rates between 20-60% are generally healthy.</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span>, pip_threshold <span class="op">=</span> <span class="fl">.3</span><span class="op">)</span></span>
 <span><span class="co">#&gt; multiGGM MCMC Summary</span></span>
 <span><span class="co">#&gt; =====================</span></span>
-<span><span class="co">#&gt; Groups (K): 2   |  Nodes (p): 20   |  Posterior draws: 1000 </span></span>
+<span><span class="co">#&gt; Groups (K): 2   |  Nodes (p): 20   |  Posterior draws: 100 </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Acceptance rates:</span></span>
-<span><span class="co">#&gt;   gamma (edge toggle): 0.1% </span></span>
-<span><span class="co">#&gt;   theta (within-model): 1.2% </span></span>
-<span><span class="co">#&gt;   nu (edge log-odds): 67.2% </span></span>
+<span><span class="co">#&gt;   gamma (edge toggle): 1.0% </span></span>
+<span><span class="co">#&gt;   theta (within-model): 10.1% </span></span>
+<span><span class="co">#&gt;   nu (edge log-odds): 54.8% </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Selected edges (PIP &gt;= 0.3 ):</span></span>
-<span><span class="co">#&gt;   Group 1 : 190 edges</span></span>
-<span><span class="co">#&gt;   Group 2 : 190 edges</span></span>
+<span><span class="co">#&gt;   Group 1 : 128 edges</span></span>
+<span><span class="co">#&gt;   Group 2 : 130 edges</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Graph similarity (theta):</span></span>
-<span><span class="co">#&gt;   theta[1,2]: mean = 1.947, P(nonzero) = 100.0%</span></span></code></pre></div>
+<span><span class="co">#&gt;   theta[1,2]: mean = 1.264, P(nonzero) = 100.0%</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="trace-plots">Trace plots<a class="anchor" aria-label="anchor" href="#trace-plots"></a>
@@ -201,23 +201,23 @@ correlations.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Posterior mean precision (Group 1, first 5x5 block):\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Posterior mean precision (Group 1, first 5x5 block):</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">omega_hat</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">5</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">5</span><span class="op">]</span>, <span class="fl">3</span><span class="op">)</span></span>
-<span><span class="co">#&gt;        [,1]   [,2]   [,3]   [,4]   [,5]</span></span>
-<span><span class="co">#&gt; [1,]  1.450 -0.029 -0.131 -0.120  0.031</span></span>
-<span><span class="co">#&gt; [2,] -0.029  1.115  0.011  0.068  0.129</span></span>
-<span><span class="co">#&gt; [3,] -0.131  0.011  1.242 -0.187 -0.112</span></span>
-<span><span class="co">#&gt; [4,] -0.120  0.068 -0.187  1.919  0.746</span></span>
-<span><span class="co">#&gt; [5,]  0.031  0.129 -0.112  0.746  1.598</span></span></code></pre></div>
+<span><span class="co">#&gt;        [,1]   [,2]   [,3]   [,4]  [,5]</span></span>
+<span><span class="co">#&gt; [1,]  1.325 -0.010 -0.074 -0.053 0.013</span></span>
+<span><span class="co">#&gt; [2,] -0.010  1.019 -0.001  0.025 0.109</span></span>
+<span><span class="co">#&gt; [3,] -0.074 -0.001  1.124 -0.093 0.001</span></span>
+<span><span class="co">#&gt; [4,] -0.053  0.025 -0.093  1.696 0.671</span></span>
+<span><span class="co">#&gt; [5,]  0.013  0.109  0.001  0.671 1.413</span></span></code></pre></div>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">pcor_hat</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/fitted.values.html" class="external-link">fitted</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Posterior mean partial correlations (Group 1, first 5x5 block):\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Posterior mean partial correlations (Group 1, first 5x5 block):</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">pcor_hat</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">5</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">5</span><span class="op">]</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;        [,1]   [,2]   [,3]   [,4]   [,5]</span></span>
-<span><span class="co">#&gt; [1,]  1.000  0.023  0.097  0.071 -0.020</span></span>
-<span><span class="co">#&gt; [2,]  0.023  1.000 -0.009 -0.046 -0.097</span></span>
-<span><span class="co">#&gt; [3,]  0.097 -0.009  1.000  0.119  0.078</span></span>
-<span><span class="co">#&gt; [4,]  0.071 -0.046  0.119  1.000 -0.425</span></span>
-<span><span class="co">#&gt; [5,] -0.020 -0.097  0.078 -0.425  1.000</span></span></code></pre></div>
+<span><span class="co">#&gt; [1,]  1.000  0.009  0.060  0.035 -0.009</span></span>
+<span><span class="co">#&gt; [2,]  0.009  1.000  0.001 -0.018 -0.091</span></span>
+<span><span class="co">#&gt; [3,]  0.060  0.001  1.000  0.064 -0.002</span></span>
+<span><span class="co">#&gt; [4,]  0.035 -0.018  0.064  1.000 -0.432</span></span>
+<span><span class="co">#&gt; [5,] -0.009 -0.091 -0.002 -0.432  1.000</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="credible-intervals">Credible intervals<a class="anchor" aria-label="anchor" href="#credible-intervals"></a>
@@ -229,7 +229,7 @@ correlations.</p>
 <span><span class="co"># Example: 95% CI for edge (1,2) in group 1</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"pcor[1,2] Group 1: %.3f (%.3f, %.3f)\n"</span>,</span>
 <span>            <span class="va">ci</span><span class="op">$</span><span class="va">median</span><span class="op">[</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">1</span><span class="op">]</span>, <span class="va">ci</span><span class="op">$</span><span class="va">lower</span><span class="op">[</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">1</span><span class="op">]</span>, <span class="va">ci</span><span class="op">$</span><span class="va">upper</span><span class="op">[</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">1</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; pcor[1,2] Group 1: -0.000 (-0.059, 0.194)</span></span></code></pre></div>
+<span><span class="co">#&gt; pcor[1,2] Group 1: -0.000 (-0.026, 0.112)</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">
@@ -253,8 +253,8 @@ thresholded estimate side-by-side.</p>
 <span>              <span class="va">k</span>, <span class="va">cm</span><span class="op">[[</span><span class="va">k</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="st">"TP"</span><span class="op">]</span>, <span class="va">cm</span><span class="op">[[</span><span class="va">k</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="st">"FP"</span><span class="op">]</span>, <span class="va">cm</span><span class="op">[[</span><span class="va">k</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="st">"FN"</span><span class="op">]</span>, <span class="va">cm</span><span class="op">[[</span><span class="va">k</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="st">"TN"</span><span class="op">]</span>,</span>
 <span>              <span class="va">cm</span><span class="op">[[</span><span class="va">k</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="st">"TPR"</span><span class="op">]</span>, <span class="va">cm</span><span class="op">[[</span><span class="va">k</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="st">"FPR"</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
-<span><span class="co">#&gt; Group 1: TP=15, FP=160, FN=0, TN=15, TPR=1.00, FPR=0.91</span></span>
-<span><span class="co">#&gt; Group 2: TP=32, FP=144, FN=0, TN=14, TPR=1.00, FPR=0.91</span></span></code></pre></div>
+<span><span class="co">#&gt; Group 1: TP=15, FP=70, FN=0, TN=105, TPR=1.00, FPR=0.40</span></span>
+<span><span class="co">#&gt; Group 2: TP=30, FP=59, FN=2, TN=99, TPR=0.94, FPR=0.37</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="roc-curve">ROC curve<a class="anchor" aria-label="anchor" href="#roc-curve"></a>
@@ -294,7 +294,7 @@ groups, we can identify edges that differ between groups.</p>
 <span><span class="va">diff_prob</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/diff_prob_pcor.html">diff_prob_pcor</a></span><span class="op">(</span><span class="va">pcor_draws</span>, delta <span class="op">=</span> <span class="fl">0.1</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Edges with P(|pcor diff| &gt; 0.1) &gt; 0.5:"</span>,</span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">diff_prob</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/lower.tri.html" class="external-link">upper.tri</a></span><span class="op">(</span><span class="va">diff_prob</span><span class="op">)</span><span class="op">]</span> <span class="op">&gt;</span> <span class="fl">0.5</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Edges with P(|pcor diff| &gt; 0.1) &gt; 0.5: 87</span></span></code></pre></div>
+<span><span class="co">#&gt; Edges with P(|pcor diff| &gt; 0.1) &gt; 0.5: 56</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="running-multiple-chains">8. Running multiple chains<a class="anchor" aria-label="anchor" href="#running-multiple-chains"></a>
@@ -498,7 +498,7 @@ American Statistical Association</em>, 110(509), 159-174.</p>
 
 
     <footer><div class="pkgdown-footer-left">
-  <p>Developed by Christine B. Peterson, First Last.</p>
+  <p>Developed by Margaret Janiczek.</p>
 </div>
 
 <div class="pkgdown-footer-right">

@@ -55,8 +55,8 @@ matrices internally after column-centering.
 
 fit <- multiggm_mcmc(
   data_list = sim$data_list,
-  burnin = 2000,
-  nsave = 1000,
+  burnin = 200,
+  nsave = 100,
   thin = 1,
   seed = 123
 )
@@ -68,7 +68,7 @@ fit
 #> <multiggm_fit>
 #>   K groups: 2 
 #>   p nodes : 20 
-#>   Posterior draws: 1000
+#>   Posterior draws: 100
 ```
 
 ## 3. Check convergence
@@ -84,19 +84,19 @@ generally healthy.
 summary(fit, pip_threshold = .3)
 #> multiGGM MCMC Summary
 #> =====================
-#> Groups (K): 2   |  Nodes (p): 20   |  Posterior draws: 1000 
+#> Groups (K): 2   |  Nodes (p): 20   |  Posterior draws: 100 
 #> 
 #> Acceptance rates:
-#>   gamma (edge toggle): 0.1% 
-#>   theta (within-model): 1.2% 
-#>   nu (edge log-odds): 67.2% 
+#>   gamma (edge toggle): 1.0% 
+#>   theta (within-model): 10.1% 
+#>   nu (edge log-odds): 54.8% 
 #> 
 #> Selected edges (PIP >= 0.3 ):
-#>   Group 1 : 190 edges
-#>   Group 2 : 190 edges
+#>   Group 1 : 128 edges
+#>   Group 2 : 130 edges
 #> 
 #> Graph similarity (theta):
-#>   theta[1,2]: mean = 1.947, P(nonzero) = 100.0%
+#>   theta[1,2]: mean = 1.264, P(nonzero) = 100.0%
 ```
 
 ### Trace plots
@@ -151,12 +151,12 @@ omega_hat <- coef(fit)
 cat("Posterior mean precision (Group 1, first 5x5 block):\n")
 #> Posterior mean precision (Group 1, first 5x5 block):
 round(omega_hat[[1]][1:5, 1:5], 3)
-#>        [,1]   [,2]   [,3]   [,4]   [,5]
-#> [1,]  1.450 -0.029 -0.131 -0.120  0.031
-#> [2,] -0.029  1.115  0.011  0.068  0.129
-#> [3,] -0.131  0.011  1.242 -0.187 -0.112
-#> [4,] -0.120  0.068 -0.187  1.919  0.746
-#> [5,]  0.031  0.129 -0.112  0.746  1.598
+#>        [,1]   [,2]   [,3]   [,4]  [,5]
+#> [1,]  1.325 -0.010 -0.074 -0.053 0.013
+#> [2,] -0.010  1.019 -0.001  0.025 0.109
+#> [3,] -0.074 -0.001  1.124 -0.093 0.001
+#> [4,] -0.053  0.025 -0.093  1.696 0.671
+#> [5,]  0.013  0.109  0.001  0.671 1.413
 ```
 
 ``` r
@@ -166,11 +166,11 @@ cat("Posterior mean partial correlations (Group 1, first 5x5 block):\n")
 #> Posterior mean partial correlations (Group 1, first 5x5 block):
 round(pcor_hat[[1]][1:5, 1:5], 3)
 #>        [,1]   [,2]   [,3]   [,4]   [,5]
-#> [1,]  1.000  0.023  0.097  0.071 -0.020
-#> [2,]  0.023  1.000 -0.009 -0.046 -0.097
-#> [3,]  0.097 -0.009  1.000  0.119  0.078
-#> [4,]  0.071 -0.046  0.119  1.000 -0.425
-#> [5,] -0.020 -0.097  0.078 -0.425  1.000
+#> [1,]  1.000  0.009  0.060  0.035 -0.009
+#> [2,]  0.009  1.000  0.001 -0.018 -0.091
+#> [3,]  0.060  0.001  1.000  0.064 -0.002
+#> [4,]  0.035 -0.018  0.064  1.000 -0.432
+#> [5,] -0.009 -0.091 -0.002 -0.432  1.000
 ```
 
 ### Credible intervals
@@ -183,7 +183,7 @@ ci <- posterior_ci(pcor_draws)
 # Example: 95% CI for edge (1,2) in group 1
 cat(sprintf("pcor[1,2] Group 1: %.3f (%.3f, %.3f)\n",
             ci$median[1, 2, 1], ci$lower[1, 2, 1], ci$upper[1, 2, 1]))
-#> pcor[1,2] Group 1: -0.000 (-0.059, 0.194)
+#> pcor[1,2] Group 1: -0.000 (-0.026, 0.112)
 ```
 
 ## 5. Compare to ground truth
@@ -210,8 +210,8 @@ for (k in seq_along(cm)) {
               k, cm[[k]]["TP"], cm[[k]]["FP"], cm[[k]]["FN"], cm[[k]]["TN"],
               cm[[k]]["TPR"], cm[[k]]["FPR"]))
 }
-#> Group 1: TP=15, FP=160, FN=0, TN=15, TPR=1.00, FPR=0.91
-#> Group 2: TP=32, FP=144, FN=0, TN=14, TPR=1.00, FPR=0.91
+#> Group 1: TP=15, FP=70, FN=0, TN=105, TPR=1.00, FPR=0.40
+#> Group 2: TP=30, FP=59, FN=2, TN=99, TPR=0.94, FPR=0.37
 ```
 
 ### ROC curve
@@ -258,7 +258,7 @@ pcor_draws <- posterior_pcor(fit)
 diff_prob <- diff_prob_pcor(pcor_draws, delta = 0.1)
 cat("Edges with P(|pcor diff| > 0.1) > 0.5:",
     sum(diff_prob[upper.tri(diff_prob)] > 0.5), "\n")
-#> Edges with P(|pcor diff| > 0.1) > 0.5: 87
+#> Edges with P(|pcor diff| > 0.1) > 0.5: 56
 ```
 
 ## 8. Running multiple chains

@@ -144,8 +144,8 @@ any use case</td>
 <span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/multiggm_mcmc.html">multiggm_mcmc</a></span><span class="op">(</span></span>
 <span>  data_list <span class="op">=</span> <span class="va">sim</span><span class="op">$</span><span class="va">data_list</span>,</span>
 <span>  method    <span class="op">=</span> <span class="st">"ssvs"</span>,</span>
-<span>  burnin    <span class="op">=</span> <span class="fl">2000</span>,</span>
-<span>  nsave     <span class="op">=</span> <span class="fl">1000</span>,</span>
+<span>  burnin    <span class="op">=</span> <span class="fl">200</span>,</span>
+<span>  nsave     <span class="op">=</span> <span class="fl">100</span>,</span>
 <span>  seed      <span class="op">=</span> <span class="fl">123</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -154,19 +154,19 @@ any use case</td>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span>, pip_threshold <span class="op">=</span> <span class="fl">0.5</span><span class="op">)</span></span>
 <span><span class="co">#&gt; multiGGM MCMC Summary</span></span>
 <span><span class="co">#&gt; =====================</span></span>
-<span><span class="co">#&gt; Groups (K): 2   |  Nodes (p): 30   |  Posterior draws: 1000 </span></span>
+<span><span class="co">#&gt; Groups (K): 2   |  Nodes (p): 30   |  Posterior draws: 100 </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Acceptance rates:</span></span>
-<span><span class="co">#&gt;   gamma (edge toggle): 29.3% </span></span>
-<span><span class="co">#&gt;   theta (within-model): 10.1% </span></span>
-<span><span class="co">#&gt;   nu (edge log-odds): 41.9% </span></span>
+<span><span class="co">#&gt;   gamma (edge toggle): 24.0% </span></span>
+<span><span class="co">#&gt;   theta (within-model): 2.3% </span></span>
+<span><span class="co">#&gt;   nu (edge log-odds): 43.2% </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Selected edges (PIP &gt;= 0.5 ):</span></span>
-<span><span class="co">#&gt;   Group 1 : 12 edges</span></span>
-<span><span class="co">#&gt;   Group 2 : 11 edges</span></span>
+<span><span class="co">#&gt;   Group 1 : 14 edges</span></span>
+<span><span class="co">#&gt;   Group 2 : 14 edges</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Graph similarity (theta):</span></span>
-<span><span class="co">#&gt;   theta[1,2]: mean = 0.016, P(nonzero) = 21.1%</span></span></code></pre></div>
+<span><span class="co">#&gt;   theta[1,2]: mean = 0.009, P(nonzero) = 9.0%</span></span></code></pre></div>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit</span>, type <span class="op">=</span> <span class="st">"pip"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="ssvs-scalable-method_files/figure-html/ssvs-pip-1.png" class="r-plt" alt="" width="672"></p>
@@ -691,7 +691,7 @@ Journal of Statistics</em>, 6, 168–198.</p>
 
 
     <footer><div class="pkgdown-footer-left">
-  <p>Developed by Christine B. Peterson, First Last.</p>
+  <p>Developed by Margaret Janiczek.</p>
 </div>
 
 <div class="pkgdown-footer-right">
