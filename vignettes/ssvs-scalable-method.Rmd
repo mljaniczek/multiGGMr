@@ -60,8 +60,8 @@ sim <- simulate_multiggm(K = 2, p = 30, n = 100, seed = 42)
 fit <- multiggm_mcmc(
   data_list = sim$data_list,
   method    = "ssvs",
-  burnin    = 2000,
-  nsave     = 1000,
+  burnin    = 200,
+  nsave     = 100,
   seed      = 123
 )
 
