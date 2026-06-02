@@ -51,8 +51,55 @@
   </div>
 </nav><div class="container template-home">
 <div class="row">
-  <main id="main" class="col-md-9">
-Utilities and MCMC implementation for Bayesian inference of multiple Gaussian graphical models. Supports G-Wishart (Peterson, Stingo, and Vannucci, 2015, JASA), scalable spike-and-slab (Shaddox et al., 2018, Stat Biosci), and multi-platform spike-and-slab (Shaddox et al., 2020, Biostatistics) methods. The multi-platform extension jointly models networks across multiple data types with a hierarchical MRF coupling group similarity across platforms. Includes MRF-coupled edge priors for borrowing strength across groups, parallel multi-chain orchestration, and helpers to convert precision matrices to partial correlations.
+  <main id="main" class="col-md-9"><div class="section level1">
+<div class="page-header"><h1 id="multiggm">multiGGM<a class="anchor" aria-label="anchor" href="#multiggm"></a>
+</h1></div>
+<!-- badges: start -->
+<!-- badges: end -->
+<p>The <strong>multiGGM</strong> package implements the Bayesian method of Peterson, Stingo &amp; Vannucci (2015, <em>JASA</em>) for joint inference of multiple Gaussian graphical models (GGMs). Given data from <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math> groups, the method simultaneously estimates group-specific precision matrices <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi mathvariant="normal">Ω</mi><mi>k</mi></msub><annotation encoding="application/x-tex">\Omega_k</annotation></semantics></math> and their associated conditional independence graphs <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>G</mi><mi>k</mi></msub><annotation encoding="application/x-tex">G_k</annotation></semantics></math>, while borrowing strength across groups through a Markov random field (MRF) prior. It also implements two follow-up versions of the original algorithm, a faster version using continuous spike-and-slab priors called scale-multiGGM (Shaddox, Peterson, Vanucci, 2018, <em>Statistics in Biosciences</em>), and multi-platform multiGGM (Shaddox et al. 2020) which allows you to incorporate multi-modal data and jointly estimate networks.</p>
+<div class="section level2">
+<h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
+</h2>
+<p>You can install the development version of multiGGM from <a href="https://github.com/mljaniczek/multiGGMr" class="external-link">GitHub</a> with:</p>
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># install.packages("pak")</span></span>
+<span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"mljaniczek/multiGGMr"</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="example">Example<a class="anchor" aria-label="anchor" href="#example"></a>
+</h2>
+<p>This is a basic example simulating data from 2 groups and then running the scale-multiGGM. For more detailed examples see vignettes.</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://mljaniczek.github.io/multiGGMr/">multiGGM</a></span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># first simulate some data</span></span>
+<span><span class="va">sim</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/simulate_multiggm.html">simulate_multiggm</a></span><span class="op">(</span></span>
+<span>  K <span class="op">=</span> <span class="fl">2</span>, p <span class="op">=</span> <span class="fl">20</span>, n <span class="op">=</span> <span class="fl">100</span>,</span>
+<span>  graph_type <span class="op">=</span> <span class="st">"hub"</span>,</span>
+<span>  perturb_prob <span class="op">=</span> <span class="fl">0.1</span>,</span>
+<span>  seed <span class="op">=</span> <span class="fl">42</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># then run multiGGM, specifying which method</span></span>
+<span></span>
+<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/multiggm_mcmc.html">multiggm_mcmc</a></span><span class="op">(</span></span>
+<span>  data_list <span class="op">=</span> <span class="va">sim</span><span class="op">$</span><span class="va">data_list</span>,</span>
+<span>  method    <span class="op">=</span> <span class="st">"ssvs"</span>, <span class="co"># this is for the scalable version</span></span>
+<span>  burnin    <span class="op">=</span> <span class="fl">200</span>,</span>
+<span>  nsave     <span class="op">=</span> <span class="fl">100</span>,</span>
+<span>  seed      <span class="op">=</span> <span class="fl">123</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
+</h2>
+<p>Peterson, C.B., Stingo, F.C. &amp; Vannucci, M. (2015). Bayesian inference of multiple Gaussian graphical models. <em>Journal of the American Statistical Association</em>, 110(509), 159–174.</p>
+<p>Shaddox, E., Stingo, F.C., Peterson, C.B., et al. (2018). A Bayesian approach for learning gene networks underlying disease severity in COPD. <em>Statistics in Biosciences</em>, 10(1), 59–85.</p>
+<p>Shaddox, E., Peterson, C.B., Stingo, F.C., et al. (2020). Bayesian inference of networks across multiple sample groups and data types. <em>Biostatistics</em>, 21 (3) 561–-576.</p>
+<p>Wang, H. (2015). Scaling it up: stochastic search structure learning in graphical models. <em>Bayesian Analysis</em>, 10(2), 351–377.</p>
+<p>Wang, H. &amp; Li, S.Z. (2012). Efficient Gaussian graphical model determination under G-Wishart prior distributions. <em>Electronic Journal of Statistics</em>, 6, 168–198.</p>
+</div>
+</div>
   </main><aside class="col-md-3"><div class="license">
 <h2 data-toc-skip>License</h2>
 <ul class="list-unstyled">
