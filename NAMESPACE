@@ -34,6 +34,12 @@ export(pip_diff_edge)
 export(confusion_at_threshold)
 export(roc_auc)
 
+# Differential edges and Bayesian FDR
+export(diff_draws)
+export(diff_summary)
+export(bayes_fdr)
+export(select_diff_edges)
+
 # Visualization
 export(plot_pip_heatmap)
 export(plot_trace)
@@ -54,3 +60,4 @@ S3method(summary, multiggm_platform_fit)
 S3method(print, summary.multiggm_platform_fit)
 S3method(coef, multiggm_platform_fit)
 S3method(fitted, multiggm_platform_fit)
+S3method(print, multiggm_diff_selection)
