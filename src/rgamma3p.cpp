@@ -16,7 +16,6 @@ template <typename T> int sign (T val) {
   return (T(0) < val) - (val < T(0));
 }
 
-// [[Rcpp::export]]
 
 double rg3p_c1 (const double& a, const double& b) 
 {
@@ -398,7 +397,6 @@ double rg3p_c1 (const double& a, const double& b)
 }
 
 
-// [[Rcpp::export]]
 
 double rg3p_approx (const double& a, const double& b, const int& c) 
 {

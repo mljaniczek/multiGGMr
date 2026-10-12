@@ -17,7 +17,6 @@ template <typename T> int sign (T val)
   return (T(0) < val) - (val < T(0));
 }
 
-// [[Rcpp::export]]
 double pbdv (const double& va, const double& x) 
 {
   // Function to compute Parabolic Cylinder function D_va(x)

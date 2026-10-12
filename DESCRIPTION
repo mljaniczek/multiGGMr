@@ -27,7 +27,9 @@ Imports:
     rlang
 LinkingTo:
     Rcpp,
-    RcppArmadillo
+    RcppArmadillo,
+    RcppEigen,
+    BH
 Suggests:
     testthat (>= 3.0.0),
     knitr,

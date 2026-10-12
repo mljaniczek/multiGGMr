@@ -1,6 +1,5 @@
 #include <Rcpp.h>
 #include <RcppEigen.h>
-#include <RcppParallel.h>
 #include <math.h>     
 // #include <Rcpp/Benchmark/Timer.h>
 
@@ -10,7 +9,6 @@
 // [[Rcpp::plugins("cpp11")]]
 // [[Rcpp::depends(RcppEigen)]]
 // [[Rcpp::depends(BH)]] 
-// [[Rcpp::depends(RcppParallel)]]
 
 #include "boost/multi_array.hpp"
 #include "utils_rgamma3p.h"
@@ -346,7 +344,6 @@ Eigen::VectorXd rmvnorm (Eigen::VectorXd& v, const int& j, const double& s_22, c
 }
 
 
-// [[Rcpp::export]]
 
 double pgamma3p1 (const double& x, const double& a, const double& b) 
 {
@@ -367,75 +364,6 @@ double pgamma3p1 (const double& x, const double& a, const double& b)
   return out;
 }
 
-
-struct lambda_parallel_step : public RcppParallel::Worker {
-  
-  // :::::::::::::::::::::::::::::::::::::::::::::::::::::
-  // inputs
-  
-  const double mth, mth2;
-  
-  const Eigen::VectorXd v, temp_1, eta_12;
-  
-  // :::::::::::::::::::::::::::::::::::::::::::::::::::::
-  // output
-  
-  RcppParallel::RVector<double> lambda_12_par, eta_12_par;
-  
-  // :::::::::::::::::::::::::::::::::::::::::::::::::::::
-  // initialization
-  
-  lambda_parallel_step (const Eigen::VectorXd& v, const Eigen::VectorXd& temp_1, const Eigen::VectorXd& eta_12, const double& mth, const double& mth2, Rcpp::NumericVector& lambda_12_par, Rcpp::NumericVector& eta_12_par) 
-    : v(v), temp_1(temp_1), eta_12(eta_12), mth(mth), mth2(mth2), lambda_12_par(lambda_12_par), eta_12_par(eta_12_par) {}
-  
-  // :::::::::::::::::::::::::::::::::::::::::::::::::::::
-  // main
-  
-  void operator()(std::size_t k_0, std::size_t k_1) 
-  {
-    std::size_t j;
-    
-    // :::::::::::::::::::::::::::::::::::::::::::::::::::::
-    // parallel cycle
-    
-    for (j = k_0; j < k_1; j++) 
-    {
-      double tmp1 = v(j);
-      double alpha_l = std::sqrt(0.5 * tmp1 * tmp1 / mth + 1.0 / eta_12(j));
-      double beta_l = temp_1(j) * tmp1 / mth2;
-      
-      tmp1 = rg3p_c1(alpha_l, beta_l);
-      tmp1 = 1.0 / (tmp1 * tmp1);
-      
-      lambda_12_par[j] = tmp1;
-      eta_12_par[j] = 1.0 / R::rgamma(1.0, 1.0 / (1.0 + 1.0 / tmp1));
-    }
-  }
-};
-
-
-std::tuple<Eigen::VectorXd, Eigen::VectorXd> lambda_pstep (const Eigen::VectorXd& v, const Eigen::VectorXd& temp_1, const Eigen::VectorXd& eta_12, const double& mth, const double& mth2)
-{
-  // :::::::::::::::::::::::::::::::::::::::::::::::::::::
-  // output
-  
-  int pm1 = v.size();
-  Rcpp::NumericVector lambda_12_par(pm1), eta_12_par(pm1);
-  
-  // :::::::::::::::::::::::::::::::::::::::::::::::::::::
-  // parallel step
-  
-  lambda_parallel_step Lambda_parallel_step(v, temp_1, eta_12, mth, mth2, lambda_12_par, eta_12_par);
-  RcppParallel::parallelFor (0, pm1, Lambda_parallel_step);
-  
-  // :::::::::::::::::::::::::::::::::::::::::::::::::::::
-  // return output
-  
-  Eigen::Map<Eigen::VectorXd> l12(Rcpp::as<Eigen::Map<Eigen::VectorXd> >(lambda_12_par));
-  Eigen::Map<Eigen::VectorXd> e12(Rcpp::as<Eigen::Map<Eigen::VectorXd> >(eta_12_par));
-  
-  return std::make_tuple(l12, e12);
-}
 
 // end file
 

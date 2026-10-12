@@ -9,7 +9,6 @@
 // [[Rcpp::depends(RcppEigen)]]
 
 
-// [[Rcpp::export]]
 
 Eigen::MatrixXd rIW (const double& df, const Eigen::MatrixXd& S, const int& K)
 {

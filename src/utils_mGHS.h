@@ -27,8 +27,6 @@ Eigen::MatrixXd get_Sigma2 (Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eig
 boost::multi_array<double, 2> get_Sigma (boost::multi_array_ref<double, 3>::array_view<2>::type Sigma, const Eigen::MatrixXd& inv_Omega_11, const int& j, const int& pm1, const int& p);
 boost::multi_array<double, 2> fill_S (const Eigen::MatrixXd& S, const int& p);
 boost::multi_array<double, 2> fill_Xt (const Eigen::MatrixXd& S, const int& n, const int& p);
-
-std::tuple<Eigen::VectorXd, Eigen::VectorXd> lambda_pstep (const Eigen::VectorXd& v, const Eigen::VectorXd& temp_1, const Eigen::VectorXd& eta_12, const double& mth, const double& mth2);
   
 #endif
 

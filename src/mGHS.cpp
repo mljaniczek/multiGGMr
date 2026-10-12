@@ -840,7 +840,6 @@ Rcpp::List mGHS_chain (const int& B, const int& bn, const Eigen::VectorXd& n, co
 }
 
 
-// [[Rcpp::export]]
 
 Rcpp::List mGHS (const int& B, const int& bn, const Eigen::VectorXd& n, const Rcpp::List& S, const int& p, const Eigen::VectorXd hyp_ta, const int& chain = 0, const int& ping = 1000) 
 {
