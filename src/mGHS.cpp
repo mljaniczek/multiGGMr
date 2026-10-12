@@ -205,7 +205,7 @@ Rcpp::List mGHS_mean (const int& B, const int& bn, const Eigen::VectorXd& n, con
             alpha_l = std::sqrt(0.5 * tmp1 * tmp1 / mth + 1.0 / Eta[js][j][h]);
             beta_l = temp_1(c) * tmp1 / mth2;
             
-            if (alpha_l > 1e+06 || beta_l > 1e+06) {
+            if (!std::isfinite(alpha_l) || !std::isfinite(beta_l) || alpha_l > 1e+06 || beta_l > 1e+06) {
               Rcpp::Rcout << "\n ::::::::::: !!! Warning: chain is stuck !!! :::::::::::";
               
               
@@ -282,7 +282,7 @@ Rcpp::List mGHS_mean (const int& B, const int& bn, const Eigen::VectorXd& n, con
       diag_V(h) = 1.0 / std::sqrt(sv);
       alpha_t = std::sqrt(0.5 / mu(h) * alpha_t + 1.0 / zeta(h));
       
-      if (alpha_t > 1e+06 || beta_t / mu(h) > 1e+06) {
+      if (!std::isfinite(alpha_t) || !std::isfinite(beta_t / mu(h)) || alpha_t > 1e+06 || beta_t / mu(h) > 1e+06) {
         Rcpp::Rcout << "\n ::::::::::: !!! Warning: chain is stuck !!! :::::::::::";
         
         int chain_stuck = 1;
@@ -343,7 +343,7 @@ Rcpp::List mGHS_mean (const int& B, const int& bn, const Eigen::VectorXd& n, con
       {
         for (js = j+1; js < p; js++)
         {
-          tmp1 = Lambda[js][j][hs];
+          tmp1 = Lambda[js][j][h];
           qta1(cs, h) = R::pnorm(tmp1 / (1 + tmp1) - ta(h), 0.0, 1.0, true, false);
           qta2(cs) = R::pnorm(tmp1 / (1 + tmp1) - ta_s, 0.0, 1.0, true, false);
           
@@ -619,7 +619,7 @@ Rcpp::List mGHS_chain (const int& B, const int& bn, const Eigen::VectorXd& n, co
             alpha_l = std::sqrt(0.5 * tmp1 * tmp1 / mth + 1.0 / Eta[js][j][h]);
             beta_l = temp_1(c) * tmp1 / mth2;
             
-            if (alpha_l > 1e+06 || beta_l > 1e+06) {
+            if (!std::isfinite(alpha_l) || !std::isfinite(beta_l) || alpha_l > 1e+06 || beta_l > 1e+06) {
               Rcpp::Rcout << "\n ::::::::::: !!! Warning: chain is stuck !!! :::::::::::";
               
               
@@ -695,7 +695,7 @@ Rcpp::List mGHS_chain (const int& B, const int& bn, const Eigen::VectorXd& n, co
       diag_V(h) = 1.0 / std::sqrt(sv);
       alpha_t = std::sqrt(0.5 / mu(h) * alpha_t + 1.0 / zeta(h));
       
-      if (alpha_t > 1e+06 || beta_t / mu(h) > 1e+06) {
+      if (!std::isfinite(alpha_t) || !std::isfinite(beta_t / mu(h)) || alpha_t > 1e+06 || beta_t / mu(h) > 1e+06) {
         Rcpp::Rcout << "\n ::::::::::: !!! Warning: chain is stuck !!! :::::::::::";
         
         int chain_stuck = 1;
@@ -756,7 +756,7 @@ Rcpp::List mGHS_chain (const int& B, const int& bn, const Eigen::VectorXd& n, co
       {
         for (js = j+1; js < p; js++)
         {
-          tmp1 = Lambda[js][j][hs];
+          tmp1 = Lambda[js][j][h];
           qta1(cs, h) = R::pnorm(tmp1 / (1 + tmp1) - ta(h), 0.0, 1.0, true, false);
           qta2(cs) = R::pnorm(tmp1 / (1 + tmp1) - ta_s, 0.0, 1.0, true, false);
           

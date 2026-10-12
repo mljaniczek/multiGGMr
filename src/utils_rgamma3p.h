@@ -3,6 +3,10 @@
 #ifndef utils_rgamma3p_H
 #define utils_rgamma3p_H
 
+// multiGGM: cap on rejection-sampler attempts. On reaching it the samplers
+// return NaN, which the engine reports as a stuck chain.
+#define MGHS_MAX_TRIES 1000000
+
 // ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 // Parabolic Cylinder D
 

@@ -10,6 +10,7 @@
 
 #include "factorial.h"
 #include "pbdv.h"
+#include "utils_rgamma3p.h"
 
 
 template <typename T> int sign (T val) {
@@ -19,6 +20,7 @@ template <typename T> int sign (T val) {
 
 double rg3p_c1 (const double& a, const double& b) 
 {
+  if (!std::isfinite(a) || !std::isfinite(b)) return R_NaN;
   double r = std::abs(b) / a;
   int rs;
   
@@ -189,7 +191,7 @@ double rg3p_c1 (const double& a, const double& b)
       // STEP 3
       int i = 0;
       double e, x, f, g, dlap;
-      while (i < 1e+16) 
+      while (i < MGHS_MAX_TRIES) 
       {
         i += 1;
         e = R::rexp(1);
@@ -234,8 +236,12 @@ double rg3p_c1 (const double& a, const double& b)
         const double s2 = 1.0 / q;
 
         out = R::rnorm(mu, sqrt(s2));
-        while (out <= 0.0)
+        int tries = 1;
+        while (out <= 0.0 && tries < MGHS_MAX_TRIES) {
           out = R::rnorm(mu, sqrt(s2));
+          tries += 1;
+        }
+        if (!(out > 0.0)) return R_NaN;
         
         return out;
       }
@@ -252,8 +258,12 @@ double rg3p_c1 (const double& a, const double& b)
         const double s2 = 6.0 / (ts * ts) * d31 - mu * mu;
 
         out = R::rnorm(mu, sqrt(s2));
-        while (out <= 0.0)
+        int tries = 1;
+        while (out <= 0.0 && tries < MGHS_MAX_TRIES) {
           out = R::rnorm(mu, sqrt(s2));
+          tries += 1;
+        }
+        if (!(out > 0.0)) return R_NaN;
 
         return out;
       }
@@ -362,7 +372,7 @@ double rg3p_c1 (const double& a, const double& b)
       // STEP 3
       int i = 0;
       double e, x, f, g, dlap;
-      while (i < 1e+16) 
+      while (i < MGHS_MAX_TRIES) 
       {
         i += 1;
         e = R::rexp(1);
@@ -392,14 +402,14 @@ double rg3p_c1 (const double& a, const double& b)
     }
   }
   
-  Rcpp::Rcout << "\n Warning rg3p_c1: returned value 0 \n";
-  return 0.0;
+  return R_NaN;
 }
 
 
 
 double rg3p_approx (const double& a, const double& b, const int& c) 
 {
+  if (!std::isfinite(a) || !std::isfinite(b)) return R_NaN;
   if ((c > 14) || (b > 0.0)) 
   {
     const double s2a  = std::sqrt(2.0) * a;
@@ -413,8 +423,12 @@ double rg3p_approx (const double& a, const double& b, const int& c)
     const double s2 = q * (w - q) / (s2a * s2a);
     
     double out = R::rnorm(mu, std::sqrt(s2));
-    while (out <= 0.0) 
-      out = R::rnorm(mu, std::sqrt(s2));  
+    int tries = 1;
+    while (out <= 0.0 && tries < MGHS_MAX_TRIES) {
+      out = R::rnorm(mu, std::sqrt(s2));
+      tries += 1;
+    }
+    if (!(out > 0.0)) return R_NaN;
 
     return out;
   }
@@ -453,8 +467,7 @@ double rg3p_approx (const double& a, const double& b, const int& c)
     } 
   }
   
-  Rcpp::Rcout << "\n Warning rg3p_approx: returned value 0 \n";
-  return 0.0;
+  return R_NaN;
 }
 
 
