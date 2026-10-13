@@ -21,7 +21,7 @@ multiggm_mcmc(
   parallel = FALSE,
   ncores = max(1L, parallel::detectCores() - 1L),
   seed = NULL,
-  method = c("gwishart", "ssvs", "ssvs_platform"),
+  method = c("gwishart", "ssvs", "ssvs_platform", "mghs"),
   platform_data = NULL,
   hyper = NULL,
   engine = c("cpp", "R"),
@@ -89,7 +89,10 @@ multiggm_mcmc(
   dimensions. `"ssvs_platform"` extends the SSVS approach to jointly
   model multiple data platforms (Shaddox et al. 2020, Biostatistics)
   with a hierarchical MRF coupling group similarity across platforms.
-  Requires `platform_data`.
+  Requires `platform_data`. `"mghs"` uses the multiple graphical
+  horseshoe (Busatto & Stingo 2025): continuous horseshoe shrinkage on
+  each precision matrix, with each edge's local scales correlated across
+  groups. It has no edge-inclusion indicators; see Details.
 
 - platform_data:
 
@@ -110,7 +113,12 @@ multiggm_mcmc(
 
 - ...:
 
-  Additional arguments forwarded to the single-chain engine.
+  Additional arguments forwarded to the single-chain engine. For
+  `method = "mghs"`: `save_draws` (default `TRUE`; `FALSE` keeps only
+  running summaries, see Details), `diff_deltas` (thresholds `c` for the
+  running counts of \\\|D\| \> c\\, default
+  `c(0.01, 0.02, 0.03, 0.05, 0.10)`) and `max_attempts` (restarts
+  allowed when the chain gets stuck, default 3).
 
 ## Value
 
@@ -263,6 +271,43 @@ The `hyper` list may contain any of the following:
 
   Exponential rate hyperparameter for diagonal elements (default 1).
 
+**mGHS hyperparameters (`method = "mghs"`):**
+
+- `t_mean, t_var`:
+
+  Mean and variance of the Beta prior on the cut-model threshold.
+  Default 0.6 and 0.05, the values used by the authors' simulation
+  scripts. The cut model does not feed back into the precision matrices.
+
+**mGHS sampler (`method = "mghs"`):** the horseshoe prior is continuous,
+so the sampler has no edge indicators: `adj_save` and `Sig_save` are
+`NULL`, and
+[`pip_edges()`](https://mljaniczek.github.io/multiGGMr/reference/pip_edges.md),
+[`pip_diff_edge()`](https://mljaniczek.github.io/multiGGMr/reference/pip_diff_edge.md),
+[`edge_counts()`](https://mljaniczek.github.io/multiGGMr/reference/edge_counts.md),
+`plot(type = "pip")` and
+[`plot_recovery()`](https://mljaniczek.github.io/multiGGMr/reference/plot_recovery.md)
+stop with an error. Select differential edges with
+[`select_diff_edges()`](https://mljaniczek.github.io/multiGGMr/reference/select_diff_edges.md)
+(`rule = "magnitude"`). Do not call differences by whether a credible
+interval excludes zero: under a continuous prior that rule is badly
+anti-conservative (see
+[`diff_summary()`](https://mljaniczek.github.io/multiGGMr/reference/diff_summary.md)).
+The fit also contains `R_save` (`[K, K, nsave]`, correlation of edge
+scales across groups), `tau_save` (`[K, nsave]`, global shrinkage),
+`C_mean` and `pcor_mean` (posterior means over every post-burn-in
+iteration), `diff_acc` (running sums of group differences), `cut_z_mean`
+and `ta_save` (the authors' cut-model edge selection, kept for reference
+only) and `attempts`. Storage is \\8 p^2 K\\ `nsave` bytes per chain
+(160 MB at p = 100, K = 2, nsave = 1000); use `thin` to reduce `nsave`,
+or `save_draws = FALSE`, in which case
+[`diff_summary()`](https://mljaniczek.github.io/multiGGMr/reference/diff_summary.md),
+[`coef()`](https://rdrr.io/r/stats/coef.html) and
+[`fitted()`](https://rdrr.io/r/stats/fitted.values.html) use the running
+summaries and draw-based functions stop with an error. A chain whose
+shrinkage parameters become non-finite is restarted from scratch, up to
+`max_attempts` times.
+
 **Platform-level hyperparameters (`method = "ssvs_platform"` only):**
 
 - `eta, kappa`:
@@ -301,6 +346,15 @@ approach for learning gene networks underlying disease severity in COPD.
 Shaddox, E., Peterson, C.B., Stingo, F.C., et al. (2020). Bayesian
 inference of networks across multiple sample groups and data types.
 *Biostatistics*, 21(3), 561-576.
+
+Busatto, C. & Stingo, F.C. (2025). Inference of multiple
+high-dimensional networks with the Graphical Horseshoe prior. *Journal
+of Computational and Graphical Statistics*, 1-12.
+[doi:10.1080/10618600.2024.2435480](https://doi.org/10.1080/10618600.2024.2435480)
+
+Busatto, C. & Stingo, F.C. (2025). The multiple graphical horseshoe: an
+application to breast cancer data. In *SIS 2025*, 435-440. Springer.
+[doi:10.1007/978-3-031-96736-8_72](https://doi.org/10.1007/978-3-031-96736-8_72)
 
 ## See also
 

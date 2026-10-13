@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">multiGGM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -33,10 +33,12 @@
 <li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/multiGGMr-tutorial.html">Getting Started with multiGGM</a></li>
+<li><a class="dropdown-item" href="../articles/mghs-horseshoe.html">The Multiple Graphical Horseshoe (mGHS)</a></li>
+    <li><a class="dropdown-item" href="../articles/multiGGMr-tutorial.html">Getting Started with multiGGM</a></li>
     <li><a class="dropdown-item" href="../articles/ssvs-scalable-method.html">Scalable Inference with the SSVS Method</a></li>
   </ul>
 </li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><form class="form-inline" role="search">
@@ -295,6 +297,40 @@ groups, we can identify edges that differ between groups.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Edges with P(|pcor diff| &gt; 0.1) &gt; 0.5:"</span>,</span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">diff_prob</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/lower.tri.html" class="external-link">upper.tri</a></span><span class="op">(</span><span class="va">diff_prob</span><span class="op">)</span><span class="op">]</span> <span class="op">&gt;</span> <span class="fl">0.5</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Edges with P(|pcor diff| &gt; 0.1) &gt; 0.5: 56</span></span></code></pre></div>
+<div class="section level3">
+<h3 id="bayesian-fdr-on-differential-edges">Bayesian FDR on differential edges<a class="anchor" aria-label="anchor" href="#bayesian-fdr-on-differential-edges"></a>
+</h3>
+<p><code><a href="../reference/select_diff_edges.html">select_diff_edges()</a></code> turns a per-edge probability of a
+real difference into a selection with posterior expected FDR at most
+<code>alpha</code>. With <code>rule = "structural"</code> the
+probability is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>g</mi><mrow><mn>1</mn><mo>,</mo><mi>i</mi><mi>j</mi></mrow></msub><mo>≠</mo><msub><mi>g</mi><mrow><mn>2</mn><mo>,</mo><mi>i</mi><mi>j</mi></mrow></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">P(g_{1,ij} \ne g_{2,ij})</annotation></semantics></math>;
+with <code>rule = "magnitude"</code> it is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mo stretchy="false" form="prefix">(</mo><mo stretchy="false" form="prefix">|</mo><msub><mi>ρ</mi><mrow><mn>1</mn><mo>,</mo><mi>i</mi><mi>j</mi></mrow></msub><mo>−</mo><msub><mi>ρ</mi><mrow><mn>2</mn><mo>,</mo><mi>i</mi><mi>j</mi></mrow></msub><mo stretchy="false" form="prefix">|</mo><mo>&gt;</mo><mi>δ</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">P(|\rho_{1,ij} - \rho_{2,ij}| &gt; \delta)</annotation></semantics></math>.</p>
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/select_diff_edges.html">select_diff_edges</a></span><span class="op">(</span><span class="va">fit</span>, rule <span class="op">=</span> <span class="st">"structural"</span>, alpha <span class="op">=</span> <span class="fl">0.1</span><span class="op">)</span></span>
+<span><span class="co">#&gt; &lt;multiggm_diff_selection&gt;</span></span>
+<span><span class="co">#&gt;   Groups 1 vs 2, rule: structural</span></span>
+<span><span class="co">#&gt;   Selected 0 edges at target FDR 0.1 (posterior expected FDR 0.000)</span></span>
+<span><span class="fu"><a href="../reference/select_diff_edges.html">select_diff_edges</a></span><span class="op">(</span><span class="va">fit</span>, rule <span class="op">=</span> <span class="st">"magnitude"</span>, delta <span class="op">=</span> <span class="fl">0.1</span>, alpha <span class="op">=</span> <span class="fl">0.1</span><span class="op">)</span></span>
+<span><span class="co">#&gt; &lt;multiggm_diff_selection&gt;</span></span>
+<span><span class="co">#&gt;   Groups 1 vs 2, rule: magnitude (P(|D| &gt; 0.1), pcor scale)</span></span>
+<span><span class="co">#&gt;   Selected 37 edges at target FDR 0.1 (posterior expected FDR 0.100)</span></span>
+<span><span class="co">#&gt;     i  j prob       mean</span></span>
+<span><span class="co">#&gt; 1   5 12    1 -0.4300717</span></span>
+<span><span class="co">#&gt; 2   5 15    1 -0.6889741</span></span>
+<span><span class="co">#&gt; 3  12 16    1  0.8587079</span></span>
+<span><span class="co">#&gt; 4   3 17    1 -0.3913595</span></span>
+<span><span class="co">#&gt; 5  10 17    1  0.5163019</span></span>
+<span><span class="co">#&gt; 6   2 18    1  0.4567602</span></span>
+<span><span class="co">#&gt; 7   7 18    1  0.7165580</span></span>
+<span><span class="co">#&gt; 8  11 18    1 -0.7105095</span></span>
+<span><span class="co">#&gt; 9   8 20    1 -0.4123171</span></span>
+<span><span class="co">#&gt; 10 17 20    1 -0.3882922</span></span></code></pre></div>
+<p>Avoid calling differences by whether a credible interval for the
+difference excludes zero: see the calibration caveat in
+<code><a href="../articles/mghs-horseshoe.html">vignette("mghs-horseshoe")</a></code>.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="running-multiple-chains">8. Running multiple chains<a class="anchor" aria-label="anchor" href="#running-multiple-chains"></a>
@@ -306,7 +342,7 @@ be run in parallel with <code>parallel = TRUE</code>.</p>
 <div class="section level3">
 <h3 id="fitting-multiple-chains">Fitting multiple chains<a class="anchor" aria-label="anchor" href="#fitting-multiple-chains"></a>
 </h3>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_mc</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/multiggm_mcmc.html">multiggm_mcmc</a></span><span class="op">(</span></span>
 <span>  data_list <span class="op">=</span> <span class="va">sim</span><span class="op">$</span><span class="va">data_list</span>,</span>
 <span>  burnin    <span class="op">=</span> <span class="fl">2000</span>,</span>
@@ -317,7 +353,7 @@ be run in parallel with <code>parallel = TRUE</code>.</p>
 <span><span class="op">)</span></span></code></pre></div>
 <p>The result is a <code>multiggm_fit_list</code> object containing all
 chains:</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_mc</span></span>
 <span><span class="co">#&gt; &lt;multiggm_fit_list&gt;</span></span>
 <span><span class="co">#&gt;   Chains: 3 </span></span>
@@ -328,7 +364,7 @@ chains:</p>
 </h3>
 <p>Each chain is a full <code>multiggm_fit</code> object. Access them
 via <code>$chains</code>:</p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Summary of chain 1</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit_mc</span><span class="op">$</span><span class="va">chains</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span>, pip_threshold <span class="op">=</span> <span class="fl">0.3</span><span class="op">)</span></span>
 <span><span class="co">#&gt; multiGGM MCMC Summary</span></span>
@@ -337,18 +373,18 @@ via <code>$chains</code>:</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Acceptance rates:</span></span>
 <span><span class="co">#&gt;   gamma (edge toggle): 0.2% </span></span>
-<span><span class="co">#&gt;   theta (within-model): 3.6% </span></span>
-<span><span class="co">#&gt;   nu (edge log-odds): 61.7% </span></span>
+<span><span class="co">#&gt;   theta (within-model): 3.5% </span></span>
+<span><span class="co">#&gt;   nu (edge log-odds): 61.9% </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Selected edges (PIP &gt;= 0.3 ):</span></span>
-<span><span class="co">#&gt;   Group 1 : 186 edges</span></span>
-<span><span class="co">#&gt;   Group 2 : 186 edges</span></span>
+<span><span class="co">#&gt;   Group 1 : 190 edges</span></span>
+<span><span class="co">#&gt;   Group 2 : 190 edges</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Graph similarity (theta):</span></span>
-<span><span class="co">#&gt;   theta[1,2]: mean = 1.868, P(nonzero) = 100.0%</span></span></code></pre></div>
+<span><span class="co">#&gt;   theta[1,2]: mean = 2.624, P(nonzero) = 100.0%</span></span></code></pre></div>
 <p>Most utility functions accept a <code>chain</code> argument to select
 which chain to analyze:</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># PIPs from chain 1 vs chain 2</span></span>
 <span><span class="va">pip_c1</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/pip_edges.html">pip_edges</a></span><span class="op">(</span><span class="va">fit_mc</span>, chain <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span><span class="va">pip_c2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/pip_edges.html">pip_edges</a></span><span class="op">(</span><span class="va">fit_mc</span>, chain <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span>
@@ -356,7 +392,7 @@ which chain to analyze:</p>
 <span><span class="va">idx</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lower.tri.html" class="external-link">upper.tri</a></span><span class="op">(</span><span class="va">pip_c1</span><span class="op">[</span>, , <span class="fl">1</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"PIP correlation between chain 1 and 2 (Group 1): %.3f\n"</span>,</span>
 <span>            <span class="fu"><a href="https://rdrr.io/r/stats/cor.html" class="external-link">cor</a></span><span class="op">(</span><span class="va">pip_c1</span><span class="op">[</span>, , <span class="fl">1</span><span class="op">]</span><span class="op">[</span><span class="va">idx</span><span class="op">]</span>, <span class="va">pip_c2</span><span class="op">[</span>, , <span class="fl">1</span><span class="op">]</span><span class="op">[</span><span class="va">idx</span><span class="op">]</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; PIP correlation between chain 1 and 2 (Group 1): 0.832</span></span></code></pre></div>
+<span><span class="co">#&gt; PIP correlation between chain 1 and 2 (Group 1): 0.695</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="comparing-trace-plots-across-chains">Comparing trace plots across chains<a class="anchor" aria-label="anchor" href="#comparing-trace-plots-across-chains"></a>
@@ -365,7 +401,7 @@ which chain to analyze:</p>
 effective visual convergence diagnostics. Chains that have converged
 will mix and overlap, while chains stuck in different modes will show
 persistent separation.</p>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Build a combined edge-count trace from all chains</span></span>
@@ -385,7 +421,7 @@ persistent separation.</p>
 <span>       x <span class="op">=</span> <span class="st">"Iteration (post-burnin)"</span>, y <span class="op">=</span> <span class="st">"Number of edges"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p><img src="multiGGMr-tutorial_files/figure-html/multi-chain-traces-1.png" class="r-plt" alt="" width="672"></p>
-<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Overlay theta traces from all chains</span></span>
 <span><span class="va">theta_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call</a></span><span class="op">(</span><span class="va">rbind</span>, <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">fit_mc</span><span class="op">$</span><span class="va">nchains</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">ch</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
@@ -408,7 +444,7 @@ persistent separation.</p>
 </h3>
 <p>To combine posterior samples from all chains, concatenate the saved
 arrays along the iteration dimension:</p>
-<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Pool precision draws across all chains</span></span>
 <span><span class="va">pool_C</span> <span class="op">&lt;-</span> <span class="fu">abind</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/abind/man/abind.html" class="external-link">abind</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">fit_mc</span><span class="op">$</span><span class="va">chains</span>, <span class="kw">function</span><span class="op">(</span><span class="va">ch</span><span class="op">)</span> <span class="va">ch</span><span class="op">$</span><span class="va">C_save</span><span class="op">)</span>,</span>
@@ -427,7 +463,7 @@ arrays along the iteration dimension:</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"Pooled edges (PIP &gt; 0.5, Group 1): %d\n"</span>,</span>
 <span>            <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">pip_pooled</span><span class="op">[</span>, , <span class="fl">1</span><span class="op">]</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/lower.tri.html" class="external-link">upper.tri</a></span><span class="op">(</span><span class="va">pip_pooled</span><span class="op">[</span>, , <span class="fl">1</span><span class="op">]</span><span class="op">)</span><span class="op">]</span> <span class="op">&gt;</span> <span class="fl">0.5</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Pooled edges (PIP &gt; 0.5, Group 1): 170</span></span></code></pre></div>
+<span><span class="co">#&gt; Pooled edges (PIP &gt; 0.5, Group 1): 188</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="summary-of-multi-chain-functions">Summary of multi-chain functions<a class="anchor" aria-label="anchor" href="#summary-of-multi-chain-functions"></a>
@@ -502,7 +538,7 @@ American Statistical Association</em>, 110(509), 159-174.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer>

@@ -261,6 +261,41 @@ cat("Edges with P(|pcor diff| > 0.1) > 0.5:",
 #> Edges with P(|pcor diff| > 0.1) > 0.5: 56
 ```
 
+### Bayesian FDR on differential edges
+
+[`select_diff_edges()`](https://mljaniczek.github.io/multiGGMr/reference/select_diff_edges.md)
+turns a per-edge probability of a real difference into a selection with
+posterior expected FDR at most `alpha`. With `rule = "structural"` the
+probability is $`P(g_{1,ij} \ne g_{2,ij})`$; with `rule = "magnitude"`
+it is $`P(|\rho_{1,ij} - \rho_{2,ij}| > \delta)`$.
+
+``` r
+
+select_diff_edges(fit, rule = "structural", alpha = 0.1)
+#> <multiggm_diff_selection>
+#>   Groups 1 vs 2, rule: structural
+#>   Selected 0 edges at target FDR 0.1 (posterior expected FDR 0.000)
+select_diff_edges(fit, rule = "magnitude", delta = 0.1, alpha = 0.1)
+#> <multiggm_diff_selection>
+#>   Groups 1 vs 2, rule: magnitude (P(|D| > 0.1), pcor scale)
+#>   Selected 37 edges at target FDR 0.1 (posterior expected FDR 0.100)
+#>     i  j prob       mean
+#> 1   5 12    1 -0.4300717
+#> 2   5 15    1 -0.6889741
+#> 3  12 16    1  0.8587079
+#> 4   3 17    1 -0.3913595
+#> 5  10 17    1  0.5163019
+#> 6   2 18    1  0.4567602
+#> 7   7 18    1  0.7165580
+#> 8  11 18    1 -0.7105095
+#> 9   8 20    1 -0.4123171
+#> 10 17 20    1 -0.3882922
+```
+
+Avoid calling differences by whether a credible interval for the
+difference excludes zero: see the calibration caveat in
+[`vignette("mghs-horseshoe")`](https://mljaniczek.github.io/multiGGMr/articles/mghs-horseshoe.md).
+
 ## 8. Running multiple chains
 
 Running multiple MCMC chains from different starting points is important
@@ -307,15 +342,15 @@ summary(fit_mc$chains[[1]], pip_threshold = 0.3)
 #> 
 #> Acceptance rates:
 #>   gamma (edge toggle): 0.2% 
-#>   theta (within-model): 3.6% 
-#>   nu (edge log-odds): 61.7% 
+#>   theta (within-model): 3.5% 
+#>   nu (edge log-odds): 61.9% 
 #> 
 #> Selected edges (PIP >= 0.3 ):
-#>   Group 1 : 186 edges
-#>   Group 2 : 186 edges
+#>   Group 1 : 190 edges
+#>   Group 2 : 190 edges
 #> 
 #> Graph similarity (theta):
-#>   theta[1,2]: mean = 1.868, P(nonzero) = 100.0%
+#>   theta[1,2]: mean = 2.624, P(nonzero) = 100.0%
 ```
 
 Most utility functions accept a `chain` argument to select which chain
@@ -330,7 +365,7 @@ pip_c2 <- pip_edges(fit_mc, chain = 2)
 idx <- upper.tri(pip_c1[, , 1])
 cat(sprintf("PIP correlation between chain 1 and 2 (Group 1): %.3f\n",
             cor(pip_c1[, , 1][idx], pip_c2[, , 1][idx])))
-#> PIP correlation between chain 1 and 2 (Group 1): 0.832
+#> PIP correlation between chain 1 and 2 (Group 1): 0.695
 ```
 
 ### Comparing trace plots across chains
@@ -410,7 +445,7 @@ pip_pooled <- apply(pool_adj, c(1, 2, 3), mean)
 
 cat(sprintf("Pooled edges (PIP > 0.5, Group 1): %d\n",
             sum(pip_pooled[, , 1][upper.tri(pip_pooled[, , 1])] > 0.5)))
-#> Pooled edges (PIP > 0.5, Group 1): 170
+#> Pooled edges (PIP > 0.5, Group 1): 188
 ```
 
 ### Summary of multi-chain functions

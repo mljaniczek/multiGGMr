@@ -2,6 +2,8 @@
 
 ## All functions
 
+- [`bayes_fdr()`](https://mljaniczek.github.io/multiGGMr/reference/bayes_fdr.md)
+  : Bayesian false discovery rate selection
 - [`calc_mrf_logC()`](https://mljaniczek.github.io/multiGGMr/reference/calc_mrf_logC.md)
   : Log normalizing constant for the MRF prior (per edge)
 - [`calc_mrf_logC_cpp()`](https://mljaniczek.github.io/multiGGMr/reference/calc_mrf_logC_cpp.md)
@@ -12,8 +14,12 @@
   : Extract posterior mean precision matrices from a multi-platform fit
 - [`confusion_at_threshold()`](https://mljaniczek.github.io/multiGGMr/reference/confusion_at_threshold.md)
   : Confusion metrics at a PIP threshold
+- [`diff_draws()`](https://mljaniczek.github.io/multiGGMr/reference/diff_draws.md)
+  : Posterior draws of the difference between two groups
 - [`diff_prob_pcor()`](https://mljaniczek.github.io/multiGGMr/reference/diff_prob_pcor.md)
   : Posterior probability of differential partial correlation (K=2)
+- [`diff_summary()`](https://mljaniczek.github.io/multiGGMr/reference/diff_summary.md)
+  : Per-edge posterior summary of a group difference
 - [`edge_counts()`](https://mljaniczek.github.io/multiGGMr/reference/edge_counts.md)
   : Per-iteration edge counts for convergence checking
 - [`fitted(`*`<multiggm_fit>`*`)`](https://mljaniczek.github.io/multiGGMr/reference/fitted.multiggm_fit.md)
@@ -57,6 +63,8 @@
   : Print a multiggm_platform_fit object
 - [`roc_auc()`](https://mljaniczek.github.io/multiGGMr/reference/roc_auc.md)
   : ROC curve and AUC from continuous scores
+- [`select_diff_edges()`](https://mljaniczek.github.io/multiGGMr/reference/select_diff_edges.md)
+  : Select differential edges with Bayesian FDR control
 - [`simulate_multiggm()`](https://mljaniczek.github.io/multiGGMr/reference/simulate_multiggm.md)
   : Simulate data from multiple Gaussian graphical models
 - [`simulate_multiggm_platform()`](https://mljaniczek.github.io/multiGGMr/reference/simulate_multiggm_platform.md)

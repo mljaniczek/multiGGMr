@@ -17,7 +17,7 @@ parallel multi-chain execution."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">multiGGM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -28,9 +28,11 @@ parallel multi-chain execution."></head><body>
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/multiGGMr-tutorial.html">Getting Started with multiGGM</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/mghs-horseshoe.html">The Multiple Graphical Horseshoe (mGHS)</a></li>
+    <li><a class="dropdown-item" href="../articles/multiGGMr-tutorial.html">Getting Started with multiGGM</a></li>
     <li><a class="dropdown-item" href="../articles/ssvs-scalable-method.html">Scalable Inference with the SSVS Method</a></li>
   </ul></li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
       </ul></div>
@@ -68,7 +70,7 @@ parallel multi-chain execution.</p>
 <span>  parallel <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  ncores <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fl">1L</span>, <span class="fu">parallel</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/parallel/detectCores.html" class="external-link">detectCores</a></span><span class="op">(</span><span class="op">)</span> <span class="op">-</span> <span class="fl">1L</span><span class="op">)</span>,</span>
 <span>  seed <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"gwishart"</span>, <span class="st">"ssvs"</span>, <span class="st">"ssvs_platform"</span><span class="op">)</span>,</span>
+<span>  method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"gwishart"</span>, <span class="st">"ssvs"</span>, <span class="st">"ssvs_platform"</span>, <span class="st">"mghs"</span><span class="op">)</span>,</span>
 <span>  platform_data <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  hyper <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  engine <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"cpp"</span>, <span class="st">"R"</span><span class="op">)</span>,</span>
@@ -136,7 +138,11 @@ uses a spike-and-slab normal prior on precision elements with column-wise
 Gibbs sampling (Shaddox et al. 2018), which scales to larger dimensions.
 <code>"ssvs_platform"</code> extends the SSVS approach to jointly model multiple
 data platforms (Shaddox et al. 2020, Biostatistics) with a hierarchical
-MRF coupling group similarity across platforms. Requires <code>platform_data</code>.</p></dd>
+MRF coupling group similarity across platforms. Requires <code>platform_data</code>.
+<code>"mghs"</code> uses the multiple graphical horseshoe (Busatto &amp; Stingo
+2025): continuous horseshoe shrinkage on each precision matrix, with each
+edge's local scales correlated across groups. It has no edge-inclusion
+indicators; see Details.</p></dd>
 
 
 <dt id="arg-platform-data">platform_data<a class="anchor" aria-label="anchor" href="#arg-platform-data"></a></dt>
@@ -157,7 +163,13 @@ debugging). Only applies when <code>method = "gwishart"</code>.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
-<dd><p>Additional arguments forwarded to the single-chain engine.</p></dd>
+<dd><p>Additional arguments forwarded to the single-chain engine.
+For <code>method = "mghs"</code>: <code>save_draws</code> (default <code>TRUE</code>;
+<code>FALSE</code> keeps only running summaries, see Details),
+<code>diff_deltas</code> (thresholds <code>c</code> for the running counts of
+\(|D| &gt; c\), default <code>c(0.01, 0.02, 0.03, 0.05, 0.10)</code>) and
+<code>max_attempts</code> (restarts allowed when the chain gets stuck,
+default 3).</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -284,7 +296,35 @@ beta_prop = 5 for G-Wishart; alpha_prop = 1, beta_prop = 1 for SSVS.</p></dd>
 (default 1).</p></dd>
 
 
-</dl><p><strong>Platform-level hyperparameters (<code>method = "ssvs_platform"</code> only):</strong></p><dl><dt><code>eta, kappa</code></dt>
+</dl><p><strong>mGHS hyperparameters (<code>method = "mghs"</code>):</strong></p><dl><dt><code>t_mean, t_var</code></dt>
+<dd><p>Mean and variance of the Beta prior on the
+cut-model threshold. Default 0.6 and 0.05, the values used by the
+authors' simulation scripts. The cut model does not feed back into the
+precision matrices.</p></dd>
+
+
+</dl><p><strong>mGHS sampler (<code>method = "mghs"</code>):</strong> the horseshoe prior is
+continuous, so the sampler has no edge indicators: <code>adj_save</code> and
+<code>Sig_save</code> are <code>NULL</code>, and <code><a href="pip_edges.html">pip_edges()</a></code>, <code><a href="pip_diff_edge.html">pip_diff_edge()</a></code>,
+<code><a href="edge_counts.html">edge_counts()</a></code>, <code>plot(type = "pip")</code> and <code><a href="plot_recovery.html">plot_recovery()</a></code>
+stop with an error. Select differential edges with
+<code><a href="select_diff_edges.html">select_diff_edges()</a></code> (<code>rule = "magnitude"</code>). Do not call
+differences by whether a credible interval excludes zero: under a
+continuous prior that rule is badly anti-conservative (see
+<code><a href="diff_summary.html">diff_summary()</a></code>). The fit also contains <code>R_save</code> (<code>[K, K,
+nsave]</code>, correlation of edge scales across groups), <code>tau_save</code>
+(<code>[K, nsave]</code>, global shrinkage), <code>C_mean</code> and
+<code>pcor_mean</code> (posterior means over every post-burn-in iteration),
+<code>diff_acc</code> (running sums of group differences), <code>cut_z_mean</code>
+and <code>ta_save</code> (the authors' cut-model edge selection, kept for
+reference only) and <code>attempts</code>. Storage is \(8 p^2 K\)
+<code>nsave</code> bytes per chain (160 MB at p = 100, K = 2, nsave = 1000);
+use <code>thin</code> to reduce <code>nsave</code>, or <code>save_draws = FALSE</code>,
+in which case <code><a href="diff_summary.html">diff_summary()</a></code>, <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code> and <code><a href="https://rdrr.io/r/stats/fitted.values.html" class="external-link">fitted()</a></code> use the running
+summaries and draw-based functions stop with an error. A chain whose
+shrinkage parameters become non-finite is restarted from scratch, up to
+<code>max_attempts</code> times.</p>
+<p><strong>Platform-level hyperparameters (<code>method = "ssvs_platform"</code> only):</strong></p><dl><dt><code>eta, kappa</code></dt>
 <dd><p>Gamma(shape = eta, scale = kappa) slab prior on
 platform similarity \(\Phi_{st}\). Default eta = 4, kappa = 5.</p></dd>
 
@@ -317,6 +357,12 @@ approach for learning gene networks underlying disease severity in COPD.
 <p>Shaddox, E., Peterson, C.B., Stingo, F.C., et al. (2020). Bayesian
 inference of networks across multiple sample groups and data types.
 <em>Biostatistics</em>, 21(3), 561-576.</p>
+<p>Busatto, C. &amp; Stingo, F.C. (2025). Inference of multiple high-dimensional
+networks with the Graphical Horseshoe prior. <em>Journal of Computational
+and Graphical Statistics</em>, 1-12. <a href="https://doi.org/10.1080/10618600.2024.2435480" class="external-link">doi:10.1080/10618600.2024.2435480</a></p>
+<p>Busatto, C. &amp; Stingo, F.C. (2025). The multiple graphical horseshoe: an
+application to breast cancer data. In <em>SIS 2025</em>, 435-440. Springer.
+<a href="https://doi.org/10.1007/978-3-031-96736-8_72" class="external-link">doi:10.1007/978-3-031-96736-8_72</a></p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
@@ -442,7 +488,7 @@ inference of networks across multiple sample groups and data types.
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer></div>
