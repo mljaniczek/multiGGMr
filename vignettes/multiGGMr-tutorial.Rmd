@@ -201,6 +201,21 @@ cat("Edges with P(|pcor diff| > 0.1) > 0.5:",
     sum(diff_prob[upper.tri(diff_prob)] > 0.5), "\n")
 ```
 
+### Bayesian FDR on differential edges
+
+`select_diff_edges()` turns a per-edge probability of a real difference into
+a selection with posterior expected FDR at most `alpha`. With
+`rule = "structural"` the probability is $P(g_{1,ij} \ne g_{2,ij})$; with
+`rule = "magnitude"` it is $P(|\rho_{1,ij} - \rho_{2,ij}| > \delta)$.
+
+```{r diff-fdr}
+select_diff_edges(fit, rule = "structural", alpha = 0.1)
+select_diff_edges(fit, rule = "magnitude", delta = 0.1, alpha = 0.1)
+```
+
+Avoid calling differences by whether a credible interval for the difference
+excludes zero: see the calibration caveat in `vignette("mghs-horseshoe")`.
+
 ## 8. Running multiple chains
 
 Running multiple MCMC chains from different starting points is important
