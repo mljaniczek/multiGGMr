@@ -1,4 +1,3 @@
-CXX_STD = CXX14
 # Suppress Armadillo diagnostic warnings from chol/inv_sympd failures.
 # The MCMC engine intentionally attempts decompositions on matrices that may
 # not be SPD, with graceful fallbacks (return NaN/false). Armadillo's warnings

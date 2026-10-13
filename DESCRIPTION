@@ -3,7 +3,7 @@ Type: Package
 Title: Bayesian Inference of Multiple Gaussian Graphical Models
 Version: 0.4.0
 Authors@R: c(
-    person(given = "Margaret", family = "Janiczek", role = c("cre"), email = "mjaniczek@umass.edu"),
+    person(given = "Margaret", family = "Janiczek", role = c("aut", "cre"), email = "mjaniczek@umass.edu"),
     person(given = "Claudio", family = "Busatto", role = c("ctb", "cph"),
            comment = "Author of the mGHS sampler adapted in src/; see inst/mghs/UPSTREAM.md"))
 Description: Utilities and MCMC implementation for Bayesian inference of multiple
@@ -26,7 +26,6 @@ Encoding: UTF-8
 LazyData: true
 Imports:
     Rcpp,
-    Matrix,
     stats,
     utils,
     parallel,

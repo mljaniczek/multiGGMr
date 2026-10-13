@@ -291,7 +291,9 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
   }
 
   if (parallel) {
-    ncores <- as.integer(ncores)
+    # Never more workers than chains; R CMD check --as-cran allows at most 2.
+    ncores <- min(as.integer(ncores), nchains)
+    if (nzchar(Sys.getenv("_R_CHECK_LIMIT_CORES_"))) ncores <- min(ncores, 2L)
     if (.Platform$OS.type == "unix") {
       fits <- parallel::mclapply(seq_len(nchains), chain_fun, mc.cores = ncores)
     } else {
