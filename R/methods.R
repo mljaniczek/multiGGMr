@@ -12,8 +12,13 @@ print.multiggm_fit <- function(x, ...) {
   cat("<multiggm_fit>\n")
   cat("  K groups:", x$K, "\n")
   cat("  p nodes :", x$p, "\n")
-  nsave <- dim(x$adj_save)[4]
-  cat("  Posterior draws:", nsave, "\n")
+  if (identical(x$method, "mghs")) {
+    cat("  Sampler : mGHS (multiple graphical horseshoe)\n")
+    cat("  Posterior draws:", dim(x$R_save)[3],
+        if (isTRUE(x$save_draws)) "" else "(summaries only)", "\n")
+  } else {
+    cat("  Posterior draws:", dim(x$adj_save)[4], "\n")
+  }
   invisible(x)
 }
 
@@ -74,6 +79,7 @@ print.multiggm_fit_list <- function(x, ...) {
 #' @seealso [multiggm_mcmc()], [pip_edges()]
 #' @export
 summary.multiggm_fit <- function(object, pip_threshold = 0.5, ...) {
+  if (identical(object$method, "mghs")) return(.summary_mghs(object))
   K <- object$K
   p <- object$p
   nsave <- dim(object$adj_save)[4]
@@ -194,6 +200,11 @@ coef.multiggm_fit <- function(object, ...) {
   K <- object$K
   p <- object$p
   out <- vector("list", K)
+  if (is.null(object$C_save) && !is.null(object$C_mean)) {
+    out <- lapply(seq_len(K), function(k) object$C_mean[, , k])
+    names(out) <- paste0("Group_", seq_len(K))
+    return(out)
+  }
   for (k in seq_len(K)) {
     out[[k]] <- apply(object$C_save[, , k, , drop = FALSE], c(1, 2), mean)
   }
@@ -233,8 +244,13 @@ coef.multiggm_fit <- function(object, ...) {
 #'   [precision_to_pcor()]
 #' @export
 fitted.multiggm_fit <- function(object, ...) {
-  pcor <- posterior_pcor(object)
   K <- object$K
+  if (is.null(object$C_save) && !is.null(object$pcor_mean)) {
+    out <- lapply(seq_len(K), function(k) object$pcor_mean[, , k])
+    names(out) <- paste0("Group_", seq_len(K))
+    return(out)
+  }
+  pcor <- posterior_pcor(object)
   out <- vector("list", K)
   for (k in seq_len(K)) {
     out[[k]] <- apply(pcor[, , k, , drop = FALSE], c(1, 2), mean)

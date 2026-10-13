@@ -2,6 +2,7 @@
 // Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 #include <RcppArmadillo.h>
+#include <RcppEigen.h>
 #include <Rcpp.h>
 
 using namespace Rcpp;
@@ -20,6 +21,27 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type Theta(ThetaSEXP);
     Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type nu(nuSEXP);
     rcpp_result_gen = Rcpp::wrap(calc_mrf_logC_cpp(Theta, nu));
+    return rcpp_result_gen;
+END_RCPP
+}
+// mghs_engine_cpp
+Rcpp::List mghs_engine_cpp(const int& burnin, const int& nsave, const int& thin, const Eigen::VectorXd& n, const Rcpp::List& S, const int& p, const Eigen::VectorXd hyp_ta, const bool& save_draws, const Rcpp::NumericVector& diff_deltas, const bool& verbose, const int& print_every);
+RcppExport SEXP _multiGGM_mghs_engine_cpp(SEXP burninSEXP, SEXP nsaveSEXP, SEXP thinSEXP, SEXP nSEXP, SEXP SSEXP, SEXP pSEXP, SEXP hyp_taSEXP, SEXP save_drawsSEXP, SEXP diff_deltasSEXP, SEXP verboseSEXP, SEXP print_everySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const int& >::type burnin(burninSEXP);
+    Rcpp::traits::input_parameter< const int& >::type nsave(nsaveSEXP);
+    Rcpp::traits::input_parameter< const int& >::type thin(thinSEXP);
+    Rcpp::traits::input_parameter< const Eigen::VectorXd& >::type n(nSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type S(SSEXP);
+    Rcpp::traits::input_parameter< const int& >::type p(pSEXP);
+    Rcpp::traits::input_parameter< const Eigen::VectorXd >::type hyp_ta(hyp_taSEXP);
+    Rcpp::traits::input_parameter< const bool& >::type save_draws(save_drawsSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type diff_deltas(diff_deltasSEXP);
+    Rcpp::traits::input_parameter< const bool& >::type verbose(verboseSEXP);
+    Rcpp::traits::input_parameter< const int& >::type print_every(print_everySEXP);
+    rcpp_result_gen = Rcpp::wrap(mghs_engine_cpp(burnin, nsave, thin, n, S, p, hyp_ta, save_draws, diff_deltas, verbose, print_every));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -252,6 +274,7 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_multiGGM_calc_mrf_logC_cpp", (DL_FUNC) &_multiGGM_calc_mrf_logC_cpp, 2},
+    {"_multiGGM_mghs_engine_cpp", (DL_FUNC) &_multiGGM_mghs_engine_cpp, 11},
     {"_multiGGM_mcmc_engine_cpp", (DL_FUNC) &_multiGGM_mcmc_engine_cpp, 21},
     {"_multiGGM_mcmc_ssvs_engine_cpp", (DL_FUNC) &_multiGGM_mcmc_ssvs_engine_cpp, 23},
     {"_multiGGM_mcmc_ssvs_platform_engine_cpp", (DL_FUNC) &_multiGGM_mcmc_ssvs_platform_engine_cpp, 36},
