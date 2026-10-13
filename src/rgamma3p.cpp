@@ -1,3 +1,7 @@
+// This file is part of the mGHS sampler by Claudio Busatto
+// (https://github.com/cbusatto/mGHS, commit 1c9fd70), licensed GPL (>= 2).
+// Modified for multiGGM; every change is listed in inst/mghs/UPSTREAM.md.
+
 #include <RcppEigen.h>
 
 #define EIGEN_USE_BLAS
@@ -11,6 +15,8 @@
 #include "factorial.h"
 #include "pbdv.h"
 #include "utils_rgamma3p.h"
+
+double mghs_reject_tries = 0.0;
 
 
 template <typename T> int sign (T val) {
@@ -194,6 +200,7 @@ double rg3p_c1 (const double& a, const double& b)
       while (i < MGHS_MAX_TRIES) 
       {
         i += 1;
+        mghs_reject_tries += 1.0;
         e = R::rexp(1);
         u = R::runif(0, 1);
         u = u + u - 1.0;
@@ -240,6 +247,7 @@ double rg3p_c1 (const double& a, const double& b)
         while (out <= 0.0 && tries < MGHS_MAX_TRIES) {
           out = R::rnorm(mu, sqrt(s2));
           tries += 1;
+          mghs_reject_tries += 1.0;
         }
         if (!(out > 0.0)) return R_NaN;
         
@@ -262,6 +270,7 @@ double rg3p_c1 (const double& a, const double& b)
         while (out <= 0.0 && tries < MGHS_MAX_TRIES) {
           out = R::rnorm(mu, sqrt(s2));
           tries += 1;
+          mghs_reject_tries += 1.0;
         }
         if (!(out > 0.0)) return R_NaN;
 
@@ -375,6 +384,7 @@ double rg3p_c1 (const double& a, const double& b)
       while (i < MGHS_MAX_TRIES) 
       {
         i += 1;
+        mghs_reject_tries += 1.0;
         e = R::rexp(1);
         u = R::runif(0, 1);
         u = u + u - 1.0;
@@ -427,6 +437,7 @@ double rg3p_approx (const double& a, const double& b, const int& c)
     while (out <= 0.0 && tries < MGHS_MAX_TRIES) {
       out = R::rnorm(mu, std::sqrt(s2));
       tries += 1;
+      mghs_reject_tries += 1.0;
     }
     if (!(out > 0.0)) return R_NaN;
 

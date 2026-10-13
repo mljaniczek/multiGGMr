@@ -1,19 +1,27 @@
 Package: multiGGM
 Type: Package
 Title: Bayesian Inference of Multiple Gaussian Graphical Models
-Version: 0.3.0
+Version: 0.4.0
 Authors@R: c(
-    person(given = "Margaret", family = "Janiczek", role = c("cre"), email = "mjaniczek@umass.edu"))
+    person(given = "Margaret", family = "Janiczek", role = c("cre"), email = "mjaniczek@umass.edu"),
+    person(given = "Claudio", family = "Busatto", role = c("ctb", "cph"),
+           comment = "Author of the mGHS sampler adapted in src/; see inst/mghs/UPSTREAM.md"))
 Description: Utilities and MCMC implementation for Bayesian inference of multiple
     Gaussian graphical models. Supports G-Wishart (Peterson, Stingo, and
     Vannucci, 2015, JASA), scalable spike-and-slab (Shaddox et al., 2018,
     Stat Biosci), and multi-platform spike-and-slab (Shaddox et al., 2020,
-    Biostatistics) methods. The multi-platform extension jointly models networks
+    Biostatistics) methods, and the multiple graphical horseshoe (mGHS;
+    Busatto and Stingo, 2025, JCGS). The multi-platform extension jointly models networks
     across multiple data types with a hierarchical MRF coupling group similarity
     across platforms. Includes MRF-coupled edge priors for borrowing strength
     across groups, parallel multi-chain orchestration, and helpers to convert
     precision matrices to partial correlations.
 License: GPL-3
+Copyright: The mGHS sampler sources in src/ (mGHS.cpp, rgamma3p.cpp,
+    utils_mGHS.cpp, rIW.cpp, pbdv.cpp, DVLA.cpp, DVSA.cpp, VVLA.cpp,
+    Gamma2.cpp, factorial.cpp and their headers) are copyright Claudio
+    Busatto, GPL (>= 2), as modified for this package; see
+    inst/mghs/UPSTREAM.md.
 Encoding: UTF-8
 LazyData: true
 Imports:

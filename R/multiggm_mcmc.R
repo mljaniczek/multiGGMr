@@ -33,6 +33,10 @@
 #'   \code{"ssvs_platform"} extends the SSVS approach to jointly model multiple
 #'   data platforms (Shaddox et al. 2020, Biostatistics) with a hierarchical
 #'   MRF coupling group similarity across platforms. Requires \code{platform_data}.
+#'   \code{"mghs"} uses the multiple graphical horseshoe (Busatto & Stingo
+#'   2025): continuous horseshoe shrinkage on each precision matrix, with each
+#'   edge's local scales correlated across groups. It has no edge-inclusion
+#'   indicators; see Details.
 #' @param platform_data For \code{method = "ssvs_platform"} only. A list of S
 #'   elements (one per platform), each a list with components \code{data_list}
 #'   or \code{S_list} and \code{n_vec}. Each platform may have different
@@ -42,6 +46,12 @@
 #'   MCMC engine. \code{"R"} uses the pure R fallback (slower, mainly for
 #'   debugging). Only applies when \code{method = "gwishart"}.
 #' @param ... Additional arguments forwarded to the single-chain engine.
+#'   For \code{method = "mghs"}: \code{save_draws} (default \code{TRUE};
+#'   \code{FALSE} keeps only running summaries, see Details),
+#'   \code{diff_deltas} (thresholds \code{c} for the running counts of
+#'   \eqn{|D| > c}, default \code{c(0.01, 0.02, 0.03, 0.05, 0.10)}) and
+#'   \code{max_attempts} (restarts allowed when the chain gets stuck,
+#'   default 3).
 #'
 #' @details
 #' \strong{Method selection:} \code{method = "gwishart"} uses the G-Wishart
@@ -83,6 +93,36 @@
 #'   \item{\code{lambda}}{Exponential rate hyperparameter for diagonal elements
 #'     (default 1).}
 #' }
+#'
+#' \strong{mGHS hyperparameters (\code{method = "mghs"}):}
+#' \describe{
+#'   \item{\code{t_mean, t_var}}{Mean and variance of the Beta prior on the
+#'     cut-model threshold. Default 0.6 and 0.05, the values used by the
+#'     authors' simulation scripts. The cut model does not feed back into the
+#'     precision matrices.}
+#' }
+#'
+#' \strong{mGHS sampler (\code{method = "mghs"}):} the horseshoe prior is
+#' continuous, so the sampler has no edge indicators: \code{adj_save} and
+#' \code{Sig_save} are \code{NULL}, and [pip_edges()], [pip_diff_edge()],
+#' [edge_counts()], \code{plot(type = "pip")} and \code{plot_recovery()}
+#' stop with an error. Select differential edges with
+#' [select_diff_edges()] (\code{rule = "magnitude"}). Do not call
+#' differences by whether a credible interval excludes zero: under a
+#' continuous prior that rule is badly anti-conservative (see
+#' [diff_summary()]). The fit also contains \code{R_save} (\code{[K, K,
+#' nsave]}, correlation of edge scales across groups), \code{tau_save}
+#' (\code{[K, nsave]}, global shrinkage), \code{C_mean} and
+#' \code{pcor_mean} (posterior means over every post-burn-in iteration),
+#' \code{diff_acc} (running sums of group differences), \code{cut_z_mean}
+#' and \code{ta_save} (the authors' cut-model edge selection, kept for
+#' reference only) and \code{attempts}. Storage is \eqn{8 p^2 K}
+#' \code{nsave} bytes per chain (160 MB at p = 100, K = 2, nsave = 1000);
+#' use \code{thin} to reduce \code{nsave}, or \code{save_draws = FALSE},
+#' in which case [diff_summary()], [coef()] and [fitted()] use the running
+#' summaries and draw-based functions stop with an error. A chain whose
+#' shrinkage parameters become non-finite is restarted from scratch, up to
+#' \code{max_attempts} times.
 #'
 #' \strong{Platform-level hyperparameters (\code{method = "ssvs_platform"} only):}
 #' \describe{
@@ -171,6 +211,14 @@
 #' inference of networks across multiple sample groups and data types.
 #' *Biostatistics*, 21(3), 561-576.
 #'
+#' Busatto, C. & Stingo, F.C. (2025). Inference of multiple high-dimensional
+#' networks with the Graphical Horseshoe prior. *Journal of Computational
+#' and Graphical Statistics*, 1-12. \doi{10.1080/10618600.2024.2435480}
+#'
+#' Busatto, C. & Stingo, F.C. (2025). The multiple graphical horseshoe: an
+#' application to breast cancer data. In *SIS 2025*, 435-440. Springer.
+#' \doi{10.1007/978-3-031-96736-8_72}
+#'
 #' @seealso [pip_edges()], [posterior_precision()], [posterior_pcor()],
 #'   [summary.multiggm_fit()], [coef.multiggm_fit()], [fitted.multiggm_fit()]
 #' @export
@@ -179,7 +227,7 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
                           nchains = 1,
                           parallel = FALSE, ncores = max(1L, parallel::detectCores() - 1L),
                           seed = NULL,
-                          method = c("gwishart", "ssvs", "ssvs_platform"),
+                          method = c("gwishart", "ssvs", "ssvs_platform", "mghs"),
                           platform_data = NULL,
                           hyper = NULL,
                           engine = c("cpp", "R"),
@@ -285,6 +333,11 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
   stopifnot(is.list(S_list), length(S_list) >= 1L)
   K <- length(S_list)
   p <- nrow(S_list[[1L]])
+
+  if (method == "mghs")
+    return(.mghs_single(S_list = S_list, n_vec = n_vec, burnin = burnin,
+                        nsave = nsave, thin = thin, hyper = hyper,
+                        disp = disp, ...))
 
   # --- Default hyperparameters ---
   if (is.null(hyper)) {

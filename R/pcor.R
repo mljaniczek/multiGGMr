@@ -72,6 +72,10 @@ posterior_pcor <- function(fit, use = c("C_save", "Sig_save"), chain = 1L) {
   use <- match.arg(use)
   if (inherits(fit, "multiggm_fit_list")) fit <- fit$chains[[chain]]
   if (!inherits(fit, "multiggm_fit")) stop("fit must be multiggm_fit or multiggm_fit_list")
+  if (is.null(fit[[use]]))
+    stop("This fit has no ", use, " draws. mGHS fits store precision draws ",
+         "only (C_save), and none when save_draws = FALSE; use coef(), ",
+         "fitted() or diff_summary() instead.", call. = FALSE)
 
   p <- fit$p; K <- fit$K
   nsave <- dim(fit[[use]])[4]
@@ -225,6 +229,7 @@ pip_edges <- function(fit, chain = 1L, platform = NULL) {
     return(apply(A, c(1,2,3), mean, na.rm = TRUE))
   }
   if (inherits(fit, "multiggm_fit_list")) fit <- fit$chains[[chain]]
+  .require_indicators(fit, "pip_edges()")
   A <- fit$adj_save
   # A is [p,p,K,nsave] integer
   apply(A, c(1,2,3), mean, na.rm = TRUE)
@@ -256,6 +261,7 @@ pip_edges <- function(fit, chain = 1L, platform = NULL) {
 #' @export
 pip_diff_edge <- function(fit, chain = 1L) {
   if (inherits(fit, "multiggm_fit_list")) fit <- fit$chains[[chain]]
+  .require_indicators(fit, "pip_diff_edge()")
   A <- fit$adj_save
   stopifnot(dim(A)[3] == 2L)
   d <- (A[, , 1, ] != A[, , 2, ])
@@ -343,6 +349,14 @@ confusion_at_threshold <- function(score_mat, truth_mat, thr, upper_only = TRUE)
 posterior_precision <- function(fit, summary_fun = mean, chain = 1L) {
   if (inherits(fit, "multiggm_fit_list")) fit <- fit$chains[[chain]]
   K <- fit$K
+  if (is.null(fit$C_save)) {
+    if (!identical(summary_fun, mean) || is.null(fit$C_mean))
+      stop("This fit did not save posterior draws (save_draws = FALSE); ",
+           "only the posterior mean is available.", call. = FALSE)
+    out <- lapply(seq_len(K), function(k) fit$C_mean[, , k])
+    names(out) <- paste0("Group_", seq_len(K))
+    return(out)
+  }
   out <- vector("list", K)
   for (k in seq_len(K)) {
     out[[k]] <- apply(fit$C_save[, , k, , drop = FALSE], c(1, 2), summary_fun)
@@ -375,6 +389,7 @@ posterior_precision <- function(fit, summary_fun = mean, chain = 1L) {
 #' @export
 edge_counts <- function(fit, chain = 1L) {
   if (inherits(fit, "multiggm_fit_list")) fit <- fit$chains[[chain]]
+  .require_indicators(fit, "edge_counts()")
   A <- fit$adj_save  # [p, p, K, nsave]
   nsave <- dim(A)[4]
   K <- dim(A)[3]

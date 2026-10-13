@@ -87,7 +87,10 @@ plot_trace <- function(fit, what = c("theta", "edges")) {
 
   if (what == "theta") {
     K <- fit$K
-    nsave <- dim(fit$Theta_save)[3]
+    is_mghs <- identical(fit$method, "mghs")
+    S <- if (is_mghs) fit$R_save else fit$Theta_save
+    nm <- if (is_mghs) "R" else "theta"
+    nsave <- dim(S)[3]
     if (K < 2) stop("Theta trace requires K >= 2.")
 
     pairs <- list()
@@ -103,8 +106,8 @@ plot_trace <- function(fit, what = c("theta", "edges")) {
       m <- pairs[[i]]$m
       df_list[[i]] <- data.frame(
         iteration = seq_len(nsave),
-        value = fit$Theta_save[k, m, ],
-        pair = sprintf("theta[%d,%d]", k, m),
+        value = S[k, m, ],
+        pair = sprintf("%s[%d,%d]", nm, k, m),
         stringsAsFactors = FALSE
       )
     }
@@ -113,8 +116,9 @@ plot_trace <- function(fit, what = c("theta", "edges")) {
     p <- ggplot2::ggplot(df, ggplot2::aes(x = .data$iteration, y = .data$value)) +
       ggplot2::geom_line(alpha = 0.6) +
       ggplot2::facet_wrap(~ pair, scales = "free_y") +
-      ggplot2::labs(title = "Trace: graph similarity (theta)",
-                    x = "Iteration (post-burnin)", y = "theta") +
+      ggplot2::labs(title = if (is_mghs) "Trace: correlation of edge scales (R)"
+                            else "Trace: graph similarity (theta)",
+                    x = "Iteration (post-burnin)", y = nm) +
       ggplot2::theme_minimal()
     return(p)
 
