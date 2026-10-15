@@ -237,7 +237,6 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
 
   method <- match.arg(method)
 
-  #TODO make sure methods work with more than one chain. provide documentation on how to evaluate multiple chains.
   # --- Multi-platform dispatch ---
   if (method == "ssvs_platform") {
     return(.multiggm_mcmc_platform(platform_data = platform_data,
@@ -642,6 +641,14 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
 .multiggm_mcmc_platform <- function(platform_data, burnin, nsave, thin,
                                      nchains = 1L, parallel = FALSE, ncores = 1L,
                                      seed = NULL, hyper = NULL, disp = FALSE, ...) {
+
+  if (nchains > 1L)
+    stop("method = \"ssvs_platform\" runs a single chain; nchains > 1 is not ",
+         "supported yet. Run multiggm_mcmc() several times with different seeds ",
+         "to get more chains.", call. = FALSE)
+  if (isTRUE(parallel))
+    warning("parallel = TRUE has no effect for method = \"ssvs_platform\", ",
+            "which runs a single chain.", call. = FALSE)
 
   # --- Validate platform_data ---
   if (is.null(platform_data) || !is.list(platform_data) || length(platform_data) < 1L)

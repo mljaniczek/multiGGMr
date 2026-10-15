@@ -2,9 +2,12 @@
 % Please edit documentation in R/methods.R
 \name{coef.multiggm_fit}
 \alias{coef.multiggm_fit}
+\alias{coef.multiggm_fit_list}
 \title{Extract posterior mean precision matrices}
 \usage{
 \method{coef}{multiggm_fit}(object, ...)
+
+\method{coef}{multiggm_fit_list}(object, ...)
 }
 \arguments{
 \item{object}{A \code{multiggm_fit} object returned by
@@ -32,6 +35,12 @@ variables \code{i} and \code{j} are conditionally independent in group
 For partial correlations (standardized precision), use
 \code{\link{fitted.multiggm_fit}} instead.
 }
+\section{Functions}{
+\itemize{
+\item \code{coef(multiggm_fit_list)}: Posterior mean precision matrices pooled over
+all chains of a \code{multiggm_fit_list}.
+
+}}
 \examples{
 sim <- simulate_multiggm(K = 2, p = 8, n = 80, seed = 1)
 fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 200, nsave = 100)

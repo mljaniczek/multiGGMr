@@ -1,5 +1,3 @@
-#TODO ensure all methods work when there is more than one chain in main multiggm_mcmc function
-
 #' Print a multiggm_fit object
 #'
 #' Displays a concise summary of a fitted multi-GGM model.
@@ -496,3 +494,100 @@ fitted.multiggm_platform_fit <- function(object, platform = NULL, ...) {
 
 
 `%||%` <- function(a, b) if (!is.null(a)) a else b
+
+#' Summarize a multi-chain multiggm fit
+#'
+#' Summarizes each chain and the pooled posterior. The pooled edge counts use
+#' posterior inclusion probabilities averaged over all chains. The largest
+#' difference between two chains' PIPs (or, for mGHS, posterior mean partial
+#' correlations) is a quick convergence check: chains that agree give small
+#' values.
+#'
+#' @param object A \code{multiggm_fit_list} returned by \code{\link{multiggm_mcmc}}
+#'   with \code{nchains > 1}.
+#' @param pip_threshold Numeric; PIP threshold for the edge counts. Default 0.5.
+#' @param ... Ignored.
+#' @return An object of class \code{"summary.multiggm_fit_list"}: a list with
+#'   \code{chains} (the per-chain summaries), \code{edge_counts} (pooled, per
+#'   group, or \code{NULL} for mGHS), \code{max_chain_diff} (largest absolute
+#'   between-chain difference, per group), \code{nchains}, \code{K} and
+#'   \code{pip_threshold}.
+#' @examples
+#' sim <- simulate_multiggm(K = 2, p = 6, n = 60, seed = 1)
+#' fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 100, nsave = 50,
+#'                      nchains = 2, seed = 1)
+#' summary(fit)
+#' @seealso [summary.multiggm_fit()], [plot.multiggm_fit_list()]
+#' @export
+summary.multiggm_fit_list <- function(object, pip_threshold = 0.5, ...) {
+  chains <- object$chains
+  K <- object$K
+  is_mghs <- identical(chains[[1]]$method, "mghs")
+  per_chain <- lapply(chains, summary, pip_threshold = pip_threshold)
+  if (is_mghs) {
+    est <- lapply(chains, function(ch) {
+      f <- fitted(ch)
+      array(unlist(f), c(dim(f[[1]]), K))
+    })
+    edge_counts <- NULL
+  } else {
+    est <- lapply(seq_along(chains), function(i) pip_edges(object, chain = i))
+    pip <- pip_edges(object)
+    edge_counts <- vapply(seq_len(K), function(k)
+      sum(pip[, , k][upper.tri(pip[, , k])] >= pip_threshold), numeric(1))
+  }
+  max_diff <- vapply(seq_len(K), function(k) {
+    ut <- upper.tri(est[[1]][, , k])
+    m <- vapply(est, function(e) e[, , k][ut], numeric(sum(ut)))
+    max(apply(m, 1, function(v) diff(range(v))))
+  }, numeric(1))
+  structure(list(chains = per_chain, edge_counts = edge_counts,
+                 max_chain_diff = max_diff, nchains = length(chains), K = K,
+                 pip_threshold = pip_threshold, method = chains[[1]]$method),
+            class = "summary.multiggm_fit_list")
+}
+
+#' @export
+print.summary.multiggm_fit_list <- function(x, ...) {
+  cat(sprintf("multiGGM MCMC Summary: %d chains, K = %d\n", x$nchains, x$K))
+  cat("==========================================\n")
+  if (!is.null(x$edge_counts)) {
+    cat("Pooled selected edges (PIP >=", x$pip_threshold, "):\n")
+    for (k in seq_along(x$edge_counts))
+      cat(sprintf("  Group %d: %d edges\n", k, x$edge_counts[k]))
+  }
+  what <- if (identical(x$method, "mghs")) "posterior mean partial correlation" else "PIP"
+  cat(sprintf("\nLargest difference in %s between chains:\n", what))
+  for (k in seq_along(x$max_chain_diff))
+    cat(sprintf("  Group %d: %.3f\n", k, x$max_chain_diff[k]))
+  for (i in seq_along(x$chains)) {
+    cat(sprintf("\n--- Chain %d ---\n", i))
+    print(x$chains[[i]])
+  }
+  invisible(x)
+}
+
+#' @describeIn coef.multiggm_fit Posterior mean precision matrices pooled over
+#'   all chains of a \code{multiggm_fit_list}.
+#' @export
+coef.multiggm_fit_list <- function(object, ...) {
+  posterior_precision(object)
+}
+
+#' @describeIn fitted.multiggm_fit Posterior mean partial correlation matrices
+#'   pooled over all chains of a \code{multiggm_fit_list}.
+#' @export
+fitted.multiggm_fit_list <- function(object, ...) {
+  chains <- object$chains
+  K <- object$K
+  if (any(vapply(chains, function(ch) is.null(ch$C_save), logical(1)))) {
+    wts <- vapply(chains, function(ch) as.numeric(ch$n_post), numeric(1))
+    pm <- Reduce(`+`, Map(function(ch, w) ch$pcor_mean * w, chains, wts)) / sum(wts)
+    out <- lapply(seq_len(K), function(k) pm[, , k])
+  } else {
+    pcor <- posterior_pcor(object)
+    out <- lapply(seq_len(K), function(k) apply(pcor[, , k, , drop = FALSE], c(1, 2), mean))
+  }
+  names(out) <- paste0("Group_", seq_len(K))
+  out
+}

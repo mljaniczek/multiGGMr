@@ -4,7 +4,7 @@
 \alias{posterior_pcor}
 \title{Compute posterior partial correlations from a multiggm_fit object}
 \usage{
-posterior_pcor(fit, use = c("C_save", "Sig_save"), chain = 1L)
+posterior_pcor(fit, use = c("C_save", "Sig_save"), chain = NULL)
 }
 \arguments{
 \item{fit}{A \code{multiggm_fit} object (single chain) or
@@ -19,8 +19,8 @@ directly. Faster and recommended.}
 each to get precision first. Slower; mainly for cross-checking.}
 }}
 
-\item{chain}{Integer; which chain to use if \code{fit} is a
-\code{multiggm_fit_list}. Default 1.}
+\item{chain}{\code{NULL} (default) pools the draws of all chains of a
+\code{multiggm_fit_list}; an integer vector selects chains.}
 }
 \value{
 A numeric array of dimension \code{[p, p, K, nsave]}. Entry
