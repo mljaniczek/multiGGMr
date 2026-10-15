@@ -343,31 +343,7 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
                         nsave = nsave, thin = thin, hyper = hyper,
                         disp = disp, ...))
 
-  # --- Default hyperparameters ---
-  if (is.null(hyper)) {
-    if (method == "ssvs") {
-      # Shaddox et al. (2018) defaults
-      hyper <- list(
-        v0 = 0.02^2,               # Spike variance (Section 3.1)
-        v1 = 50^2 * 0.02^2,        # Slab variance = h * v0, h=2500 (Section 3.1)
-        lambda = 1,                 # Diagonal hyperparameter
-        a = 1, b = 4,              # Beta(1,4) prior on q_ij
-        alpha = 2, beta = 5,       # Gamma slab on theta_km (rate param)
-        w = 0.9,                   # P(gamma_km=1)
-        alpha_prop = 1, beta_prop = 1  # Gamma(shape, rate) proposal for theta
-      )
-    } else {
-      # Peterson et al. (2015) defaults
-      hyper <- list(
-        b_prior = 3,                # G-Wishart df (Section 3.5)
-        D_prior = diag(p),          # G-Wishart scale (Section 3.5)
-        a = 1, b = 4,               # Beta(1,4) prior on q_ij (Section 3.4)
-        alpha = 2, beta = 5,        # Gamma(2, rate=5) on theta_km (Section 3.3)
-        w = 0.9,                    # P(gamma_km=1) (Section 3.3)
-        alpha_prop = 2, beta_prop = 5  # Gamma proposal for theta (Appendix A.2)
-      )
-    }
-  }
+  hyper <- .merge_hyper(hyper, .default_hyper(method, p), method)
 
   # Unpack common hyperparameters
   a          <- hyper$a
@@ -445,10 +421,7 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
       ar_gamma   = res$ar_gamma,
       ar_theta   = res$ar_theta,
       ar_nu      = res$ar_nu,
-      hyper = list(v0 = v0_val, v1 = v1_val, lambda = lambda_val,
-                   alpha = alpha, beta = beta, a = a, b = b, w = my_w,
-                   alpha_prop = alpha_prop, beta_prop = beta_prop,
-                   a_prop = a_prop, b_prop = b_prop),
+      hyper = c(hyper, list(a_prop = a_prop, b_prop = b_prop)),
       call = match.call()
     ), class = "multiggm_fit"))
   }
@@ -456,7 +429,6 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
   # --- G-Wishart C++ engine ---
   b_prior <- hyper$b_prior
   D_prior <- hyper$D_prior
-  if (is.null(D_prior)) D_prior <- diag(p)
   if (!all(dim(D_prior) == c(p, p))) stop("D_prior must be p x p.")
 
   if (engine == "cpp") {
@@ -496,9 +468,7 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
       ar_gamma   = res$ar_gamma,
       ar_theta   = res$ar_theta,
       ar_nu      = res$ar_nu,
-      hyper = list(alpha = alpha, beta = beta, a = a, b = b, w = my_w,
-                   alpha_prop = alpha_prop, beta_prop = beta_prop,
-                   a_prop = a_prop, b_prop = b_prop),
+      hyper = c(hyper, list(a_prop = a_prop, b_prop = b_prop)),
       call = match.call()
     ), class = "multiggm_fit"))
   }
@@ -657,8 +627,7 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
     C_save = C_save, Sig_save = Sig_save, adj_save = adj_save,
     Theta_save = Theta_save, nu_save = nu_save, ar_gamma = ar_gamma,
     ar_theta = ar_theta, ar_nu = ar_nu,
-    hyper = list(alpha = alpha, beta = beta, a = a, b = b, w = my_w,
-                 alpha_prop = alpha_prop, beta_prop = beta_prop, a_prop = a_prop, b_prop = b_prop),
+    hyper = c(hyper, list(a_prop = a_prop, b_prop = b_prop)),
     call = match.call()
   ), class = "multiggm_fit")
 }
@@ -731,45 +700,26 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
     platform_n_vecs[[s]] <- as.numeric(n_vec_s)
   }
 
-  # --- Default hyperparameters ---
-  if (is.null(hyper)) {
-    hyper <- list(
-      v0 = 0.02^2,               # Spike variance
-      v1 = 50^2 * 0.02^2,        # Slab variance
-      lambda = 1,                 # Diagonal hyperparameter
-      a = 1, b = 4,              # Beta(1,4) prior on q_ij
-      alpha = 2, beta = 5,       # Gamma slab on theta_km (rate param)
-      w = 0.9,                   # P(gamma_km=1)
-      alpha_prop = 1, beta_prop = 1,  # Gamma proposal for theta (scale param)
-      # Platform-level (Shaddox et al. 2020 defaults)
-      eta = 4, kappa = 5,              # Gamma slab on Phi (shape, scale)
-      eta_prop = 1, kappa_prop = 1,    # Gamma proposal for Phi
-      d = 1, f = 19,                   # Beta(1,19) prior on w_platform
-      d_prop = 2, f_prop = 4,          # Beta proposal for w_platform
-      u_prior = 0.1                    # P(zeta=1)
-    )
-  }
-
-  # Unpack
-  v0_val     <- hyper$v0 %||% 0.02^2
-  v1_val     <- hyper$v1 %||% (50^2 * 0.02^2)
-  lambda_val <- hyper$lambda %||% 1
-  a_h        <- hyper$a %||% 1
-  b_h        <- hyper$b %||% 4
-  alpha_h    <- hyper$alpha %||% 2
-  beta_h     <- hyper$beta %||% 5
-  w_h        <- hyper$w %||% 0.9
-  alpha_prop <- hyper$alpha_prop %||% 1
-  beta_prop  <- hyper$beta_prop %||% 1
-  eta_h      <- hyper$eta %||% 4
-  kappa_h    <- hyper$kappa %||% 5
-  eta_prop   <- hyper$eta_prop %||% 1
-  kappa_prop <- hyper$kappa_prop %||% 1
-  d_h        <- hyper$d %||% 1
-  f_h        <- hyper$f %||% 19
-  d_prop     <- hyper$d_prop %||% 2
-  f_prop     <- hyper$f_prop %||% 4
-  u_prior    <- hyper$u_prior %||% 0.1
+  hyper <- .merge_hyper(hyper, .default_hyper("ssvs_platform"), "ssvs_platform")
+  v0_val     <- hyper$v0
+  v1_val     <- hyper$v1
+  lambda_val <- hyper$lambda
+  a_h        <- hyper$a
+  b_h        <- hyper$b
+  alpha_h    <- hyper$alpha
+  beta_h     <- hyper$beta
+  w_h        <- hyper$w
+  alpha_prop <- hyper$alpha_prop
+  beta_prop  <- hyper$beta_prop
+  eta_h      <- hyper$eta
+  kappa_h    <- hyper$kappa
+  eta_prop   <- hyper$eta_prop
+  kappa_prop <- hyper$kappa_prop
+  d_h        <- hyper$d
+  f_h        <- hyper$f
+  d_prop     <- hyper$d_prop
+  f_prop     <- hyper$f_prop
+  u_prior    <- hyper$u_prior
 
   a_prop <- 2
   b_prop <- 4
@@ -871,4 +821,44 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
     hyper      = hyper,
     call       = match.call()
   ), class = "multiggm_platform_fit")
+}
+
+# Default hyperparameters per sampler. Rates and scales are as documented in
+# multiggm_mcmc(): beta and beta_prop are rates; kappa and kappa_prop scales.
+.default_hyper <- function(method, p = NULL) {
+  mrf <- list(a = 1, b = 4,          # Beta(a, b) prior on q_ij = logit^-1(nu_ij)
+              alpha = 2, beta = 5,   # Gamma(shape, rate) slab on theta_km
+              w = 0.9)               # P(gamma_km = 1)
+  ssvs <- c(list(v0 = 0.02^2,          # spike variance (Shaddox et al. 2018)
+                 v1 = 50^2 * 0.02^2,   # slab variance, h = 2500
+                 lambda = 1),          # rate of the diagonal prior
+            mrf, list(alpha_prop = 1, beta_prop = 1))
+  switch(method,
+    gwishart = c(list(b_prior = 3, D_prior = diag(p)),   # Peterson et al. (2015)
+                 mrf, list(alpha_prop = 2, beta_prop = 5)),
+    ssvs = ssvs,
+    ssvs_platform = c(ssvs, list(
+      eta = 4, kappa = 5,              # Gamma(shape, scale) slab on Phi (Shaddox et al. 2020)
+      eta_prop = 1, kappa_prop = 1,    # Gamma(shape, scale) proposal for Phi
+      d = 1, f = 19,                   # Beta prior on the platform-level edge log-odds
+      d_prop = 2, f_prop = 4,          # Beta proposal for those log-odds
+      u_prior = 0.1)),                 # P(zeta_st = 1)
+    mghs = list(t_mean = 0.6, t_var = 0.05),
+    stop("Unknown method: ", method))
+}
+
+# Merge user hyperparameters into the defaults; unknown names are an error.
+.merge_hyper <- function(hyper, defaults, method) {
+  if (is.null(hyper)) return(defaults)
+  if (!is.list(hyper) || (length(hyper) > 0 && (is.null(names(hyper)) || any(names(hyper) == ""))))
+    stop("hyper must be a named list.", call. = FALSE)
+  bad <- setdiff(names(hyper), names(defaults))
+  if (length(bad))
+    stop(sprintf("Unknown hyperparameter%s for method = \"%s\": %s. Valid names: %s.",
+                 if (length(bad) > 1) "s" else "", method, paste(bad, collapse = ", "),
+                 paste(names(defaults), collapse = ", ")), call. = FALSE)
+  if (any(vapply(hyper, is.null, logical(1))))
+    stop("hyper entries must not be NULL.", call. = FALSE)
+  defaults[names(hyper)] <- hyper
+  defaults
 }

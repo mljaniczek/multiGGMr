@@ -3,7 +3,7 @@
 # (commit 1c9fd70, GPL >= 2, Claudio Busatto); see inst/mghs/UPSTREAM.md.
 
 .mghs_hyper <- function(hyper) {
-  h <- utils::modifyList(list(t_mean = 0.6, t_var = 0.05), as.list(hyper))
+  h <- .merge_hyper(hyper, .default_hyper("mghs"), "mghs")
   mu <- h$t_mean; v <- h$t_var
   if (!is.numeric(mu) || mu <= 0 || mu >= 1) stop("hyper$t_mean must lie in (0, 1).")
   if (!is.numeric(v) || v <= 0 || v >= mu * (1 - mu))
