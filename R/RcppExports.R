@@ -30,6 +30,14 @@ mcmc_ssvs_platform_engine_cpp <- function(platform_S_lists, platform_n_vecs, p_v
     .Call(`_multiGGM_mcmc_ssvs_platform_engine_cpp`, platform_S_lists, platform_n_vecs, p_vec_r, K, burnin, nsave, thin, v0, v1, lambda_param, a, b_beta, alpha, beta_rate, w_prior, alpha_prop, beta_prop, a_prop, b_prop, eta, kappa, eta_prop, kappa_prop, d_plat, f_plat, d_prop, f_prop, u_prior, Theta_init_list, nu_init_list, C_init_list, Sig_init_list, Phi_init_r, w_init_r, verbose, print_every)
 }
 
+spike_slab_prior_chain_cpp <- function(n_iter, shape, scale, shape_prop, scale_prop, w) {
+    .Call(`_multiGGM_spike_slab_prior_chain_cpp`, n_iter, shape, scale, shape_prop, scale_prop, w)
+}
+
+spike_slab_log_ratio_cpp <- function(x_curr, x_prop, shape, scale, shape_prop, scale_prop, w) {
+    .Call(`_multiGGM_spike_slab_log_ratio_cpp`, x_curr, x_prop, shape, scale, shape_prop, scale_prop, w)
+}
+
 wishrnd_cpp <- function(Sigma, df) {
     .Call(`_multiGGM_wishrnd_cpp`, Sigma, df)
 }

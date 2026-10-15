@@ -8,3 +8,6 @@
 ^\.github$
 ^README\.Rmd$
 ^\.git$
+^dev$
+^[^/]*\.pdf$
+^[^/]*\.html$

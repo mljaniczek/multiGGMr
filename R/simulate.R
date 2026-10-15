@@ -67,10 +67,26 @@ simulate_multiggm <- function(K = 2, p = 20, n = 100,
   if (!is.null(seed)) set.seed(seed)
   n_vec <- rep_len(as.integer(n), K)
 
-  # --- Step 1: Generate base adjacency matrix ---
-  adj_base <- matrix(0L, p, p)
+  adj_base <- .sim_base_graph(p, graph_type, edge_prob)
+  adj_list <- .sim_group_graphs(adj_base, K, perturb_prob)
+  sim <- .sim_from_graphs(adj_list, n_vec, signal)
 
- if (graph_type == "band") {
+  list(
+    Omega_list = sim$Omega_list,
+    adj_list   = adj_list,
+    data_list  = sim$data_list,
+    S_list     = sim$S_list,
+    n_vec      = n_vec,
+    K          = K,
+    p          = p
+  )
+}
+
+# Base adjacency matrix (0/1, p x p).
+.sim_base_graph <- function(p, graph_type, edge_prob) {
+  adj_base <- matrix(0L, p, p)
+  if (p < 2) return(adj_base)
+  if (graph_type == "band") {
     # AR(2) structure as in Peterson et al. Section 5.1
     for (i in 1:(p - 1)) adj_base[i, i + 1] <- adj_base[i + 1, i] <- 1L
     if (p > 2) {
@@ -80,103 +96,99 @@ simulate_multiggm <- function(K = 2, p = 20, n = 100,
     # Erdos-Renyi
     for (i in 1:(p - 1)) {
       for (j in (i + 1):p) {
-        if (stats::runif(1) < edge_prob) {
-          adj_base[i, j] <- adj_base[j, i] <- 1L
-        }
+        if (stats::runif(1) < edge_prob) adj_base[i, j] <- adj_base[j, i] <- 1L
       }
     }
   } else if (graph_type == "hub") {
     n_hubs <- max(1L, floor(p / 5))
-    hub_nodes <- seq(1, p, length.out = n_hubs + 1)[1:n_hubs]
-    hub_nodes <- as.integer(round(hub_nodes))
+    hub_nodes <- as.integer(round(seq(1, p, length.out = n_hubs + 1)[1:n_hubs]))
     for (h in hub_nodes) {
       spokes <- setdiff(seq_len(p), h)
       # Connect hub to ~40% of other nodes
       connected <- spokes[stats::runif(length(spokes)) < 0.4]
-      for (s in connected) {
-        adj_base[h, s] <- adj_base[s, h] <- 1L
+      for (s in connected) adj_base[h, s] <- adj_base[s, h] <- 1L
+    }
+  }
+  adj_base
+}
+
+# Flip each pair (i < j) independently with probability prob.
+.perturb_graph <- function(adj, prob) {
+  p <- nrow(adj)
+  if (p < 2) return(adj)
+  for (i in 1:(p - 1)) {
+    for (j in (i + 1):p) {
+      if (stats::runif(1) < prob) {
+        adj[i, j] <- 1L - adj[i, j]
+        adj[j, i] <- adj[i, j]
       }
     }
   }
+  adj
+}
 
-  # --- Step 2: Generate group-specific adjacencies by perturbing base ---
+# Group 1 keeps adj_base; groups 2..K perturb it independently.
+.sim_group_graphs <- function(adj_base, K, perturb_prob) {
   adj_list <- vector("list", K)
   adj_list[[1]] <- adj_base
+  for (k in seq_len(K)[-1]) adj_list[[k]] <- .perturb_graph(adj_base, perturb_prob)
+  adj_list
+}
 
-  for (k in 2:K) {
-    adj_k <- adj_base
-    for (i in 1:(p - 1)) {
-      for (j in (i + 1):p) {
-        if (stats::runif(1) < perturb_prob) {
-          # Flip edge
-          adj_k[i, j] <- 1L - adj_k[i, j]
-          adj_k[j, i] <- adj_k[i, j]
-        }
-      }
-    }
-    adj_list[[k]] <- adj_k
-  }
-
-  # --- Step 3: Generate precision matrices ---
+# Precision matrices and centred data for given graphs.
+.sim_from_graphs <- function(adj_list, n_vec, signal) {
+  K <- length(adj_list); p <- nrow(adj_list[[1]])
   Omega_list <- vector("list", K)
-
   for (k in seq_len(K)) {
-    Omega_k <- matrix(0, p, p)
-    diag(Omega_k) <- 1
-
-    # Fill off-diagonal entries where edges exist
-    for (i in 1:(p - 1)) {
-      for (j in (i + 1):p) {
-        if (adj_list[[k]][i, j] == 1L) {
-          val <- stats::runif(1, signal[1], signal[2]) * sample(c(-1, 1), 1)
-          Omega_k[i, j] <- val
-          Omega_k[j, i] <- val
+    Omega_k <- diag(1, p)
+    if (p > 1) {
+      for (i in 1:(p - 1)) {
+        for (j in (i + 1):p) {
+          if (adj_list[[k]][i, j] == 1L) {
+            val <- stats::runif(1, signal[1], signal[2]) * sample(c(-1, 1), 1)
+            Omega_k[i, j] <- Omega_k[j, i] <- val
+          }
         }
       }
     }
-
-    # Make positive definite using the approach from Peterson et al. / Danaher et al.:
-    # divide each off-diagonal by (1.5 * sum of abs off-diagonals in its row), then
-    # average with transpose
-    Omega_k <- .make_pd(Omega_k)
-    Omega_list[[k]] <- Omega_k
+    # Row-normalize off-diagonals as in Peterson et al. / Danaher et al. so
+    # that Omega_k is positive definite
+    Omega_list[[k]] <- .make_pd(Omega_k)
   }
-
-  # --- Step 4: Draw data from N(0, Omega_k^{-1}) ---
   data_list <- vector("list", K)
   S_list    <- vector("list", K)
-
   for (k in seq_len(K)) {
     Sigma_k <- solve(Omega_list[[k]])
-    # Ensure symmetry for chol
     Sigma_k <- (Sigma_k + t(Sigma_k)) / 2
-
     L <- chol(Sigma_k)  # upper Cholesky: Sigma = L'L
     Xk <- matrix(stats::rnorm(n_vec[k] * p), nrow = n_vec[k], ncol = p) %*% L
-    # Column-center
     Xk <- scale(Xk, center = TRUE, scale = FALSE)
     data_list[[k]] <- Xk
     S_list[[k]]    <- crossprod(Xk)
   }
-
-  list(
-    Omega_list = Omega_list,
-    adj_list   = adj_list,
-    data_list  = data_list,
-    S_list     = S_list,
-    n_vec      = n_vec,
-    K          = K,
-    p          = p
-  )
+  list(Omega_list = Omega_list, data_list = data_list, S_list = S_list)
 }
 
 
 #' Simulate multi-platform data from multiple Gaussian graphical models
 #'
-#' Generates S platforms of data, each with K groups sharing structure across
-#' groups (controlled by \code{perturb_prob}) and across platforms (controlled
-#' by \code{platform_perturb_prob}). Follows Shaddox et al. (2020) simulation
-#' design. Platform 1 uses the base graph; platforms 2..S perturb it.
+#' Generates S platforms (data types) of data, each with the same K groups,
+#' with graphs that share structure across platforms and across groups.
+#'
+#' The data-generating process is hierarchical:
+#' 1. One base graph is drawn on \code{max(p_vec)} nodes (see
+#'    \code{graph_type}).
+#' 2. Platform \code{s} uses the leading \code{p_vec[s] x p_vec[s]} block of
+#'    the base graph. Platform 1 uses it unchanged; platforms 2, ..., S flip
+#'    each pair independently with probability \code{platform_perturb_prob}.
+#'    Variable \code{j} therefore plays the same role in every platform that
+#'    has it.
+#' 3. Within each platform, group 1 uses the platform graph and groups
+#'    2, ..., K flip each pair with probability \code{perturb_prob}, exactly as
+#'    in [simulate_multiggm()]. Group perturbations are independent across
+#'    platforms.
+#' 4. Precision matrices and data are generated from each graph as in
+#'    [simulate_multiggm()].
 #'
 #' @param K Integer; number of sample groups. Default 2.
 #' @param S Integer; number of platforms (data types). Default 2.
@@ -186,10 +198,12 @@ simulate_multiggm <- function(K = 2, p = 20, n = 100,
 #'   (same across platforms). Default 100.
 #' @param graph_type Character; type of base graph. See
 #'   \code{\link{simulate_multiggm}}.
+#' @param edge_prob Numeric; edge probability of the base graph for
+#'   \code{graph_type = "random"}. Default 0.1.
 #' @param perturb_prob Numeric; probability of edge flip between groups within
 #'   a platform. Default 0.1.
 #' @param platform_perturb_prob Numeric; probability of edge flip between
-#'   platforms. Default 0.2.
+#'   platform 1 and each other platform. Default 0.2.
 #' @param signal Numeric vector of length 2; magnitude range for off-diagonal
 #'   precision entries. Default \code{c(0.3, 0.6)}.
 #' @param seed Optional integer random seed.
@@ -199,6 +213,9 @@ simulate_multiggm <- function(K = 2, p = 20, n = 100,
 #'       to \code{multiggm_mcmc(method = "ssvs_platform", platform_data = ...)}.
 #'       Each element is a list with \code{data_list}, \code{S_list},
 #'       \code{n_vec}, \code{Omega_list}, and \code{adj_list}.
+#' * \code{adj_base}: The base graph on \code{max(p_vec)} nodes.
+#' * \code{platform_adj}: List of S platform graphs (before group
+#'       perturbation).
 #' * \code{K}, \code{S}, \code{p_vec}: Dimensions.
 #'
 #' @examples
@@ -211,6 +228,7 @@ simulate_multiggm <- function(K = 2, p = 20, n = 100,
 simulate_multiggm_platform <- function(K = 2, S = 2, p_vec = c(20, 15),
                                         n = 100,
                                         graph_type = c("band", "random", "hub"),
+                                        edge_prob = 0.1,
                                         perturb_prob = 0.1,
                                         platform_perturb_prob = 0.2,
                                         signal = c(0.3, 0.6),
@@ -222,72 +240,31 @@ simulate_multiggm_platform <- function(K = 2, S = 2, p_vec = c(20, 15),
   if (length(p_vec) != S) stop("p_vec must have length S.")
   n_vec <- rep_len(as.integer(n), K)
 
+  adj_base <- .sim_base_graph(max(p_vec), graph_type, edge_prob)
+  platform_adj <- vector("list", S)
   platform_data <- vector("list", S)
 
   for (s in seq_len(S)) {
-    p_s <- p_vec[s]
+    idx <- seq_len(p_vec[s])
+    adj_s <- adj_base[idx, idx, drop = FALSE]
+    if (s > 1) adj_s <- .perturb_graph(adj_s, platform_perturb_prob)
+    platform_adj[[s]] <- adj_s
 
-    # Use simulate_multiggm for this platform, optionally perturbing from
-    # a common base graph pattern
-    sim_s <- simulate_multiggm(
-      K = K, p = p_s, n = n_vec,
-      graph_type = graph_type,
-      perturb_prob = perturb_prob,
-      signal = signal,
-      seed = NULL  # seed already set globally
-    )
-
-    # For platforms 2..S, additionally perturb the adjacency
-    if (s > 1 && platform_perturb_prob > 0) {
-      for (k in seq_len(K)) {
-        adj_k <- sim_s$adj_list[[k]]
-        for (i in 1:(p_s - 1)) {
-          for (j in (i + 1):p_s) {
-            if (stats::runif(1) < platform_perturb_prob) {
-              adj_k[i, j] <- 1L - adj_k[i, j]
-              adj_k[j, i] <- adj_k[i, j]
-            }
-          }
-        }
-        sim_s$adj_list[[k]] <- adj_k
-
-        # Regenerate precision from new adjacency
-        Omega_k <- matrix(0, p_s, p_s)
-        diag(Omega_k) <- 1
-        for (i in 1:(p_s - 1)) {
-          for (j in (i + 1):p_s) {
-            if (adj_k[i, j] == 1L) {
-              val <- stats::runif(1, signal[1], signal[2]) * sample(c(-1, 1), 1)
-              Omega_k[i, j] <- val
-              Omega_k[j, i] <- val
-            }
-          }
-        }
-        Omega_k <- .make_pd(Omega_k)
-        sim_s$Omega_list[[k]] <- Omega_k
-
-        # Regenerate data
-        Sigma_k <- solve(Omega_k)
-        Sigma_k <- (Sigma_k + t(Sigma_k)) / 2
-        L <- chol(Sigma_k)
-        Xk <- matrix(stats::rnorm(n_vec[k] * p_s), nrow = n_vec[k], ncol = p_s) %*% L
-        Xk <- scale(Xk, center = TRUE, scale = FALSE)
-        sim_s$data_list[[k]] <- Xk
-        sim_s$S_list[[k]] <- crossprod(Xk)
-      }
-    }
-
+    adj_list <- .sim_group_graphs(adj_s, K, perturb_prob)
+    sim_s <- .sim_from_graphs(adj_list, n_vec, signal)
     platform_data[[s]] <- list(
       data_list  = sim_s$data_list,
       S_list     = sim_s$S_list,
       n_vec      = n_vec,
       Omega_list = sim_s$Omega_list,
-      adj_list   = sim_s$adj_list
+      adj_list   = adj_list
     )
   }
 
   list(
     platform_data = platform_data,
+    adj_base      = adj_base,
+    platform_adj  = platform_adj,
     K             = K,
     S             = S,
     p_vec         = p_vec

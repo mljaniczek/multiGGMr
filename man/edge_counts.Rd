@@ -10,7 +10,9 @@ edge_counts(fit, chain = 1L)
 \item{fit}{A \code{multiggm_fit} or \code{multiggm_fit_list} object.}
 
 \item{chain}{Integer; which chain to use if \code{fit} is a
-\code{multiggm_fit_list}. Default 1.}
+\code{multiggm_fit_list}. Default 1. Unlike the posterior summaries,
+edge counts are a per-chain trace, so chains are not pooled; use
+\code{plot(fit_list, type = "trace_edges")} to overlay chains.}
 }
 \value{
 An integer matrix with \code{nsave} rows and \code{K} columns.

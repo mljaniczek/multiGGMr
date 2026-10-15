@@ -155,6 +155,39 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// spike_slab_prior_chain_cpp
+Rcpp::NumericVector spike_slab_prior_chain_cpp(int n_iter, double shape, double scale, double shape_prop, double scale_prop, double w);
+RcppExport SEXP _multiGGM_spike_slab_prior_chain_cpp(SEXP n_iterSEXP, SEXP shapeSEXP, SEXP scaleSEXP, SEXP shape_propSEXP, SEXP scale_propSEXP, SEXP wSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type n_iter(n_iterSEXP);
+    Rcpp::traits::input_parameter< double >::type shape(shapeSEXP);
+    Rcpp::traits::input_parameter< double >::type scale(scaleSEXP);
+    Rcpp::traits::input_parameter< double >::type shape_prop(shape_propSEXP);
+    Rcpp::traits::input_parameter< double >::type scale_prop(scale_propSEXP);
+    Rcpp::traits::input_parameter< double >::type w(wSEXP);
+    rcpp_result_gen = Rcpp::wrap(spike_slab_prior_chain_cpp(n_iter, shape, scale, shape_prop, scale_prop, w));
+    return rcpp_result_gen;
+END_RCPP
+}
+// spike_slab_log_ratio_cpp
+double spike_slab_log_ratio_cpp(double x_curr, double x_prop, double shape, double scale, double shape_prop, double scale_prop, double w);
+RcppExport SEXP _multiGGM_spike_slab_log_ratio_cpp(SEXP x_currSEXP, SEXP x_propSEXP, SEXP shapeSEXP, SEXP scaleSEXP, SEXP shape_propSEXP, SEXP scale_propSEXP, SEXP wSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< double >::type x_curr(x_currSEXP);
+    Rcpp::traits::input_parameter< double >::type x_prop(x_propSEXP);
+    Rcpp::traits::input_parameter< double >::type shape(shapeSEXP);
+    Rcpp::traits::input_parameter< double >::type scale(scaleSEXP);
+    Rcpp::traits::input_parameter< double >::type shape_prop(shape_propSEXP);
+    Rcpp::traits::input_parameter< double >::type scale_prop(scale_propSEXP);
+    Rcpp::traits::input_parameter< double >::type w(wSEXP);
+    rcpp_result_gen = Rcpp::wrap(spike_slab_log_ratio_cpp(x_curr, x_prop, shape, scale, shape_prop, scale_prop, w));
+    return rcpp_result_gen;
+END_RCPP
+}
 // wishrnd_cpp
 arma::mat wishrnd_cpp(const arma::mat& Sigma, double df);
 RcppExport SEXP _multiGGM_wishrnd_cpp(SEXP SigmaSEXP, SEXP dfSEXP) {
@@ -278,6 +311,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_multiGGM_mcmc_engine_cpp", (DL_FUNC) &_multiGGM_mcmc_engine_cpp, 21},
     {"_multiGGM_mcmc_ssvs_engine_cpp", (DL_FUNC) &_multiGGM_mcmc_ssvs_engine_cpp, 23},
     {"_multiGGM_mcmc_ssvs_platform_engine_cpp", (DL_FUNC) &_multiGGM_mcmc_ssvs_platform_engine_cpp, 36},
+    {"_multiGGM_spike_slab_prior_chain_cpp", (DL_FUNC) &_multiGGM_spike_slab_prior_chain_cpp, 6},
+    {"_multiGGM_spike_slab_log_ratio_cpp", (DL_FUNC) &_multiGGM_spike_slab_log_ratio_cpp, 7},
     {"_multiGGM_wishrnd_cpp", (DL_FUNC) &_multiGGM_wishrnd_cpp, 2},
     {"_multiGGM_log_iwishart_invA_const_cpp", (DL_FUNC) &_multiGGM_log_iwishart_invA_const_cpp, 2},
     {"_multiGGM_log_J_cpp", (DL_FUNC) &_multiGGM_log_J_cpp, 3},

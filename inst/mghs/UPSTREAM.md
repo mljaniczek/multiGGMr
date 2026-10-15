@@ -28,7 +28,9 @@ files.
    helpers; removed `lambda_pstep()` and its RcppParallel worker (never
    called, and it would call R's RNG from worker threads); removed
    declarations of functions that were not imported; added an attribution
-   header to each file.
+   header to each file. Removed `#define EIGEN_USE_BLAS` / `EIGEN_USE_LAPACKE`: they
+   came after `#include <RcppEigen.h>`, so they had no effect, and LAPACKE is
+   not available on CRAN machines.
 2. **Rejection samplers can no longer hang** (`rgamma3p.cpp`). Each loop
    stops after `MGHS_MAX_TRIES` (1e6) tries and returns `NaN`; `NaN`/`Inf`
    arguments return `NaN` at once. Previously a `NaN` argument sent

@@ -1,7 +1,7 @@
 Package: multiGGM
 Type: Package
 Title: Bayesian Inference of Multiple Gaussian Graphical Models
-Version: 0.4.0
+Version: 0.4.0.9000
 Authors@R: c(
     person(given = "Margaret", family = "Janiczek", role = c("aut", "cre"), email = "mjaniczek@umass.edu"),
     person(given = "Claudio", family = "Busatto", role = c("ctb", "cph"),
@@ -16,6 +16,8 @@ Description: Utilities and MCMC implementation for Bayesian inference of multipl
     across platforms. Includes MRF-coupled edge priors for borrowing strength
     across groups, parallel multi-chain orchestration, and helpers to convert
     precision matrices to partial correlations.
+Depends:
+    R (>= 4.0.0)
 License: GPL-3
 Copyright: The mGHS sampler sources in src/ (mGHS.cpp, rgamma3p.cpp,
     utils_mGHS.cpp, rIW.cpp, pbdv.cpp, DVLA.cpp, DVSA.cpp, VVLA.cpp,
@@ -23,7 +25,6 @@ Copyright: The mGHS sampler sources in src/ (mGHS.cpp, rgamma3p.cpp,
     Busatto, GPL (>= 2), as modified for this package; see
     inst/mghs/UPSTREAM.md.
 Encoding: UTF-8
-LazyData: true
 Imports:
     Rcpp,
     stats,
@@ -46,4 +47,5 @@ Config/testthat/edition: 3
 VignetteBuilder: knitr
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
-URL: https://mljaniczek.github.io/multiGGMr/
+URL: https://mljaniczek.github.io/multiGGMr/, https://github.com/mljaniczek/multiGGMr
+BugReports: https://github.com/mljaniczek/multiGGMr/issues

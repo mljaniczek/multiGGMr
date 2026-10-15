@@ -20,9 +20,13 @@ A list with three components:
 threshold (starts at 0, ends at 1).}
 \item{\code{TPR}}{Numeric vector; true positive rates at each
 threshold (starts at 0, ends at 1).}
-\item{\code{auc}}{Numeric scalar; area under the ROC curve.
-Values near 1 indicate excellent discrimination.}
+\item{\code{auc}}{Numeric scalar; area under the ROC curve, i.e. the
+probability that a true edge scores higher than a non-edge, with
+ties counted as 1/2. Values near 1 indicate excellent
+discrimination; 0.5 is chance.}
 }
+Tied scores share one threshold, so the curve and the AUC do not
+depend on the order of the edges.
 }
 \description{
 Computes the receiver operating characteristic (ROC) curve and area
