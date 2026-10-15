@@ -158,8 +158,9 @@ alpha = 2, beta = 5, giving mean = 0.4.}
 (graph similarity active). Default 0.9 (strong prior belief that groups
 are related).}
 \item{\code{alpha_prop, beta_prop}}{Gamma(shape = alpha_prop,
-rate = beta_prop) proposal for \eqn{\theta_{km}}. Default alpha_prop = 2,
-beta_prop = 5 for G-Wishart; alpha_prop = 1, beta_prop = 1 for SSVS.}
+rate = beta_prop) proposal for \eqn{\theta_{km}}, a RATE like
+\code{beta} (all samplers). Default alpha_prop = 2, beta_prop = 5 for
+G-Wishart; alpha_prop = 1, beta_prop = 1 for SSVS.}
 }
 
 \strong{G-Wishart-specific hyperparameters (\code{method = "gwishart"}):}
@@ -212,8 +213,9 @@ shrinkage parameters become non-finite is restarted from scratch, up to
 \describe{
 \item{\code{eta, kappa}}{Gamma(shape = eta, scale = kappa) slab prior on
 platform similarity \eqn{\Phi_{st}}. Default eta = 4, kappa = 5.}
-\item{\code{eta_prop, kappa_prop}}{Gamma proposal for \eqn{\Phi_{st}}.
-Default eta_prop = 1, kappa_prop = 1.}
+\item{\code{eta_prop, kappa_prop}}{Gamma(shape = eta_prop,
+scale = kappa_prop) proposal for \eqn{\Phi_{st}}, a SCALE like
+\code{kappa}. Default eta_prop = 1, kappa_prop = 1.}
 \item{\code{d, f}}{Beta(d, f) prior on platform-level edge log-odds
 \eqn{w_{km}}. Default d = 1, f = 19.}
 \item{\code{d_prop, f_prop}}{Beta proposal for \eqn{w_{km}}.
