@@ -5,6 +5,7 @@
 // The MRF coupling, Theta, and nu updates are identical to the G-Wishart engine.
 
 #include "wangli_internal.h"
+#include "spike_slab_mh.h"
 
 // [[Rcpp::depends(RcppArmadillo)]]
 
@@ -144,6 +145,9 @@ Rcpp::List mcmc_ssvs_engine_cpp(Rcpp::List S_list_r,
   // =========================================================================
   // MCMC main loop
   // =========================================================================
+  // beta_rate and beta_prop are rates; the helper takes scales.
+  const GammaSpikeSlab g_theta = {alpha, 1.0 / beta_rate, alpha_prop, 1.0 / beta_prop, w_prior};
+
   for (int iter = 1; iter <= niter; iter++) {
     if (verbose && (iter % print_every == 0)) {
       Rcpp::Rcout << "iter = " << iter << " / " << niter << std::endl;
@@ -319,8 +323,7 @@ Rcpp::List mcmc_ssvs_engine_cpp(Rcpp::List S_list_r,
         // Between-model move
         double theta_prop;
         if (theta_curr == 0.0) {
-          // Matlab: gamrnd(alpha_prop, beta_prop) uses scale parameterization
-          theta_prop = R::rgamma(alpha_prop, beta_prop);
+          theta_prop = spike_slab_propose(g_theta);
         } else {
           theta_prop = 0.0;
         }
@@ -332,30 +335,12 @@ Rcpp::List mcmc_ssvs_engine_cpp(Rcpp::List S_list_r,
         double sum_edges = sum_logC_diff_edges(Theta, Theta_p, nu, adj_arr,
                                                 k, m, theta_prop - theta_curr, p);
 
-        // Log MH ratio (matching Matlab's formulation)
-        double log_ar;
-        if (theta_prop == 0.0) {
-          // Proposing spike (theta_prop = 0) from slab (theta_curr > 0)
-          // Matlab: log_ar = alpha_prop*log(beta_prop) - log(gamma(alpha_prop))
-          //   + log(gamma(alpha)) - alpha*log(beta)
-          //   - (alpha - alpha_prop)*log(theta_curr)
-          //   + (beta - beta_prop)*theta_curr + sum_edges
-          //   + log(1-w) - log(w)
-          log_ar = alpha_prop * std::log(beta_prop) - ::lgamma(alpha_prop)
-                 + ::lgamma(alpha) - alpha * std::log(beta_rate)
-                 - (alpha - alpha_prop) * std::log(theta_curr)
-                 + (beta_rate - beta_prop) * theta_curr
-                 + sum_edges
-                 + std::log(1.0 - w_prior) - std::log(w_prior);
-        } else {
-          // Proposing slab (theta_prop > 0) from spike (theta_curr = 0)
-          log_ar = alpha * std::log(beta_rate) - ::lgamma(alpha)
-                 + ::lgamma(alpha_prop) - alpha_prop * std::log(beta_prop)
-                 - (alpha - alpha_prop) * std::log(theta_prop)
-                 - (beta_rate - beta_prop) * theta_prop
-                 + sum_edges
-                 + std::log(w_prior) - std::log(1.0 - w_prior);
-        }
+        // Prior and proposal ratio from explicit densities (rates converted to
+        // scales); the Matlab reference drew the proposal with beta_prop as a
+        // scale but used it as a rate in the ratio, and had the sign of the
+        // (alpha - alpha_prop) * log(theta) term reversed for spike -> slab.
+        double log_ar = spike_slab_log_ratio_between(theta_curr, theta_prop, g_theta)
+                      + sum_edges;
 
         if (std::isfinite(log_ar) && log_ar > std::log(R::runif(0.0, 1.0))) {
           Theta(k, m) = theta_prop;
@@ -366,7 +351,7 @@ Rcpp::List mcmc_ssvs_engine_cpp(Rcpp::List S_list_r,
         // Within-model (slab) move
         if (Theta(k, m) != 0.0) {
           double theta_curr2 = Theta(k, m);
-          double theta_prop2 = R::rgamma(alpha_prop, beta_prop);
+          double theta_prop2 = spike_slab_propose(g_theta);
           n_within_model(k, m) += 1.0;
 
           arma::mat Theta_p2 = Theta;
@@ -376,10 +361,7 @@ Rcpp::List mcmc_ssvs_engine_cpp(Rcpp::List S_list_r,
           double sum_edges2 = sum_logC_diff_edges(Theta, Theta_p2, nu, adj_arr,
                                                    k, m, theta_prop2 - theta_curr2, p);
 
-          // Matlab: (alpha - alpha_prop)*(log(theta_prop2) - log(theta_curr2))
-          //       + (beta - beta_prop)*(theta_curr2 - theta_prop2) + sum_edges
-          double log_theta_ar = (alpha - alpha_prop) * (std::log(theta_prop2) - std::log(theta_curr2))
-                              + (beta_rate - beta_prop) * (theta_curr2 - theta_prop2)
+          double log_theta_ar = spike_slab_log_ratio_within(theta_curr2, theta_prop2, g_theta)
                               + sum_edges2;
 
           if (std::isfinite(log_theta_ar) && log_theta_ar > std::log(R::runif(0.0, 1.0))) {

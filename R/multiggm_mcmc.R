@@ -74,8 +74,9 @@
 #'     (graph similarity active). Default 0.9 (strong prior belief that groups
 #'     are related).}
 #'   \item{\code{alpha_prop, beta_prop}}{Gamma(shape = alpha_prop,
-#'     rate = beta_prop) proposal for \eqn{\theta_{km}}. Default alpha_prop = 2,
-#'     beta_prop = 5 for G-Wishart; alpha_prop = 1, beta_prop = 1 for SSVS.}
+#'     rate = beta_prop) proposal for \eqn{\theta_{km}}, a RATE like
+#'     \code{beta} (all samplers). Default alpha_prop = 2, beta_prop = 5 for
+#'     G-Wishart; alpha_prop = 1, beta_prop = 1 for SSVS.}
 #' }
 #'
 #' \strong{G-Wishart-specific hyperparameters (\code{method = "gwishart"}):}
@@ -128,8 +129,9 @@
 #' \describe{
 #'   \item{\code{eta, kappa}}{Gamma(shape = eta, scale = kappa) slab prior on
 #'     platform similarity \eqn{\Phi_{st}}. Default eta = 4, kappa = 5.}
-#'   \item{\code{eta_prop, kappa_prop}}{Gamma proposal for \eqn{\Phi_{st}}.
-#'     Default eta_prop = 1, kappa_prop = 1.}
+#'   \item{\code{eta_prop, kappa_prop}}{Gamma(shape = eta_prop,
+#'     scale = kappa_prop) proposal for \eqn{\Phi_{st}}, a SCALE like
+#'     \code{kappa}. Default eta_prop = 1, kappa_prop = 1.}
 #'   \item{\code{d, f}}{Beta(d, f) prior on platform-level edge log-odds
 #'     \eqn{w_{km}}. Default d = 1, f = 19.}
 #'   \item{\code{d_prop, f_prop}}{Beta proposal for \eqn{w_{km}}.
@@ -352,7 +354,7 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
         a = 1, b = 4,              # Beta(1,4) prior on q_ij
         alpha = 2, beta = 5,       # Gamma slab on theta_km (rate param)
         w = 0.9,                   # P(gamma_km=1)
-        alpha_prop = 1, beta_prop = 1  # Gamma proposal for theta (scale param)
+        alpha_prop = 1, beta_prop = 1  # Gamma(shape, rate) proposal for theta
       )
     } else {
       # Peterson et al. (2015) defaults
@@ -405,8 +407,6 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
     Sig_arr <- array(NA_real_, dim = c(p, p, K))
     for (k in seq_len(K)) Sig_arr[, , k] <- solve(C_arr[, , k])
 
-    # For SSVS, Theta proposal uses SCALE parameterization (Matlab convention)
-    # beta_prop in hyper is already scale for SSVS defaults
     res <- mcmc_ssvs_engine_cpp(
       S_list_r     = S_list,
       n_vec_r      = as.numeric(n_vec),
