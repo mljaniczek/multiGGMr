@@ -436,9 +436,13 @@ edge_counts <- function(fit, chain = 1L) {
 #'       threshold (starts at 0, ends at 1).}
 #'     \item{\code{TPR}}{Numeric vector; true positive rates at each
 #'       threshold (starts at 0, ends at 1).}
-#'     \item{\code{auc}}{Numeric scalar; area under the ROC curve.
-#'       Values near 1 indicate excellent discrimination.}
+#'     \item{\code{auc}}{Numeric scalar; area under the ROC curve, i.e. the
+#'       probability that a true edge scores higher than a non-edge, with
+#'       ties counted as 1/2. Values near 1 indicate excellent
+#'       discrimination; 0.5 is chance.}
 #'   }
+#'   Tied scores share one threshold, so the curve and the AUC do not
+#'   depend on the order of the edges.
 #'
 #' @examples
 #' sim <- simulate_multiggm(K = 2, p = 8, n = 80, seed = 1)
@@ -455,19 +459,20 @@ roc_auc <- function(score_mat, truth_mat) {
   s <- score_mat[idx]
   y <- truth_mat[idx] > 0
 
-  ord <- order(s, decreasing = TRUE)
-  s <- s[ord]; y <- y[ord]
-
   P <- sum(y); N <- sum(!y)
   if (P == 0 || N == 0) stop("Need both positives and negatives in truth_mat.")
 
-  TP <- cumsum(y)
-  FP <- cumsum(!y)
-  TPR <- TP / P
-  FPR <- FP / N
+  # One ROC point per distinct score, so tied scores form a single
+  # (diagonal) step whatever their input order.
+  thr <- sort(unique(s), decreasing = TRUE)
+  bin <- match(s, thr)
+  TPR <- cumsum(tabulate(bin[y], nbins = length(thr))) / P
+  FPR <- cumsum(tabulate(bin[!y], nbins = length(thr))) / N
 
-  # trapezoidal AUC in FPR-TPR space
-  auc <- sum(diff(c(0, FPR)) * (head(c(0, TPR), -1) + tail(c(0, TPR), -1)) / 2)
+  # Mann-Whitney form: P(score of a true edge > score of a non-edge), ties
+  # counted as 1/2. Equals the trapezoidal area under the curve above.
+  r <- rank(s)
+  auc <- (sum(r[y]) - P * (P + 1) / 2) / (P * N)
 
   list(FPR = c(0, FPR), TPR = c(0, TPR), auc = auc)
 }
