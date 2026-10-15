@@ -5,9 +5,9 @@
 // S data platforms (e.g., metabolomics + transcriptomics).
 //
 // Phases per iteration:
-//   1. Per-platform precision Gibbs (column-wise spike-slab) — identical to SSVS engine
+//   1. Per-platform precision Gibbs (column-wise spike-slab) - identical to SSVS engine
 //   2. Per-platform Theta update (MODIFIED: includes platform coupling term via Phi)
-//   3. Per-platform nu update — identical to SSVS engine
+//   3. Per-platform nu update - identical to SSVS engine
 //   4. Phi update (NEW: platform similarity via MH)
 //   5. w_plat update (NEW: platform-level edge log-odds via MH)
 
@@ -223,7 +223,7 @@ Rcpp::List mcmc_ssvs_platform_engine_cpp(
   arma::cube Phi_save(S, S, nsave, arma::fill::zeros);
   arma::cube w_save(K, K, nsave, arma::fill::zeros);
 
-  // Acceptance tracking — per-platform
+  // Acceptance tracking - per-platform
   std::vector<arma::mat> ar_gamma(S);
   std::vector<arma::mat> ar_theta(S);
   std::vector<arma::mat> n_within_model(S);
@@ -261,7 +261,7 @@ Rcpp::List mcmc_ssvs_platform_engine_cpp(
     Rcpp::checkUserInterrupt();
 
     // -----------------------------------------------------------------------
-    // Phase 1: Update (C_k, Sig_k, adj_k) per platform — column-wise Gibbs
+    // Phase 1: Update (C_k, Sig_k, adj_k) per platform - column-wise Gibbs
     // -----------------------------------------------------------------------
     for (int s = 0; s < S; s++) {
       int p_s = p_vec[s];
@@ -390,7 +390,7 @@ Rcpp::List mcmc_ssvs_platform_engine_cpp(
     } // end platform s
 
     // -----------------------------------------------------------------------
-    // Phase 2: Update Theta[s](k,m) per platform — with platform coupling
+    // Phase 2: Update Theta[s](k,m) per platform - with platform coupling
     // -----------------------------------------------------------------------
     for (int s = 0; s < S; s++) {
       int p_s = p_vec[s];
@@ -509,7 +509,7 @@ Rcpp::List mcmc_ssvs_platform_engine_cpp(
     } // end platform s
 
     // -----------------------------------------------------------------------
-    // Phase 4: Update Phi(s1, s2) — platform similarity
+    // Phase 4: Update Phi(s1, s2) - platform similarity
     // -----------------------------------------------------------------------
     if (S > 1) {
       for (int s1 = 0; s1 < S - 1; s1++) {
@@ -570,7 +570,7 @@ Rcpp::List mcmc_ssvs_platform_engine_cpp(
     } // end if S > 1
 
     // -----------------------------------------------------------------------
-    // Phase 5: Update w_plat(k,m) — platform-level edge log-odds
+    // Phase 5: Update w_plat(k,m) - platform-level edge log-odds
     // -----------------------------------------------------------------------
     if (S > 1) {
       for (int k = 0; k < K - 1; k++) {

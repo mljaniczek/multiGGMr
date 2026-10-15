@@ -313,7 +313,7 @@ Rcpp::List mcmc_ssvs_engine_cpp(Rcpp::List S_list_r,
     } // end cur_graph loop
 
     // -----------------------------------------------------------------------
-    // Phase 2: Update (theta_km, gamma_km) — identical to G-Wishart engine
+    // Phase 2: Update (theta_km, gamma_km) - identical to G-Wishart engine
     // -----------------------------------------------------------------------
     for (int k = 0; k < K - 1; k++) {
       for (int m = k + 1; m < K; m++) {
@@ -374,7 +374,7 @@ Rcpp::List mcmc_ssvs_engine_cpp(Rcpp::List S_list_r,
     }
 
     // -----------------------------------------------------------------------
-    // Phase 3: Update nu_ij — identical to G-Wishart engine
+    // Phase 3: Update nu_ij - identical to G-Wishart engine
     // -----------------------------------------------------------------------
     for (int ii = 0; ii < p - 1; ii++) {
       for (int jj = ii + 1; jj < p; jj++) {
