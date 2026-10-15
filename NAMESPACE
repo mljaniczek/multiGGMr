@@ -1,6 +1,6 @@
 useDynLib(multiGGM, .registration = TRUE)
 importFrom(Rcpp, evalCpp)
-importFrom(stats, dgamma, rgamma, rbeta, runif, rnorm, quantile, cov)
+importFrom(stats, dgamma, rgamma, rbeta, runif, rnorm, quantile, cov, fitted)
 importFrom(utils, head, tail)
 import(parallel)
 import(ggplot2)
