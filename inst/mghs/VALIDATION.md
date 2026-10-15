@@ -35,8 +35,10 @@ B = 1500 on an Apple-silicon laptop, both versions).
 
 ## Reproducing
 
-`tests/testthat/test-mghs-upstream.R` runs the first three rows with
-`expect_identical()`. It is skipped unless upstream mGHS is installed;
+`tests/testthat/test-mghs-upstream.R` runs the first three rows. With R's
+standard optimized compiler flags the draws are bit-for-bit identical; debug
+builds such as `devtools::load_all()` (`-O0`) round differently by about
+1e-11, so the test allows differences up to 1e-8. It is skipped unless upstream mGHS is installed;
 point `MULTIGGM_MGHS_LIB` at its library if needed:
 
 ```
