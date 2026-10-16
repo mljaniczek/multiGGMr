@@ -269,39 +269,6 @@ plot_network <- function(adj, layout = NULL, node_labels = NULL,
   invisible(NULL)
 }
 
-#' Plot ROC curve
-#'
-#' Creates a ROC curve plot from the output of \code{\link{roc_auc}},
-#' with AUC annotation.
-#'
-#' @param roc_obj A list as returned by \code{\link{roc_auc}}, with
-#'   components \code{FPR}, \code{TPR}, and \code{auc}.
-#' @param main Character; plot title. Default \code{"ROC Curve"}.
-#'
-#' @return A \code{ggplot} object.
-#'
-#' @examples
-#' sim <- simulate_multiggm(K = 2, p = 8, n = 80, seed = 1)
-#' fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 200, nsave = 100)
-#' pip <- pip_edges(fit)
-#' roc <- roc_auc(pip[,,1], sim$adj_list[[1]])
-#' plot_roc(roc)
-#'
-#' @seealso [roc_auc()], [plot_recovery()]
-#' @export
-plot_roc <- function(roc_obj, main = "ROC Curve") {
-  df <- data.frame(FPR = roc_obj$FPR, TPR = roc_obj$TPR)
-  auc_label <- sprintf("AUC = %.3f", roc_obj$auc)
-
-  ggplot2::ggplot(df, ggplot2::aes(x = .data$FPR, y = .data$TPR)) +
-    ggplot2::geom_line(color = "steelblue", linewidth = 1) +
-    ggplot2::geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray50") +
-    ggplot2::annotate("text", x = 0.7, y = 0.2, label = auc_label, size = 5) +
-    ggplot2::labs(title = main, x = "False Positive Rate", y = "True Positive Rate") +
-    ggplot2::coord_equal() +
-    ggplot2::theme_minimal()
-}
-
 #' Compare estimated graph to ground truth
 #'
 #' Shows side-by-side heatmaps of the true adjacency matrix, PIP, and

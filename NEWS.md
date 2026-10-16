@@ -1,3 +1,33 @@
+# multiGGM (development version)
+
+## Shared tools: ggmtools
+
+* `precision_to_pcor()`, `confusion_at_threshold()`, `roc_auc()` and
+  `plot_roc()` now come from the new package ggmtools and are re-exported.
+  spikeyglass re-exports the same functions, so attaching both packages no
+  longer gives conflicting versions.
+* **`roc_auc()` now handles tied scores correctly.** The previous version
+  accumulated one edge at a time in sorted order, so tied edges (e.g. PIPs of
+  exactly 0 or 1) were ordered by matrix position. That made the AUC depend
+  on variable order and could bias it by several hundredths. The curve now
+  steps only at distinct scores, and the AUC equals the Mann-Whitney
+  statistic. With no tied scores, the AUC is unchanged.
+* `roc_auc()` returns `NA` for `auc` (instead of an error) when the truth has
+  no edges or no non-edges.
+* `confusion_at_threshold()` returns a list (was a named numeric vector)
+  with `precision` and `F1` added, and its third argument is now called
+  `threshold` (was `thr`), with default 0.5. Use `cm$TPR` rather than
+  `cm["TPR"]`. `plot_recovery()` returns these lists.
+* `plot_roc()` now uses base graphics and returns the ROC list invisibly
+  (it previously returned a ggplot object). It gains `add = TRUE` to overlay
+  curves.
+* `precision_to_pcor()` returns a matrix of `NA` with a warning (instead of
+  an error) for a non-positive diagonal, and keeps dimnames.
+* New methods for the ggmtools generics `pip_table()` (PIPs as a long edge
+  table) and `pcor_estimate()` (posterior-mean partial correlations, one
+  matrix per group). Scripts written with these work on spikeyglass fits
+  too.
+
 # multiGGM 0.4.0
 
 ## New features
