@@ -9,6 +9,9 @@ objects.
 ``` r
 # S3 method for class 'multiggm_fit'
 coef(object, ...)
+
+# S3 method for class 'multiggm_fit_list'
+coef(object, ...)
 ```
 
 ## Arguments
@@ -38,6 +41,11 @@ posterior mean is computed from `object$C_save`.
 For partial correlations (standardized precision), use
 [`fitted.multiggm_fit`](https://mljaniczek.github.io/multiGGMr/reference/fitted.multiggm_fit.md)
 instead.
+
+## Functions
+
+- `coef(multiggm_fit_list)`: Posterior mean precision matrices pooled
+  over all chains of a `multiggm_fit_list`.
 
 ## See also
 

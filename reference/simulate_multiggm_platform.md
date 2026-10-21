@@ -1,10 +1,7 @@
 # Simulate multi-platform data from multiple Gaussian graphical models
 
-Generates S platforms of data, each with K groups sharing structure
-across groups (controlled by `perturb_prob`) and across platforms
-(controlled by `platform_perturb_prob`). Follows Shaddox et al. (2020)
-simulation design. Platform 1 uses the base graph; platforms 2..S
-perturb it.
+Generates S platforms (data types) of data, each with the same K groups,
+with graphs that share structure across platforms and across groups.
 
 ## Usage
 
@@ -15,6 +12,7 @@ simulate_multiggm_platform(
   p_vec = c(20, 15),
   n = 100,
   graph_type = c("band", "random", "hub"),
+  edge_prob = 0.1,
   perturb_prob = 0.1,
   platform_perturb_prob = 0.2,
   signal = c(0.3, 0.6),
@@ -47,6 +45,11 @@ simulate_multiggm_platform(
   Character; type of base graph. See
   [`simulate_multiggm`](https://mljaniczek.github.io/multiGGMr/reference/simulate_multiggm.md).
 
+- edge_prob:
+
+  Numeric; edge probability of the base graph for
+  `graph_type = "random"`. Default 0.1.
+
 - perturb_prob:
 
   Numeric; probability of edge flip between groups within a platform.
@@ -54,7 +57,8 @@ simulate_multiggm_platform(
 
 - platform_perturb_prob:
 
-  Numeric; probability of edge flip between platforms. Default 0.2.
+  Numeric; probability of edge flip between platform 1 and each other
+  platform. Default 0.2.
 
 - signal:
 
@@ -74,7 +78,31 @@ A list with components:
   element is a list with `data_list`, `S_list`, `n_vec`, `Omega_list`,
   and `adj_list`.
 
+- `adj_base`: The base graph on `max(p_vec)` nodes.
+
+- `platform_adj`: List of S platform graphs (before group perturbation).
+
 - `K`, `S`, `p_vec`: Dimensions.
+
+## Details
+
+The data-generating process is hierarchical:
+
+1.  One base graph is drawn on `max(p_vec)` nodes (see `graph_type`).
+
+2.  Platform `s` uses the leading `p_vec[s] x p_vec[s]` block of the
+    base graph. Platform 1 uses it unchanged; platforms 2, ..., S flip
+    each pair independently with probability `platform_perturb_prob`.
+    Variable `j` therefore plays the same role in every platform that
+    has it.
+
+3.  Within each platform, group 1 uses the platform graph and groups 2,
+    ..., K flip each pair with probability `perturb_prob`, exactly as in
+    [`simulate_multiggm()`](https://mljaniczek.github.io/multiGGMr/reference/simulate_multiggm.md).
+    Group perturbations are independent across platforms.
+
+4.  Precision matrices and data are generated from each graph as in
+    [`simulate_multiggm()`](https://mljaniczek.github.io/multiGGMr/reference/simulate_multiggm.md).
 
 ## See also
 
@@ -87,10 +115,14 @@ A list with components:
 sim <- simulate_multiggm_platform(K = 2, S = 2, p_vec = c(10, 8),
                                    n = 80, seed = 42)
 str(sim, max.level = 2)
-#> List of 4
+#> List of 6
 #>  $ platform_data:List of 2
 #>   ..$ :List of 5
 #>   ..$ :List of 5
+#>  $ adj_base     : int [1:10, 1:10] 0 1 1 0 0 0 0 0 0 0 ...
+#>  $ platform_adj :List of 2
+#>   ..$ : int [1:10, 1:10] 0 1 1 0 0 0 0 0 0 0 ...
+#>   ..$ : int [1:8, 1:8] 0 0 1 0 0 0 0 0 0 0 ...
 #>  $ K            : num 2
 #>  $ S            : num 2
 #>  $ p_vec        : int [1:2] 10 8

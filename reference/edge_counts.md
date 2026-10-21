@@ -17,8 +17,10 @@ edge_counts(fit, chain = 1L)
 
 - chain:
 
-  Integer; which chain to use if `fit` is a `multiggm_fit_list`. Default
-  1.
+  Integer; which chain to use if `fit` is a `multiggm_fit_list`.
+  Default 1. Unlike the posterior summaries, edge counts are a per-chain
+  trace, so chains are not pooled; use
+  `plot(fit_list, type = "trace_edges")` to overlay chains.
 
 ## Value
 

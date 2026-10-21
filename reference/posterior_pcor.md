@@ -7,7 +7,7 @@ precision matrix is converted to a partial correlation matrix.
 ## Usage
 
 ``` r
-posterior_pcor(fit, use = c("C_save", "Sig_save"), chain = 1L)
+posterior_pcor(fit, use = c("C_save", "Sig_save"), chain = NULL)
 ```
 
 ## Arguments
@@ -33,8 +33,8 @@ posterior_pcor(fit, use = c("C_save", "Sig_save"), chain = 1L)
 
 - chain:
 
-  Integer; which chain to use if `fit` is a `multiggm_fit_list`. Default
-  1.
+  `NULL` (default) pools the draws of all chains of a
+  `multiggm_fit_list`; an integer vector selects chains.
 
 ## Value
 

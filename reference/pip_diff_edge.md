@@ -7,7 +7,7 @@ one group but absent in the other).
 ## Usage
 
 ``` r
-pip_diff_edge(fit, chain = 1L)
+pip_diff_edge(fit, chain = NULL)
 ```
 
 ## Arguments
@@ -19,8 +19,8 @@ pip_diff_edge(fit, chain = 1L)
 
 - chain:
 
-  Integer; which chain to use if `fit` is a `multiggm_fit_list`. Default
-  1.
+  `NULL` (default) pools the draws of all chains of a
+  `multiggm_fit_list`; an integer vector selects chains.
 
 ## Value
 

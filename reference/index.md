@@ -9,6 +9,7 @@
 - [`calc_mrf_logC_cpp()`](https://mljaniczek.github.io/multiGGMr/reference/calc_mrf_logC_cpp.md)
   : Compute log normalizing constant for the edge-sharing MRF prior
 - [`coef(`*`<multiggm_fit>`*`)`](https://mljaniczek.github.io/multiGGMr/reference/coef.multiggm_fit.md)
+  [`coef(`*`<multiggm_fit_list>`*`)`](https://mljaniczek.github.io/multiGGMr/reference/coef.multiggm_fit.md)
   : Extract posterior mean precision matrices
 - [`coef(`*`<multiggm_platform_fit>`*`)`](https://mljaniczek.github.io/multiGGMr/reference/coef.multiggm_platform_fit.md)
   : Extract posterior mean precision matrices from a multi-platform fit
@@ -23,6 +24,7 @@
 - [`edge_counts()`](https://mljaniczek.github.io/multiGGMr/reference/edge_counts.md)
   : Per-iteration edge counts for convergence checking
 - [`fitted(`*`<multiggm_fit>`*`)`](https://mljaniczek.github.io/multiGGMr/reference/fitted.multiggm_fit.md)
+  [`fitted(`*`<multiggm_fit_list>`*`)`](https://mljaniczek.github.io/multiGGMr/reference/fitted.multiggm_fit.md)
   : Extract posterior mean partial correlation matrices
 - [`fitted(`*`<multiggm_platform_fit>`*`)`](https://mljaniczek.github.io/multiGGMr/reference/fitted.multiggm_platform_fit.md)
   : Extract posterior mean partial correlation matrices from a
@@ -36,6 +38,7 @@
 - [`pip_edges()`](https://mljaniczek.github.io/multiGGMr/reference/pip_edges.md)
   : Posterior inclusion probabilities (PIP) per group
 - [`plot(`*`<multiggm_fit>`*`)`](https://mljaniczek.github.io/multiGGMr/reference/plot.multiggm_fit.md)
+  [`plot(`*`<multiggm_fit_list>`*`)`](https://mljaniczek.github.io/multiGGMr/reference/plot.multiggm_fit.md)
   : Plot method for multiggm_fit objects
 - [`plot_network()`](https://mljaniczek.github.io/multiGGMr/reference/plot_network.md)
   : Network plot of an adjacency matrix
@@ -71,5 +74,7 @@
   : Simulate multi-platform data from multiple Gaussian graphical models
 - [`summary(`*`<multiggm_fit>`*`)`](https://mljaniczek.github.io/multiGGMr/reference/summary.multiggm_fit.md)
   : Summarize a multiggm_fit object
+- [`summary(`*`<multiggm_fit_list>`*`)`](https://mljaniczek.github.io/multiGGMr/reference/summary.multiggm_fit_list.md)
+  : Summarize a multi-chain multiggm fit
 - [`summary(`*`<multiggm_platform_fit>`*`)`](https://mljaniczek.github.io/multiGGMr/reference/summary.multiggm_platform_fit.md)
   : Summarize a multiggm_platform_fit object

@@ -11,7 +11,7 @@ multiggm_fit objects."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">multiGGM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -29,6 +29,7 @@ multiggm_fit objects."></head><body>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/mljaniczek/multiGGMr/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul></div>
 
 
@@ -38,7 +39,7 @@ multiggm_fit objects."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Extract posterior mean partial correlation matrices</h1>
-
+      <small class="dont-index">Source: <a href="https://github.com/mljaniczek/multiGGMr/blob/main/R/methods.R" class="external-link"><code>R/methods.R</code></a></small>
       <div class="d-none name"><code>fitted.multiggm_fit.Rd</code></div>
     </div>
 
@@ -51,6 +52,9 @@ fitted multi-GGM model. This is the <code>fitted</code> S3 method for
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="co"># S3 method for class 'multiggm_fit'</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/stats/fitted.values.html" class="external-link">fitted</a></span><span class="op">(</span><span class="va">object</span>, <span class="va">...</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># S3 method for class 'multiggm_fit_list'</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/fitted.values.html" class="external-link">fitted</a></span><span class="op">(</span><span class="va">object</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -82,6 +86,12 @@ Diagonal entries are 1. List names are <code>"Group_1"</code>,
 converted to a partial correlation matrix, then the posterior mean is
 taken element-wise. This is computed via <code><a href="posterior_pcor.html">posterior_pcor</a></code>.</p>
     </div>
+    <div class="section level2">
+    <h2 id="functions">Functions<a class="anchor" aria-label="anchor" href="#functions"></a></h2>
+
+<ul><li><p><code>fitted(multiggm_fit_list)</code>: Posterior mean partial correlation matrices
+pooled over all chains of a <code>multiggm_fit_list</code>.</p></li>
+</ul></div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p><code><a href="coef.multiggm_fit.html">coef.multiggm_fit()</a></code>, <code><a href="posterior_pcor.html">posterior_pcor()</a></code>,

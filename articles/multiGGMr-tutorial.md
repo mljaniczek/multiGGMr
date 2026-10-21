@@ -108,6 +108,8 @@ strength across groups.
 ``` r
 
 plot(fit, type = "trace_theta")
+#> Ignoring unknown labels:
+#> • colour : "Chain"
 ```
 
 ![](multiGGMr-tutorial_files/figure-html/trace-theta-1.png)
@@ -422,8 +424,88 @@ ggplot(theta_df, aes(x = iteration, y = theta, color = chain)) +
 
 ### Pooling results across chains
 
-To combine posterior samples from all chains, concatenate the saved
-arrays along the iteration dimension:
+Posterior summaries pool all chains by default: `pip_edges(fit_mc)`,
+[`posterior_pcor()`](https://mljaniczek.github.io/multiGGMr/reference/posterior_pcor.md),
+[`posterior_precision()`](https://mljaniczek.github.io/multiGGMr/reference/posterior_precision.md),
+[`coef()`](https://rdrr.io/r/stats/coef.html),
+[`fitted()`](https://rdrr.io/r/stats/fitted.values.html),
+[`diff_summary()`](https://mljaniczek.github.io/multiGGMr/reference/diff_summary.md)
+and
+[`select_diff_edges()`](https://mljaniczek.github.io/multiGGMr/reference/select_diff_edges.md)
+use every chain’s draws, and `chain = i` restricts them to one chain.
+`summary(fit_mc)` reports each chain, the pooled edge counts and the
+largest between-chain difference in PIPs, and
+`plot(fit_mc, type = "trace_edges")` overlays the chains.
+
+``` r
+
+summary(fit_mc, pip_threshold = 0.5)
+#> multiGGM MCMC Summary: 3 chains, K = 2
+#> ==========================================
+#> Pooled selected edges (PIP >= 0.5 ):
+#>   Group 1: 188 edges
+#>   Group 2: 187 edges
+#> 
+#> Largest difference in PIP between chains:
+#>   Group 1: 0.563
+#>   Group 2: 0.558
+#> 
+#> --- Chain 1 ---
+#> multiGGM MCMC Summary
+#> =====================
+#> Groups (K): 2   |  Nodes (p): 20   |  Posterior draws: 1000 
+#> 
+#> Acceptance rates:
+#>   gamma (edge toggle): 0.2% 
+#>   theta (within-model): 3.5% 
+#>   nu (edge log-odds): 61.9% 
+#> 
+#> Selected edges (PIP >= 0.5 ):
+#>   Group 1 : 188 edges
+#>   Group 2 : 188 edges
+#> 
+#> Graph similarity (theta):
+#>   theta[1,2]: mean = 2.624, P(nonzero) = 100.0%
+#> 
+#> 
+#> --- Chain 2 ---
+#> multiGGM MCMC Summary
+#> =====================
+#> Groups (K): 2   |  Nodes (p): 20   |  Posterior draws: 1000 
+#> 
+#> Acceptance rates:
+#>   gamma (edge toggle): 0.2% 
+#>   theta (within-model): 2.4% 
+#>   nu (edge log-odds): 67.1% 
+#> 
+#> Selected edges (PIP >= 0.5 ):
+#>   Group 1 : 184 edges
+#>   Group 2 : 184 edges
+#> 
+#> Graph similarity (theta):
+#>   theta[1,2]: mean = 2.276, P(nonzero) = 100.0%
+#> 
+#> 
+#> --- Chain 3 ---
+#> multiGGM MCMC Summary
+#> =====================
+#> Groups (K): 2   |  Nodes (p): 20   |  Posterior draws: 1000 
+#> 
+#> Acceptance rates:
+#>   gamma (edge toggle): 0.0% 
+#>   theta (within-model): 2.1% 
+#>   nu (edge log-odds): 65.3% 
+#> 
+#> Selected edges (PIP >= 0.5 ):
+#>   Group 1 : 180 edges
+#>   Group 2 : 181 edges
+#> 
+#> Graph similarity (theta):
+#>   theta[1,2]: mean = 2.072, P(nonzero) = 100.0%
+```
+
+To work with the raw draws yourself, concatenate the saved arrays along
+the iteration dimension:
 
 ``` r
 
@@ -454,11 +536,13 @@ cat(sprintf("Pooled edges (PIP > 0.5, Group 1): %d\n",
 |----|----|
 | Fit multiple chains | `multiggm_mcmc(..., nchains = 4, parallel = TRUE)` |
 | Access chain $`i`$ | `fit$chains[[i]]` |
-| PIPs from chain $`i`$ | `pip_edges(fit, chain = i)` |
-| Partial correlations from chain $`i`$ | `posterior_pcor(fit, chain = i)` |
-| Precision matrices from chain $`i`$ | `posterior_precision(fit, chain = i)` |
-| Edge counts from chain $`i`$ | `edge_counts(fit, chain = i)` |
-| Pool draws across chains | `abind::abind(lapply(fit$chains, \(ch) ch$C_save), along = 4)` |
+| Summary of all chains | `summary(fit)` |
+| Overlaid trace plots | `plot(fit, type = "trace_edges")` |
+| PIPs, pooled / from chain $`i`$ | `pip_edges(fit)` / `pip_edges(fit, chain = i)` |
+| Partial correlations, pooled / chain $`i`$ | `posterior_pcor(fit)` / `posterior_pcor(fit, chain = i)` |
+| Precision matrices, pooled / chain $`i`$ | `posterior_precision(fit)` / `posterior_precision(fit, chain = i)` |
+| Edge counts (a per-chain trace) | `edge_counts(fit, chain = i)` |
+| Raw pooled draws | `abind::abind(lapply(fit$chains, \(ch) ch$C_save), along = 4)` |
 
 ## References
 

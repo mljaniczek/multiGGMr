@@ -17,7 +17,7 @@ parallel multi-chain execution."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">multiGGM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,6 +35,7 @@ parallel multi-chain execution."></head><body>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/mljaniczek/multiGGMr/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul></div>
 
 
@@ -44,7 +45,7 @@ parallel multi-chain execution."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Fit multiple Gaussian graphical models via MCMC</h1>
-
+      <small class="dont-index">Source: <a href="https://github.com/mljaniczek/multiGGMr/blob/main/R/multiggm_mcmc.R" class="external-link"><code>R/multiggm_mcmc.R</code></a></small>
       <div class="d-none name"><code>multiggm_mcmc.Rd</code></div>
     </div>
 
@@ -272,8 +273,9 @@ are related).</p></dd>
 
 <dt><code>alpha_prop, beta_prop</code></dt>
 <dd><p>Gamma(shape = alpha_prop,
-rate = beta_prop) proposal for \(\theta_{km}\). Default alpha_prop = 2,
-beta_prop = 5 for G-Wishart; alpha_prop = 1, beta_prop = 1 for SSVS.</p></dd>
+rate = beta_prop) proposal for \(\theta_{km}\), a RATE like
+<code>beta</code> (all samplers). Default alpha_prop = 2, beta_prop = 5 for
+G-Wishart; alpha_prop = 1, beta_prop = 1 for SSVS.</p></dd>
 
 
 </dl><p><strong>G-Wishart-specific hyperparameters (<code>method = "gwishart"</code>):</strong></p><dl><dt><code>b_prior</code></dt>
@@ -329,8 +331,9 @@ shrinkage parameters become non-finite is restarted from scratch, up to
 platform similarity \(\Phi_{st}\). Default eta = 4, kappa = 5.</p></dd>
 
 <dt><code>eta_prop, kappa_prop</code></dt>
-<dd><p>Gamma proposal for \(\Phi_{st}\).
-Default eta_prop = 1, kappa_prop = 1.</p></dd>
+<dd><p>Gamma(shape = eta_prop,
+scale = kappa_prop) proposal for \(\Phi_{st}\), a SCALE like
+<code>kappa</code>. Default eta_prop = 1, kappa_prop = 1.</p></dd>
 
 <dt><code>d, f</code></dt>
 <dd><p>Beta(d, f) prior on platform-level edge log-odds

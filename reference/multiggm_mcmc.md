@@ -241,8 +241,9 @@ The `hyper` list may contain any of the following:
 - `alpha_prop, beta_prop`:
 
   Gamma(shape = alpha_prop, rate = beta_prop) proposal for
-  \\\theta\_{km}\\. Default alpha_prop = 2, beta_prop = 5 for G-Wishart;
-  alpha_prop = 1, beta_prop = 1 for SSVS.
+  \\\theta\_{km}\\, a RATE like `beta` (all samplers). Default
+  alpha_prop = 2, beta_prop = 5 for G-Wishart; alpha_prop = 1, beta_prop
+  = 1 for SSVS.
 
 **G-Wishart-specific hyperparameters (`method = "gwishart"`):**
 
@@ -317,8 +318,9 @@ shrinkage parameters become non-finite is restarted from scratch, up to
 
 - `eta_prop, kappa_prop`:
 
-  Gamma proposal for \\\Phi\_{st}\\. Default eta_prop = 1, kappa_prop =
-  1.
+  Gamma(shape = eta_prop, scale = kappa_prop) proposal for
+  \\\Phi\_{st}\\, a SCALE like `kappa`. Default eta_prop = 1, kappa_prop
+  = 1.
 
 - `d, f`:
 

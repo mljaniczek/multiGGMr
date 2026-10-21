@@ -8,7 +8,7 @@ because you can specify an arbitrary summary function.
 ## Usage
 
 ``` r
-posterior_precision(fit, summary_fun = mean, chain = 1L)
+posterior_precision(fit, summary_fun = mean, chain = NULL)
 ```
 
 ## Arguments
@@ -24,8 +24,8 @@ posterior_precision(fit, summary_fun = mean, chain = 1L)
 
 - chain:
 
-  Integer; which chain to use if `fit` is a `multiggm_fit_list`. Default
-  1.
+  `NULL` (default) pools the draws of all chains of a
+  `multiggm_fit_list`; an integer vector selects chains.
 
 ## Value
 

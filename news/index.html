@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">multiGGM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -25,6 +25,7 @@
 <li class="active nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/mljaniczek/multiGGMr/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul></div>
 
 
@@ -34,9 +35,34 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Changelog</h1>
-
+      <small>Source: <a href="https://github.com/mljaniczek/multiGGMr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="development version" id="multiggm-development-version">multiGGM (development version)<a class="anchor" aria-label="anchor" href="#multiggm-development-version"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-development-version">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-development-version"></a></h3>
+<ul><li>SSVS and multi-platform samplers: the spike-and-slab update of the graph similarity <code>theta</code> (inherited from the Matlab reference) drew its proposal with <code>beta_prop</code> as a scale but used it as a rate in the acceptance ratio, and had the sign of the <code>(alpha - alpha_prop) * log(theta)</code> term reversed for spike-to-slab moves. The platform similarity <code>Phi</code> had the same sign error and mixed scale and rate in its normalizing terms. The ratios are now computed from explicit gamma densities (as the G-Wishart sampler already did). Default SSVS fits are essentially unchanged (<code>beta_prop = 1</code>, <code>w = 0.9</code>); fits with smaller <code>w</code>, <code>beta_prop != 1</code>, or the multi-platform sampler will differ. <code>beta_prop</code> is now a rate for every sampler.</li>
+<li>A partial <code>hyper</code> list no longer wipes out the other defaults for the G-Wishart and SSVS samplers. Unknown hyperparameter names are now an error.</li>
+<li>
+<code>simulate_multiggm(K = 1)</code> returned two groups.</li>
+<li>
+<code><a href="../reference/simulate_multiggm_platform.html">simulate_multiggm_platform()</a></code> now shares one base graph across platforms (it drew an independent graph per platform); the data-generating process is documented, and the base and platform graphs are returned.</li>
+<li>
+<code><a href="../reference/roc_auc.html">roc_auc()</a></code> handles tied scores: the AUC no longer depends on edge order.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="changes-development-version">Changes<a class="anchor" aria-label="anchor" href="#changes-development-version"></a></h3>
+<ul><li>
+<code><a href="../reference/pip_edges.html">pip_edges()</a></code>, <code><a href="../reference/pip_diff_edge.html">pip_diff_edge()</a></code>, <code><a href="../reference/posterior_pcor.html">posterior_pcor()</a></code> and <code><a href="../reference/posterior_precision.html">posterior_precision()</a></code> now pool all chains by default (<code>chain = NULL</code>), like <code><a href="../reference/diff_summary.html">diff_summary()</a></code> and <code><a href="../reference/select_diff_edges.html">select_diff_edges()</a></code>; <code>chain = i</code> selects one.</li>
+<li>New <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>, <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code>, <code><a href="https://rdrr.io/r/stats/fitted.values.html" class="external-link">fitted()</a></code> and <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> methods for multi-chain fits (<code>multiggm_fit_list</code>).</li>
+<li>
+<code>method = "ssvs_platform"</code> now stops when <code>nchains &gt; 1</code> and warns that <code>parallel</code> is ignored, instead of silently running one chain.</li>
+<li>Removed ineffective <code>EIGEN_USE_BLAS</code> / <code>EIGEN_USE_LAPACKE</code> defines from the mGHS sources (no change to results).</li>
+<li>Repository and CRAN hygiene: compiled objects untracked, old demo moved to <code>dev/</code>, <code>Depends: R (&gt;= 4.0.0)</code>, <code>BugReports</code>, ASCII-only sources.</li>
+<li>New tests for each fix, plus reproducibility tests (same seed, parallel versus serial, R versus C++ engine).</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.4.0" id="multiggm-040">multiGGM 0.4.0<a class="anchor" aria-label="anchor" href="#multiggm-040"></a></h2>
 <div class="section level3">

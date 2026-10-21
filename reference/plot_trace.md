@@ -14,8 +14,9 @@ plot_trace(fit, what = c("theta", "edges"))
 
 - fit:
 
-  A `multiggm_fit` object returned by
-  [`multiggm_mcmc`](https://mljaniczek.github.io/multiGGMr/reference/multiggm_mcmc.md).
+  A `multiggm_fit` or `multiggm_fit_list` object returned by
+  [`multiggm_mcmc`](https://mljaniczek.github.io/multiGGMr/reference/multiggm_mcmc.md);
+  chains are overlaid in colour.
 
 - what:
 
@@ -46,6 +47,8 @@ A `ggplot` object.
 sim <- simulate_multiggm(K = 2, p = 8, n = 80, seed = 1)
 fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 200, nsave = 100)
 plot_trace(fit, "theta")
+#> Ignoring unknown labels:
+#> • colour : "Chain"
 
 plot_trace(fit, "edges")
 

@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">multiGGM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -44,6 +44,7 @@
 <li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
 </form></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/mljaniczek/multiGGMr/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul>
 </div>
 
@@ -60,7 +61,7 @@
       <h1>Getting Started with multiGGM</h1>
             
       
-
+      <small class="dont-index">Source: <a href="https://github.com/mljaniczek/multiGGMr/blob/main/vignettes/multiGGMr-tutorial.Rmd" class="external-link"><code>vignettes/multiGGMr-tutorial.Rmd</code></a></small>
       <div class="d-none name"><code>multiGGMr-tutorial.Rmd</code></div>
     </div>
 
@@ -171,7 +172,9 @@ counts. Acceptance rates between 20-60% are generally healthy.</p>
 similarity parameter – values above zero indicate the model is borrowing
 strength across groups.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit</span>, type <span class="op">=</span> <span class="st">"trace_theta"</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit</span>, type <span class="op">=</span> <span class="st">"trace_theta"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Ignoring unknown labels:</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> <span style="color: #00BB00;">colour</span> : <span style="color: #0000BB;">"Chain"</span></span></span></code></pre></div>
 <p><img src="multiGGMr-tutorial_files/figure-html/trace-theta-1.png" class="r-plt" alt="" width="672"></p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit</span>, type <span class="op">=</span> <span class="st">"trace_edges"</span><span class="op">)</span></span></code></pre></div>
@@ -442,9 +445,82 @@ persistent separation.</p>
 <div class="section level3">
 <h3 id="pooling-results-across-chains">Pooling results across chains<a class="anchor" aria-label="anchor" href="#pooling-results-across-chains"></a>
 </h3>
-<p>To combine posterior samples from all chains, concatenate the saved
-arrays along the iteration dimension:</p>
+<p>Posterior summaries pool all chains by default:
+<code>pip_edges(fit_mc)</code>, <code><a href="../reference/posterior_pcor.html">posterior_pcor()</a></code>,
+<code><a href="../reference/posterior_precision.html">posterior_precision()</a></code>, <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code>,
+<code><a href="https://rdrr.io/r/stats/fitted.values.html" class="external-link">fitted()</a></code>, <code><a href="../reference/diff_summary.html">diff_summary()</a></code> and
+<code><a href="../reference/select_diff_edges.html">select_diff_edges()</a></code> use every chain’s draws, and
+<code>chain = i</code> restricts them to one chain.
+<code>summary(fit_mc)</code> reports each chain, the pooled edge counts
+and the largest between-chain difference in PIPs, and
+<code>plot(fit_mc, type = "trace_edges")</code> overlays the chains.</p>
 <div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit_mc</span>, pip_threshold <span class="op">=</span> <span class="fl">0.5</span><span class="op">)</span></span>
+<span><span class="co">#&gt; multiGGM MCMC Summary: 3 chains, K = 2</span></span>
+<span><span class="co">#&gt; ==========================================</span></span>
+<span><span class="co">#&gt; Pooled selected edges (PIP &gt;= 0.5 ):</span></span>
+<span><span class="co">#&gt;   Group 1: 188 edges</span></span>
+<span><span class="co">#&gt;   Group 2: 187 edges</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Largest difference in PIP between chains:</span></span>
+<span><span class="co">#&gt;   Group 1: 0.563</span></span>
+<span><span class="co">#&gt;   Group 2: 0.558</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; --- Chain 1 ---</span></span>
+<span><span class="co">#&gt; multiGGM MCMC Summary</span></span>
+<span><span class="co">#&gt; =====================</span></span>
+<span><span class="co">#&gt; Groups (K): 2   |  Nodes (p): 20   |  Posterior draws: 1000 </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Acceptance rates:</span></span>
+<span><span class="co">#&gt;   gamma (edge toggle): 0.2% </span></span>
+<span><span class="co">#&gt;   theta (within-model): 3.5% </span></span>
+<span><span class="co">#&gt;   nu (edge log-odds): 61.9% </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Selected edges (PIP &gt;= 0.5 ):</span></span>
+<span><span class="co">#&gt;   Group 1 : 188 edges</span></span>
+<span><span class="co">#&gt;   Group 2 : 188 edges</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Graph similarity (theta):</span></span>
+<span><span class="co">#&gt;   theta[1,2]: mean = 2.624, P(nonzero) = 100.0%</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; --- Chain 2 ---</span></span>
+<span><span class="co">#&gt; multiGGM MCMC Summary</span></span>
+<span><span class="co">#&gt; =====================</span></span>
+<span><span class="co">#&gt; Groups (K): 2   |  Nodes (p): 20   |  Posterior draws: 1000 </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Acceptance rates:</span></span>
+<span><span class="co">#&gt;   gamma (edge toggle): 0.2% </span></span>
+<span><span class="co">#&gt;   theta (within-model): 2.4% </span></span>
+<span><span class="co">#&gt;   nu (edge log-odds): 67.1% </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Selected edges (PIP &gt;= 0.5 ):</span></span>
+<span><span class="co">#&gt;   Group 1 : 184 edges</span></span>
+<span><span class="co">#&gt;   Group 2 : 184 edges</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Graph similarity (theta):</span></span>
+<span><span class="co">#&gt;   theta[1,2]: mean = 2.276, P(nonzero) = 100.0%</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; --- Chain 3 ---</span></span>
+<span><span class="co">#&gt; multiGGM MCMC Summary</span></span>
+<span><span class="co">#&gt; =====================</span></span>
+<span><span class="co">#&gt; Groups (K): 2   |  Nodes (p): 20   |  Posterior draws: 1000 </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Acceptance rates:</span></span>
+<span><span class="co">#&gt;   gamma (edge toggle): 0.0% </span></span>
+<span><span class="co">#&gt;   theta (within-model): 2.1% </span></span>
+<span><span class="co">#&gt;   nu (edge log-odds): 65.3% </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Selected edges (PIP &gt;= 0.5 ):</span></span>
+<span><span class="co">#&gt;   Group 1 : 180 edges</span></span>
+<span><span class="co">#&gt;   Group 2 : 181 edges</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Graph similarity (theta):</span></span>
+<span><span class="co">#&gt;   theta[1,2]: mean = 2.072, P(nonzero) = 100.0%</span></span></code></pre></div>
+<p>To work with the raw draws yourself, concatenate the saved arrays
+along the iteration dimension:</p>
+<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Pool precision draws across all chains</span></span>
 <span><span class="va">pool_C</span> <span class="op">&lt;-</span> <span class="fu">abind</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/abind/man/abind.html" class="external-link">abind</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">fit_mc</span><span class="op">$</span><span class="va">chains</span>, <span class="kw">function</span><span class="op">(</span><span class="va">ch</span><span class="op">)</span> <span class="va">ch</span><span class="op">$</span><span class="va">C_save</span><span class="op">)</span>,</span>
@@ -489,31 +565,46 @@ arrays along the iteration dimension:</p>
 <td><code>fit$chains[[i]]</code></td>
 </tr>
 <tr class="odd">
-<td>PIPs from chain
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
-</td>
-<td><code>pip_edges(fit, chain = i)</code></td>
+<td>Summary of all chains</td>
+<td><code>summary(fit)</code></td>
 </tr>
 <tr class="even">
-<td>Partial correlations from chain
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
-</td>
-<td><code>posterior_pcor(fit, chain = i)</code></td>
+<td>Overlaid trace plots</td>
+<td><code>plot(fit, type = "trace_edges")</code></td>
 </tr>
 <tr class="odd">
-<td>Precision matrices from chain
+<td>PIPs, pooled / from chain
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
 </td>
-<td><code>posterior_precision(fit, chain = i)</code></td>
+<td>
+<code>pip_edges(fit)</code> /
+<code>pip_edges(fit, chain = i)</code>
+</td>
 </tr>
 <tr class="even">
-<td>Edge counts from chain
+<td>Partial correlations, pooled / chain
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
 </td>
+<td>
+<code>posterior_pcor(fit)</code> /
+<code>posterior_pcor(fit, chain = i)</code>
+</td>
+</tr>
+<tr class="odd">
+<td>Precision matrices, pooled / chain
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+</td>
+<td>
+<code>posterior_precision(fit)</code> /
+<code>posterior_precision(fit, chain = i)</code>
+</td>
+</tr>
+<tr class="even">
+<td>Edge counts (a per-chain trace)</td>
 <td><code>edge_counts(fit, chain = i)</code></td>
 </tr>
 <tr class="odd">
-<td>Pool draws across chains</td>
+<td>Raw pooled draws</td>
 <td><code>abind::abind(lapply(fit$chains, \(ch) ch$C_save), along = 4)</code></td>
 </tr>
 </tbody>

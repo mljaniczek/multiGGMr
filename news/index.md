@@ -1,5 +1,59 @@
 # Changelog
 
+## multiGGM (development version)
+
+### Bug fixes
+
+- SSVS and multi-platform samplers: the spike-and-slab update of the
+  graph similarity `theta` (inherited from the Matlab reference) drew
+  its proposal with `beta_prop` as a scale but used it as a rate in the
+  acceptance ratio, and had the sign of the
+  `(alpha - alpha_prop) * log(theta)` term reversed for spike-to-slab
+  moves. The platform similarity `Phi` had the same sign error and mixed
+  scale and rate in its normalizing terms. The ratios are now computed
+  from explicit gamma densities (as the G-Wishart sampler already did).
+  Default SSVS fits are essentially unchanged (`beta_prop = 1`,
+  `w = 0.9`); fits with smaller `w`, `beta_prop != 1`, or the
+  multi-platform sampler will differ. `beta_prop` is now a rate for
+  every sampler.
+- A partial `hyper` list no longer wipes out the other defaults for the
+  G-Wishart and SSVS samplers. Unknown hyperparameter names are now an
+  error.
+- `simulate_multiggm(K = 1)` returned two groups.
+- [`simulate_multiggm_platform()`](https://mljaniczek.github.io/multiGGMr/reference/simulate_multiggm_platform.md)
+  now shares one base graph across platforms (it drew an independent
+  graph per platform); the data-generating process is documented, and
+  the base and platform graphs are returned.
+- [`roc_auc()`](https://mljaniczek.github.io/multiGGMr/reference/roc_auc.md)
+  handles tied scores: the AUC no longer depends on edge order.
+
+### Changes
+
+- [`pip_edges()`](https://mljaniczek.github.io/multiGGMr/reference/pip_edges.md),
+  [`pip_diff_edge()`](https://mljaniczek.github.io/multiGGMr/reference/pip_diff_edge.md),
+  [`posterior_pcor()`](https://mljaniczek.github.io/multiGGMr/reference/posterior_pcor.md)
+  and
+  [`posterior_precision()`](https://mljaniczek.github.io/multiGGMr/reference/posterior_precision.md)
+  now pool all chains by default (`chain = NULL`), like
+  [`diff_summary()`](https://mljaniczek.github.io/multiGGMr/reference/diff_summary.md)
+  and
+  [`select_diff_edges()`](https://mljaniczek.github.io/multiGGMr/reference/select_diff_edges.md);
+  `chain = i` selects one.
+- New [`summary()`](https://rdrr.io/r/base/summary.html),
+  [`coef()`](https://rdrr.io/r/stats/coef.html),
+  [`fitted()`](https://rdrr.io/r/stats/fitted.values.html) and
+  [`plot()`](https://rdrr.io/r/graphics/plot.default.html) methods for
+  multi-chain fits (`multiggm_fit_list`).
+- `method = "ssvs_platform"` now stops when `nchains > 1` and warns that
+  `parallel` is ignored, instead of silently running one chain.
+- Removed ineffective `EIGEN_USE_BLAS` / `EIGEN_USE_LAPACKE` defines
+  from the mGHS sources (no change to results).
+- Repository and CRAN hygiene: compiled objects untracked, old demo
+  moved to `dev/`, `Depends: R (>= 4.0.0)`, `BugReports`, ASCII-only
+  sources.
+- New tests for each fix, plus reproducibility tests (same seed,
+  parallel versus serial, R versus C++ engine).
+
 ## multiGGM 0.4.0
 
 ### New features

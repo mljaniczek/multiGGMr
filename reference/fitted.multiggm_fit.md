@@ -9,6 +9,9 @@ fitted multi-GGM model. This is the `fitted` S3 method for
 ``` r
 # S3 method for class 'multiggm_fit'
 fitted(object, ...)
+
+# S3 method for class 'multiggm_fit_list'
+fitted(object, ...)
 ```
 
 ## Arguments
@@ -36,6 +39,11 @@ For each saved iteration, the precision matrix \\\Omega_k\\ is converted
 to a partial correlation matrix, then the posterior mean is taken
 element-wise. This is computed via
 [`posterior_pcor`](https://mljaniczek.github.io/multiGGMr/reference/posterior_pcor.md).
+
+## Functions
+
+- `fitted(multiggm_fit_list)`: Posterior mean partial correlation
+  matrices pooled over all chains of a `multiggm_fit_list`.
 
 ## See also
 

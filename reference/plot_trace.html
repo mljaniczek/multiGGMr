@@ -11,7 +11,7 @@ across saved iterations."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">multiGGM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -29,6 +29,7 @@ across saved iterations."></head><body>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/mljaniczek/multiGGMr/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul></div>
 
 
@@ -38,7 +39,7 @@ across saved iterations."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Trace plots for MCMC diagnostics</h1>
-
+      <small class="dont-index">Source: <a href="https://github.com/mljaniczek/multiGGMr/blob/main/R/diagnostics.R" class="external-link"><code>R/diagnostics.R</code></a></small>
       <div class="d-none name"><code>plot_trace.Rd</code></div>
     </div>
 
@@ -58,8 +59,8 @@ across saved iterations.</p>
 
 
 <dl><dt id="arg-fit">fit<a class="anchor" aria-label="anchor" href="#arg-fit"></a></dt>
-<dd><p>A <code>multiggm_fit</code> object returned by
-<code><a href="multiggm_mcmc.html">multiggm_mcmc</a></code>.</p></dd>
+<dd><p>A <code>multiggm_fit</code> or <code>multiggm_fit_list</code> object
+returned by <code><a href="multiggm_mcmc.html">multiggm_mcmc</a></code>; chains are overlaid in colour.</p></dd>
 
 
 <dt id="arg-what">what<a class="anchor" aria-label="anchor" href="#arg-what"></a></dt>
@@ -89,6 +90,8 @@ iteration. Color-coded by group.</p></dd>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">sim</span> <span class="op">&lt;-</span> <span class="fu"><a href="simulate_multiggm.html">simulate_multiggm</a></span><span class="op">(</span>K <span class="op">=</span> <span class="fl">2</span>, p <span class="op">=</span> <span class="fl">8</span>, n <span class="op">=</span> <span class="fl">80</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="multiggm_mcmc.html">multiggm_mcmc</a></span><span class="op">(</span>data_list <span class="op">=</span> <span class="va">sim</span><span class="op">$</span><span class="va">data_list</span>, burnin <span class="op">=</span> <span class="fl">200</span>, nsave <span class="op">=</span> <span class="fl">100</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">plot_trace</span><span class="op">(</span><span class="va">fit</span>, <span class="st">"theta"</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Ignoring unknown labels:</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> <span style="color: #00BB00;">colour</span> : <span style="color: #0000BB;">"Chain"</span></span>
 <span class="r-plt img"><img src="plot_trace-1.png" alt="" width="700" height="433"></span>
 <span class="r-in"><span><span class="fu">plot_trace</span><span class="op">(</span><span class="va">fit</span>, <span class="st">"edges"</span><span class="op">)</span></span></span>
 <span class="r-plt img"><img src="plot_trace-2.png" alt="" width="700" height="433"></span>

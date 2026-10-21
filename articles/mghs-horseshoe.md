@@ -81,6 +81,8 @@ samplers:
 ``` r
 
 plot_trace(fit, "theta")
+#> Ignoring unknown labels:
+#> • colour : "Chain"
 ```
 
 ![](mghs-horseshoe_files/figure-html/trace-1.png)

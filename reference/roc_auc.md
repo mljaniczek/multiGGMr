@@ -40,8 +40,12 @@ A list with three components:
 
 - `auc`:
 
-  Numeric scalar; area under the ROC curve. Values near 1 indicate
-  excellent discrimination.
+  Numeric scalar; area under the ROC curve, i.e. the probability that a
+  true edge scores higher than a non-edge, with ties counted as 1/2.
+  Values near 1 indicate excellent discrimination; 0.5 is chance.
+
+Tied scores share one threshold, so the curve and the AUC do not depend
+on the order of the edges.
 
 ## See also
 
@@ -57,5 +61,5 @@ fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 200, nsave = 100)
 pip <- pip_edges(fit)
 roc <- roc_auc(pip[,,1], sim$adj_list[[1]])
 cat("AUC:", roc$auc, "\n")
-#> AUC: 0.8564103 
+#> AUC: 0.8538462 
 ```

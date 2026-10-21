@@ -62,16 +62,16 @@ summary(fit, pip_threshold = 0.5)
 #> Groups (K): 2   |  Nodes (p): 30   |  Posterior draws: 100 
 #> 
 #> Acceptance rates:
-#>   gamma (edge toggle): 24.0% 
-#>   theta (within-model): 2.3% 
-#>   nu (edge log-odds): 43.2% 
+#>   gamma (edge toggle): 10.7% 
+#>   theta (within-model): 0.0% 
+#>   nu (edge log-odds): 43.4% 
 #> 
 #> Selected edges (PIP >= 0.5 ):
-#>   Group 1 : 14 edges
-#>   Group 2 : 14 edges
+#>   Group 1 : 15 edges
+#>   Group 2 : 13 edges
 #> 
 #> Graph similarity (theta):
-#>   theta[1,2]: mean = 0.009, P(nonzero) = 9.0%
+#>   theta[1,2]: mean = 0.002, P(nonzero) = 6.0%
 ```
 
 ``` r
@@ -84,6 +84,8 @@ plot(fit, type = "pip")
 ``` r
 
 plot(fit, type = "trace_theta")
+#> Ignoring unknown labels:
+#> • colour : "Chain"
 ```
 
 ![](ssvs-scalable-method_files/figure-html/ssvs-trace-1.png)
@@ -224,7 +226,7 @@ indicators.
 | `a`, `b` | 1, 4 | Beta(1, 4) prior on edge inclusion log-odds $`\nu_{ij}`$; gives prior $`P(\text{edge}) \approx 0.20`$ |
 | `alpha`, `beta` | 2, 5 | Gamma(2, rate=5) slab prior on $`\theta_{km}`$; mean = 0.4 |
 | `w` | 0.9 | $`P(\gamma_{km} = 1)`$; strong prior belief that groups share structure |
-| `alpha_prop`, `beta_prop` | 1, 1 | Gamma proposal for $`\theta_{km}`$ MH step (scale parameterization) |
+| `alpha_prop`, `beta_prop` | 1, 1 | Gamma(shape, rate) proposal for $`\theta_{km}`$ MH step; `beta_prop` is a rate, like `beta` |
 
 ### Tuning recommendations
 
@@ -308,7 +310,7 @@ pip_ssvs <- pip_edges(fit_ssvs)
 idx <- upper.tri(pip_gw[, , 1])
 cat(sprintf("Correlation of PIPs (Group 1): %.3f\n",
             cor(pip_gw[, , 1][idx], pip_ssvs[, , 1][idx])))
-#> Correlation of PIPs (Group 1): 0.930
+#> Correlation of PIPs (Group 1): 0.929
 cat(sprintf("G-Wishart edges (PIP > 0.5):   %d\n",
             sum(pip_gw[, , 1][idx] > 0.5)))
 #> G-Wishart edges (PIP > 0.5):   14
@@ -345,8 +347,8 @@ for (method_name in c("G-Wishart", "SSVS")) {
 }
 #> G-Wishart Group 1: TPR=0.83, FPR=0.04
 #> G-Wishart Group 2: TPR=0.71, FPR=0.01
-#> SSVS Group 1: TPR=0.75, FPR=0.02
-#> SSVS Group 2: TPR=0.57, FPR=0.00
+#> SSVS Group 1: TPR=0.67, FPR=0.02
+#> SSVS Group 2: TPR=0.52, FPR=0.00
 ```
 
 ## Running multiple chains
@@ -378,10 +380,10 @@ pip_c3 <- pip_edges(fit_mc, chain = 3)
 idx <- upper.tri(pip_c1[, , 1])
 cat(sprintf("PIP correlation (chains 1-2): %.3f\n",
             cor(pip_c1[, , 1][idx], pip_c2[, , 1][idx])))
-#> PIP correlation (chains 1-2): 0.970
+#> PIP correlation (chains 1-2): 0.948
 cat(sprintf("PIP correlation (chains 1-3): %.3f\n",
             cor(pip_c1[, , 1][idx], pip_c3[, , 1][idx])))
-#> PIP correlation (chains 1-3): 0.954
+#> PIP correlation (chains 1-3): 0.972
 ```
 
 See the [Getting Started

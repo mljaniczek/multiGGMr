@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">multiGGM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -25,6 +25,7 @@
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/mljaniczek/multiGGMr/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul></div>
 
 
@@ -34,7 +35,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Plot method for multiggm_fit objects</h1>
-
+      <small class="dont-index">Source: <a href="https://github.com/mljaniczek/multiGGMr/blob/main/R/diagnostics.R" class="external-link"><code>R/diagnostics.R</code></a></small>
       <div class="d-none name"><code>plot.multiggm_fit.Rd</code></div>
     </div>
 
@@ -50,6 +51,14 @@
 <span>  type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"trace_theta"</span>, <span class="st">"trace_edges"</span>, <span class="st">"pip"</span>, <span class="st">"network"</span><span class="op">)</span>,</span>
 <span>  pip_threshold <span class="op">=</span> <span class="fl">0.5</span>,</span>
 <span>  <span class="va">...</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># S3 method for class 'multiggm_fit_list'</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span></span>
+<span>  <span class="va">x</span>,</span>
+<span>  type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"trace_theta"</span>, <span class="st">"trace_edges"</span>, <span class="st">"pip"</span>, <span class="st">"network"</span><span class="op">)</span>,</span>
+<span>  pip_threshold <span class="op">=</span> <span class="fl">0.5</span>,</span>
+<span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -58,8 +67,9 @@
 
 
 <dl><dt id="arg-x">x<a class="anchor" aria-label="anchor" href="#arg-x"></a></dt>
-<dd><p>A <code>multiggm_fit</code> object returned by
-<code><a href="multiggm_mcmc.html">multiggm_mcmc</a></code>.</p></dd>
+<dd><p>A <code>multiggm_fit</code> or <code>multiggm_fit_list</code> object returned
+by <code><a href="multiggm_mcmc.html">multiggm_mcmc</a></code>. For several chains, trace plots overlay
+the chains and the PIP plots pool them.</p></dd>
 
 
 <dt id="arg-type">type<a class="anchor" aria-label="anchor" href="#arg-type"></a></dt>

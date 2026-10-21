@@ -12,14 +12,24 @@ plot(
   pip_threshold = 0.5,
   ...
 )
+
+# S3 method for class 'multiggm_fit_list'
+plot(
+  x,
+  type = c("trace_theta", "trace_edges", "pip", "network"),
+  pip_threshold = 0.5,
+  ...
+)
 ```
 
 ## Arguments
 
 - x:
 
-  A `multiggm_fit` object returned by
+  A `multiggm_fit` or `multiggm_fit_list` object returned by
   [`multiggm_mcmc`](https://mljaniczek.github.io/multiGGMr/reference/multiggm_mcmc.md).
+  For several chains, trace plots overlay the chains and the PIP plots
+  pool them.
 
 - type:
 

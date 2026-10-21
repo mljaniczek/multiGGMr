@@ -7,7 +7,7 @@ edge was included in the graph.
 ## Usage
 
 ``` r
-pip_edges(fit, chain = 1L, platform = NULL)
+pip_edges(fit, chain = NULL, platform = NULL)
 ```
 
 ## Arguments
@@ -19,8 +19,8 @@ pip_edges(fit, chain = 1L, platform = NULL)
 
 - chain:
 
-  Integer; which chain to use if `fit` is a `multiggm_fit_list`. Default
-  1.
+  `NULL` (default) pools the draws of all chains of a
+  `multiggm_fit_list`; an integer vector selects chains.
 
 - platform:
 
