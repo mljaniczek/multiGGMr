@@ -12,13 +12,13 @@
 \usage{
 \method{pip_table}{multiggm_fit}(fit, varnames = NULL, ...)
 
-\method{pip_table}{multiggm_fit_list}(fit, chain = 1L, varnames = NULL, ...)
+\method{pip_table}{multiggm_fit_list}(fit, chain = NULL, varnames = NULL, ...)
 
 \method{pip_table}{multiggm_platform_fit}(fit, platform, varnames = NULL, ...)
 
 \method{pcor_estimate}{multiggm_fit}(fit, varnames = NULL, ...)
 
-\method{pcor_estimate}{multiggm_fit_list}(fit, chain = 1L, varnames = NULL, ...)
+\method{pcor_estimate}{multiggm_fit_list}(fit, chain = NULL, varnames = NULL, ...)
 
 \method{pcor_estimate}{multiggm_platform_fit}(fit, platform, varnames = NULL, ...)
 }
@@ -30,7 +30,8 @@
 
 \item{...}{Ignored.}
 
-\item{chain}{Chain to use for a \code{multiggm_fit_list}. Default 1.}
+\item{chain}{For a \code{multiggm_fit_list}: \code{NULL} (default) pools
+all chains; an integer selects chains.}
 
 \item{platform}{Platform to use for a \code{multiggm_platform_fit}.}
 }
@@ -51,8 +52,8 @@ generics works on multiGGMr fits as well as on fits from other packages
 probabilities (from \code{\link[=pip_edges]{pip_edges()}}) in long format. It needs edge
 indicators, so it stops for mGHS fits. \code{pcor_estimate()} returns the
 posterior mean partial correlations (as \code{\link[=fitted]{fitted()}}). For multi-chain fits
-one chain is used (\code{chain}); for multi-platform fits, choose
-\code{platform}.
+all chains are pooled unless \code{chain} selects one, as for
+\code{\link[=pip_edges]{pip_edges()}}; for multi-platform fits, choose \code{platform}.
 
 multiGGMr fits do not store variable names, so the nodes are labelled
 \code{V1, ..., Vp} unless \code{varnames} is given.

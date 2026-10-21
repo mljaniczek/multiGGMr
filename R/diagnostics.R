@@ -2,8 +2,9 @@
 #'
 #' Produces diagnostic and summary plots for a fitted multi-GGM model.
 #'
-#' @param x A \code{multiggm_fit} object returned by
-#'   \code{\link{multiggm_mcmc}}.
+#' @param x A \code{multiggm_fit} or \code{multiggm_fit_list} object returned
+#'   by \code{\link{multiggm_mcmc}}. For several chains, trace plots overlay
+#'   the chains and the PIP plots pool them.
 #' @param type Character string specifying the plot type:
 #'   \describe{
 #'     \item{\code{"trace_theta"}}{Trace plots of the graph similarity
@@ -38,7 +39,17 @@
 #' @export
 plot.multiggm_fit <- function(x, type = c("trace_theta", "trace_edges", "pip", "network"),
                                pip_threshold = 0.5, ...) {
-  type <- match.arg(type)
+  .plot_fit(x, match.arg(type), pip_threshold)
+}
+
+#' @rdname plot.multiggm_fit
+#' @export
+plot.multiggm_fit_list <- function(x, type = c("trace_theta", "trace_edges", "pip", "network"),
+                                    pip_threshold = 0.5, ...) {
+  .plot_fit(x, match.arg(type), pip_threshold)
+}
+
+.plot_fit <- function(x, type, pip_threshold) {
   switch(type,
     trace_theta = plot_trace(x, what = "theta"),
     trace_edges = plot_trace(x, what = "edges"),
@@ -62,8 +73,8 @@ plot.multiggm_fit <- function(x, type = c("trace_theta", "trace_edges", "pip", "
 #' the graph similarity parameter (theta) or the number of edges per group
 #' across saved iterations.
 #'
-#' @param fit A \code{multiggm_fit} object returned by
-#'   \code{\link{multiggm_mcmc}}.
+#' @param fit A \code{multiggm_fit} or \code{multiggm_fit_list} object
+#'   returned by \code{\link{multiggm_mcmc}}; chains are overlaid in colour.
 #' @param what Character; what to plot:
 #'   \describe{
 #'     \item{\code{"theta"}}{Graph similarity parameters \eqn{\theta_{km}}
@@ -84,68 +95,52 @@ plot.multiggm_fit <- function(x, type = c("trace_theta", "trace_edges", "pip", "
 #' @export
 plot_trace <- function(fit, what = c("theta", "edges")) {
   what <- match.arg(what)
+  chains <- .fit_chains(fit)
+  multi <- length(chains) > 1L
+  K <- chains[[1]]$K
 
   if (what == "theta") {
-    K <- fit$K
-    is_mghs <- identical(fit$method, "mghs")
-    S <- if (is_mghs) fit$R_save else fit$Theta_save
-    nm <- if (is_mghs) "R" else "theta"
-    nsave <- dim(S)[3]
     if (K < 2) stop("Theta trace requires K >= 2.")
-
-    pairs <- list()
-    for (k in 1:(K - 1)) {
-      for (m in (k + 1):K) {
-        pairs[[length(pairs) + 1]] <- list(k = k, m = m)
-      }
-    }
-
-    df_list <- vector("list", length(pairs))
-    for (i in seq_along(pairs)) {
-      k <- pairs[[i]]$k
-      m <- pairs[[i]]$m
-      df_list[[i]] <- data.frame(
-        iteration = seq_len(nsave),
-        value = S[k, m, ],
-        pair = sprintf("%s[%d,%d]", nm, k, m),
-        stringsAsFactors = FALSE
-      )
-    }
-    df <- do.call(rbind, df_list)
-
-    p <- ggplot2::ggplot(df, ggplot2::aes(x = .data$iteration, y = .data$value)) +
+    is_mghs <- identical(chains[[1]]$method, "mghs")
+    nm <- if (is_mghs) "R" else "theta"
+    df <- do.call(rbind, lapply(seq_along(chains), function(ch) {
+      S <- if (is_mghs) chains[[ch]]$R_save else chains[[ch]]$Theta_save
+      do.call(rbind, lapply(seq_len(K - 1), function(k) do.call(rbind, lapply((k + 1):K, function(m)
+        data.frame(iteration = seq_len(dim(S)[3]), value = S[k, m, ],
+                   pair = sprintf("%s[%d,%d]", nm, k, m), chain = paste("Chain", ch),
+                   stringsAsFactors = FALSE)))))
+    }))
+    aes <- if (multi) ggplot2::aes(x = .data$iteration, y = .data$value, color = .data$chain)
+           else ggplot2::aes(x = .data$iteration, y = .data$value)
+    ggplot2::ggplot(df, aes) +
       ggplot2::geom_line(alpha = 0.6) +
       ggplot2::facet_wrap(~ pair, scales = "free_y") +
       ggplot2::labs(title = if (is_mghs) "Trace: correlation of edge scales (R)"
                             else "Trace: graph similarity (theta)",
-                    x = "Iteration (post-burnin)", y = nm) +
+                    x = "Iteration (post-burnin)", y = nm, color = "Chain") +
       ggplot2::theme_minimal()
-    return(p)
-
   } else {
-    # Edge counts
-    ec <- edge_counts(fit)
-    K <- ncol(ec)
-    nsave <- nrow(ec)
-
-    df_list <- vector("list", K)
-    for (k in seq_len(K)) {
-      df_list[[k]] <- data.frame(
-        iteration = seq_len(nsave),
-        edges = ec[, k],
-        group = paste("Group", k),
-        stringsAsFactors = FALSE
-      )
+    df <- do.call(rbind, lapply(seq_along(chains), function(ch) {
+      ec <- edge_counts(chains[[ch]])
+      do.call(rbind, lapply(seq_len(ncol(ec)), function(k)
+        data.frame(iteration = seq_len(nrow(ec)), edges = ec[, k],
+                   group = paste("Group", k), chain = paste("Chain", ch),
+                   stringsAsFactors = FALSE)))
+    }))
+    if (multi) {
+      ggplot2::ggplot(df, ggplot2::aes(x = .data$iteration, y = .data$edges, color = .data$chain)) +
+        ggplot2::geom_line(alpha = 0.6) +
+        ggplot2::facet_wrap(~ group, scales = "free_y") +
+        ggplot2::labs(title = "Trace: edge count per group",
+                      x = "Iteration (post-burnin)", y = "Number of edges", color = "Chain") +
+        ggplot2::theme_minimal()
+    } else {
+      ggplot2::ggplot(df, ggplot2::aes(x = .data$iteration, y = .data$edges, color = .data$group)) +
+        ggplot2::geom_line(alpha = 0.6) +
+        ggplot2::labs(title = "Trace: edge count per group",
+                      x = "Iteration (post-burnin)", y = "Number of edges", color = "Group") +
+        ggplot2::theme_minimal()
     }
-    df <- do.call(rbind, df_list)
-
-    p <- ggplot2::ggplot(df, ggplot2::aes(x = .data$iteration, y = .data$edges, color = .data$group)) +
-      ggplot2::geom_line(alpha = 0.6) +
-      ggplot2::labs(title = "Trace: edge count per group",
-                    x = "Iteration (post-burnin)", y = "Number of edges",
-                    color = "Group") +
-      ggplot2::theme_minimal()
-    return(p)
   }
 }
 

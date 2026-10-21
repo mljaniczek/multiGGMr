@@ -2,9 +2,12 @@
 % Please edit documentation in R/methods.R
 \name{fitted.multiggm_fit}
 \alias{fitted.multiggm_fit}
+\alias{fitted.multiggm_fit_list}
 \title{Extract posterior mean partial correlation matrices}
 \usage{
 \method{fitted}{multiggm_fit}(object, ...)
+
+\method{fitted}{multiggm_fit_list}(object, ...)
 }
 \arguments{
 \item{object}{A \code{multiggm_fit} object returned by
@@ -30,6 +33,12 @@ For each saved iteration, the precision matrix \eqn{\Omega_k} is
 converted to a partial correlation matrix, then the posterior mean is
 taken element-wise. This is computed via \code{\link{posterior_pcor}}.
 }
+\section{Functions}{
+\itemize{
+\item \code{fitted(multiggm_fit_list)}: Posterior mean partial correlation matrices
+pooled over all chains of a \code{multiggm_fit_list}.
+
+}}
 \examples{
 sim <- simulate_multiggm(K = 2, p = 8, n = 80, seed = 1)
 fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 200, nsave = 100)

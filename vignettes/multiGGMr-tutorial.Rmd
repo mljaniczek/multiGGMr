@@ -312,8 +312,19 @@ ggplot(theta_df, aes(x = iteration, y = theta, color = chain)) +
 
 ### Pooling results across chains
 
-To combine posterior samples from all chains, concatenate the saved
-arrays along the iteration dimension:
+Posterior summaries pool all chains by default: `pip_edges(fit_mc)`,
+`posterior_pcor()`, `posterior_precision()`, `coef()`, `fitted()`,
+`diff_summary()` and `select_diff_edges()` use every chain's draws, and
+`chain = i` restricts them to one chain. `summary(fit_mc)` reports each
+chain, the pooled edge counts and the largest between-chain difference in
+PIPs, and `plot(fit_mc, type = "trace_edges")` overlays the chains.
+
+```{r multi-chain-summary}
+summary(fit_mc, pip_threshold = 0.5)
+```
+
+To work with the raw draws yourself, concatenate the saved arrays along
+the iteration dimension:
 
 ```{r multi-chain-pool}
 # Pool precision draws across all chains
@@ -341,11 +352,13 @@ cat(sprintf("Pooled edges (PIP > 0.5, Group 1): %d\n",
 |------|------|
 | Fit multiple chains | `multiggm_mcmc(..., nchains = 4, parallel = TRUE)` |
 | Access chain $i$ | `fit$chains[[i]]` |
-| PIPs from chain $i$ | `pip_edges(fit, chain = i)` |
-| Partial correlations from chain $i$ | `posterior_pcor(fit, chain = i)` |
-| Precision matrices from chain $i$ | `posterior_precision(fit, chain = i)` |
-| Edge counts from chain $i$ | `edge_counts(fit, chain = i)` |
-| Pool draws across chains | `abind::abind(lapply(fit$chains, \(ch) ch$C_save), along = 4)` |
+| Summary of all chains | `summary(fit)` |
+| Overlaid trace plots | `plot(fit, type = "trace_edges")` |
+| PIPs, pooled / from chain $i$ | `pip_edges(fit)` / `pip_edges(fit, chain = i)` |
+| Partial correlations, pooled / chain $i$ | `posterior_pcor(fit)` / `posterior_pcor(fit, chain = i)` |
+| Precision matrices, pooled / chain $i$ | `posterior_precision(fit)` / `posterior_precision(fit, chain = i)` |
+| Edge counts (a per-chain trace) | `edge_counts(fit, chain = i)` |
+| Raw pooled draws | `abind::abind(lapply(fit$chains, \(ch) ch$C_save), along = 4)` |
 
 ## References
 

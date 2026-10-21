@@ -2,6 +2,7 @@
 % Please edit documentation in R/diagnostics.R
 \name{plot.multiggm_fit}
 \alias{plot.multiggm_fit}
+\alias{plot.multiggm_fit_list}
 \title{Plot method for multiggm_fit objects}
 \usage{
 \method{plot}{multiggm_fit}(
@@ -10,10 +11,18 @@
   pip_threshold = 0.5,
   ...
 )
+
+\method{plot}{multiggm_fit_list}(
+  x,
+  type = c("trace_theta", "trace_edges", "pip", "network"),
+  pip_threshold = 0.5,
+  ...
+)
 }
 \arguments{
-\item{x}{A \code{multiggm_fit} object returned by
-\code{\link{multiggm_mcmc}}.}
+\item{x}{A \code{multiggm_fit} or \code{multiggm_fit_list} object returned
+by \code{\link{multiggm_mcmc}}. For several chains, trace plots overlay
+the chains and the PIP plots pool them.}
 
 \item{type}{Character string specifying the plot type:
 \describe{

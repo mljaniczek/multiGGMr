@@ -9,15 +9,16 @@
 #' probabilities (from [pip_edges()]) in long format. It needs edge
 #' indicators, so it stops for mGHS fits. \code{pcor_estimate()} returns the
 #' posterior mean partial correlations (as [fitted()]). For multi-chain fits
-#' one chain is used (\code{chain}); for multi-platform fits, choose
-#' \code{platform}.
+#' all chains are pooled unless \code{chain} selects one, as for
+#' [pip_edges()]; for multi-platform fits, choose \code{platform}.
 #'
 #' multiGGMr fits do not store variable names, so the nodes are labelled
 #' \code{V1, ..., Vp} unless \code{varnames} is given.
 #'
 #' @param fit A \code{multiggm_fit}, \code{multiggm_fit_list} or
 #'   \code{multiggm_platform_fit}.
-#' @param chain Chain to use for a \code{multiggm_fit_list}. Default 1.
+#' @param chain For a \code{multiggm_fit_list}: \code{NULL} (default) pools
+#'   all chains; an integer selects chains.
 #' @param platform Platform to use for a \code{multiggm_platform_fit}.
 #' @param varnames Optional variable names.
 #' @param ... Ignored.
@@ -43,7 +44,7 @@ pip_table.multiggm_fit <- function(fit, varnames = NULL, ...) {
 
 #' @rdname multiggm-accessors
 #' @export
-pip_table.multiggm_fit_list <- function(fit, chain = 1L, varnames = NULL, ...) {
+pip_table.multiggm_fit_list <- function(fit, chain = NULL, varnames = NULL, ...) {
   .pip_array_to_table(pip_edges(fit, chain = chain), varnames)
 }
 
@@ -61,8 +62,12 @@ pcor_estimate.multiggm_fit <- function(fit, varnames = NULL, ...) {
 
 #' @rdname multiggm-accessors
 #' @export
-pcor_estimate.multiggm_fit_list <- function(fit, chain = 1L, varnames = NULL, ...) {
-  .name_pcor(fitted(fit$chains[[chain]]), varnames)
+pcor_estimate.multiggm_fit_list <- function(fit, chain = NULL, varnames = NULL, ...) {
+  if (!is.null(chain)) {
+    fit$chains <- fit$chains[chain]
+    if (length(fit$chains) == 1L) return(.name_pcor(fitted(fit$chains[[1]]), varnames))
+  }
+  .name_pcor(fitted(fit), varnames)
 }
 
 #' @rdname multiggm-accessors

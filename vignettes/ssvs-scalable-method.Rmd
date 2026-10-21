@@ -212,7 +212,7 @@ indicators.
 | `a`, `b` | 1, 4 | Beta(1, 4) prior on edge inclusion log-odds $\nu_{ij}$; gives prior $P(\text{edge}) \approx 0.20$ |
 | `alpha`, `beta` | 2, 5 | Gamma(2, rate=5) slab prior on $\theta_{km}$; mean = 0.4 |
 | `w` | 0.9 | $P(\gamma_{km} = 1)$; strong prior belief that groups share structure |
-| `alpha_prop`, `beta_prop` | 1, 1 | Gamma proposal for $\theta_{km}$ MH step (scale parameterization) |
+| `alpha_prop`, `beta_prop` | 1, 1 | Gamma(shape, rate) proposal for $\theta_{km}$ MH step; `beta_prop` is a rate, like `beta` |
 
 ### Tuning recommendations
 

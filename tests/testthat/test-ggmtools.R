@@ -25,3 +25,17 @@ test_that("roc_auc from ggmtools handles tied PIPs", {
   score <- matrix(0, 6, 6)                       # every edge tied at 0
   expect_equal(roc_auc(score, truth)$auc, 0.5)
 })
+
+test_that("multi-chain accessors pool chains by default", {
+  sim <- simulate_multiggm(K = 2, p = 5, n = 60, seed = 2)
+  fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 40, nsave = 20,
+                       nchains = 2, seed = 1)
+  pip <- pip_edges(fit)
+  pt <- pip_table(fit)
+  expect_equal(pt$pip[pt$group == "Group_1"], pip[, , 1][upper.tri(pip[, , 1])])
+  expect_equal(pip_table(fit, chain = 2)$pip,
+               pip_table(fit$chains[[2]])$pip)
+  expect_equal(unname(pcor_estimate(fit)$Group_2), unname(fitted(fit)$Group_2))
+  expect_equal(unname(pcor_estimate(fit, chain = 1)$Group_1),
+               unname(fitted(fit$chains[[1]])$Group_1))
+})
