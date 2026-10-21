@@ -342,7 +342,7 @@ for (method_name in c("G-Wishart", "SSVS")) {
   cm <- if (method_name == "G-Wishart") cm_gw else cm_ssvs
   for (k in seq_along(cm)) {
     cat(sprintf("%s Group %d: TPR=%.2f, FPR=%.2f\n",
-                method_name, k, cm[[k]]["TPR"], cm[[k]]["FPR"]))
+                method_name, k, cm[[k]]$TPR, cm[[k]]$FPR))
   }
 }
 #> G-Wishart Group 1: TPR=0.83, FPR=0.04

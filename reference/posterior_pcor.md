@@ -52,7 +52,7 @@ matrix.
 
 ## See also
 
-[`precision_to_pcor()`](https://mljaniczek.github.io/multiGGMr/reference/precision_to_pcor.md),
+[`precision_to_pcor()`](https://rdrr.io/pkg/ggmtools/man/precision_to_pcor.html),
 [`posterior_ci()`](https://mljaniczek.github.io/multiGGMr/reference/posterior_ci.md),
 [`fitted.multiggm_fit()`](https://mljaniczek.github.io/multiGGMr/reference/fitted.multiggm_fit.md)
 

@@ -33,14 +33,14 @@ plot_recovery(fit, true_adj, pip_threshold = 0.5, groups = NULL)
 
 A named list of confusion metric vectors per group (invisible). Each
 element is a named numeric vector as returned by
-[`confusion_at_threshold`](https://mljaniczek.github.io/multiGGMr/reference/confusion_at_threshold.md),
+[`confusion_at_threshold`](https://rdrr.io/pkg/ggmtools/man/confusion_at_threshold.html),
 with components `TP`, `FP`, `TN`, `FN`, `TPR`, `FPR`.
 
 ## See also
 
-[`confusion_at_threshold()`](https://mljaniczek.github.io/multiGGMr/reference/confusion_at_threshold.md),
-[`roc_auc()`](https://mljaniczek.github.io/multiGGMr/reference/roc_auc.md),
-[`plot_roc()`](https://mljaniczek.github.io/multiGGMr/reference/plot_roc.md)
+[`confusion_at_threshold()`](https://rdrr.io/pkg/ggmtools/man/confusion_at_threshold.html),
+[`roc_auc()`](https://rdrr.io/pkg/ggmtools/man/roc_auc.html),
+[`plot_roc()`](https://rdrr.io/pkg/ggmtools/man/plot_roc.html)
 
 ## Examples
 
@@ -50,6 +50,28 @@ fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 200, nsave = 100)
 cm <- plot_recovery(fit, sim$adj_list)
 
 cm$Group_1  # confusion metrics for group 1
-#>         TP         FP         TN         FN        TPR        FPR 
-#>  8.0000000  0.0000000 15.0000000  5.0000000  0.6153846  0.0000000 
+#> $TP
+#> [1] 8
+#> 
+#> $FP
+#> [1] 0
+#> 
+#> $TN
+#> [1] 15
+#> 
+#> $FN
+#> [1] 5
+#> 
+#> $TPR
+#> [1] 0.6153846
+#> 
+#> $FPR
+#> [1] 0
+#> 
+#> $precision
+#> [1] 1
+#> 
+#> $F1
+#> [1] 0.7619048
+#> 
 ```

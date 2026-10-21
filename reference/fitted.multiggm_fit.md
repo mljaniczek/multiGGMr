@@ -49,7 +49,7 @@ element-wise. This is computed via
 
 [`coef.multiggm_fit()`](https://mljaniczek.github.io/multiGGMr/reference/coef.multiggm_fit.md),
 [`posterior_pcor()`](https://mljaniczek.github.io/multiGGMr/reference/posterior_pcor.md),
-[`precision_to_pcor()`](https://mljaniczek.github.io/multiGGMr/reference/precision_to_pcor.md)
+[`precision_to_pcor()`](https://rdrr.io/pkg/ggmtools/man/precision_to_pcor.html)
 
 ## Examples
 

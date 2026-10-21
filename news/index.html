@@ -41,6 +41,22 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="multiggm-development-version">multiGGM (development version)<a class="anchor" aria-label="anchor" href="#multiggm-development-version"></a></h2>
 <div class="section level3">
+<h3 id="shared-tools-ggmtools-development-version">Shared tools: ggmtools<a class="anchor" aria-label="anchor" href="#shared-tools-ggmtools-development-version"></a></h3>
+<ul><li>
+<code><a href="https://rdrr.io/pkg/ggmtools/man/precision_to_pcor.html" class="external-link">precision_to_pcor()</a></code>, <code><a href="https://rdrr.io/pkg/ggmtools/man/confusion_at_threshold.html" class="external-link">confusion_at_threshold()</a></code>, <code><a href="https://rdrr.io/pkg/ggmtools/man/roc_auc.html" class="external-link">roc_auc()</a></code> and <code><a href="https://rdrr.io/pkg/ggmtools/man/plot_roc.html" class="external-link">plot_roc()</a></code> now come from the new package ggmtools and are re-exported. spikeyglass re-exports the same functions, so attaching both packages no longer gives conflicting versions.</li>
+<li>
+<strong><code><a href="https://rdrr.io/pkg/ggmtools/man/roc_auc.html" class="external-link">roc_auc()</a></code> now handles tied scores correctly.</strong> The previous version accumulated one edge at a time in sorted order, so tied edges (e.g. PIPs of exactly 0 or 1) were ordered by matrix position. That made the AUC depend on variable order and could bias it by several hundredths. The curve now steps only at distinct scores, and the AUC equals the Mann-Whitney statistic. With no tied scores, the AUC is unchanged.</li>
+<li>
+<code><a href="https://rdrr.io/pkg/ggmtools/man/roc_auc.html" class="external-link">roc_auc()</a></code> returns <code>NA</code> for <code>auc</code> (instead of an error) when the truth has no edges or no non-edges.</li>
+<li>
+<code><a href="https://rdrr.io/pkg/ggmtools/man/confusion_at_threshold.html" class="external-link">confusion_at_threshold()</a></code> returns a list (was a named numeric vector) with <code>precision</code> and <code>F1</code> added, and its third argument is now called <code>threshold</code> (was <code>thr</code>), with default 0.5. Use <code>cm$TPR</code> rather than <code>cm["TPR"]</code>. <code><a href="../reference/plot_recovery.html">plot_recovery()</a></code> returns these lists.</li>
+<li>
+<code><a href="https://rdrr.io/pkg/ggmtools/man/plot_roc.html" class="external-link">plot_roc()</a></code> now uses base graphics and returns the ROC list invisibly (it previously returned a ggplot object). It gains <code>add = TRUE</code> to overlay curves.</li>
+<li>
+<code><a href="https://rdrr.io/pkg/ggmtools/man/precision_to_pcor.html" class="external-link">precision_to_pcor()</a></code> returns a matrix of <code>NA</code> with a warning (instead of an error) for a non-positive diagonal, and keeps dimnames.</li>
+<li>New methods for the ggmtools generics <code><a href="https://rdrr.io/pkg/ggmtools/man/pip_table.html" class="external-link">pip_table()</a></code> (PIPs as a long edge table) and <code><a href="https://rdrr.io/pkg/ggmtools/man/pcor_estimate.html" class="external-link">pcor_estimate()</a></code> (posterior-mean partial correlations, one matrix per group). Scripts written with these work on spikeyglass fits too.</li>
+</ul></div>
+<div class="section level3">
 <h3 id="bug-fixes-development-version">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-development-version"></a></h3>
 <ul><li>SSVS and multi-platform samplers: the spike-and-slab update of the graph similarity <code>theta</code> (inherited from the Matlab reference) drew its proposal with <code>beta_prop</code> as a scale but used it as a rate in the acceptance ratio, and had the sign of the <code>(alpha - alpha_prop) * log(theta)</code> term reversed for spike-to-slab moves. The platform similarity <code>Phi</code> had the same sign error and mixed scale and rate in its normalizing terms. The ratios are now computed from explicit gamma densities (as the G-Wishart sampler already did). Default SSVS fits are essentially unchanged (<code>beta_prop = 1</code>, <code>w = 0.9</code>); fits with smaller <code>w</code>, <code>beta_prop != 1</code>, or the multi-platform sampler will differ. <code>beta_prop</code> is now a rate for every sampler.</li>
 <li>A partial <code>hyper</code> list no longer wipes out the other defaults for the G-Wishart and SSVS samplers. Unknown hyperparameter names are now an error.</li>
@@ -48,8 +64,6 @@
 <code>simulate_multiggm(K = 1)</code> returned two groups.</li>
 <li>
 <code><a href="../reference/simulate_multiggm_platform.html">simulate_multiggm_platform()</a></code> now shares one base graph across platforms (it drew an independent graph per platform); the data-generating process is documented, and the base and platform graphs are returned.</li>
-<li>
-<code><a href="../reference/roc_auc.html">roc_auc()</a></code> handles tied scores: the AUC no longer depends on edge order.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="changes-development-version">Changes<a class="anchor" aria-label="anchor" href="#changes-development-version"></a></h3>

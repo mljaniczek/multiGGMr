@@ -77,7 +77,7 @@ are drawn as a side effect using igraph).
 [`plot_trace()`](https://mljaniczek.github.io/multiGGMr/reference/plot_trace.md),
 [`plot_pip_heatmap()`](https://mljaniczek.github.io/multiGGMr/reference/plot_pip_heatmap.md),
 [`plot_network()`](https://mljaniczek.github.io/multiGGMr/reference/plot_network.md),
-[`plot_roc()`](https://mljaniczek.github.io/multiGGMr/reference/plot_roc.md),
+[`plot_roc()`](https://rdrr.io/pkg/ggmtools/man/plot_roc.html),
 [`plot_recovery()`](https://mljaniczek.github.io/multiGGMr/reference/plot_recovery.md)
 
 ## Examples

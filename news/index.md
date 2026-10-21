@@ -2,6 +2,44 @@
 
 ## multiGGM (development version)
 
+### Shared tools: ggmtools
+
+- [`precision_to_pcor()`](https://rdrr.io/pkg/ggmtools/man/precision_to_pcor.html),
+  [`confusion_at_threshold()`](https://rdrr.io/pkg/ggmtools/man/confusion_at_threshold.html),
+  [`roc_auc()`](https://rdrr.io/pkg/ggmtools/man/roc_auc.html) and
+  [`plot_roc()`](https://rdrr.io/pkg/ggmtools/man/plot_roc.html) now
+  come from the new package ggmtools and are re-exported. spikeyglass
+  re-exports the same functions, so attaching both packages no longer
+  gives conflicting versions.
+- **[`roc_auc()`](https://rdrr.io/pkg/ggmtools/man/roc_auc.html) now
+  handles tied scores correctly.** The previous version accumulated one
+  edge at a time in sorted order, so tied edges (e.g. PIPs of exactly 0
+  or 1) were ordered by matrix position. That made the AUC depend on
+  variable order and could bias it by several hundredths. The curve now
+  steps only at distinct scores, and the AUC equals the Mann-Whitney
+  statistic. With no tied scores, the AUC is unchanged.
+- [`roc_auc()`](https://rdrr.io/pkg/ggmtools/man/roc_auc.html) returns
+  `NA` for `auc` (instead of an error) when the truth has no edges or no
+  non-edges.
+- [`confusion_at_threshold()`](https://rdrr.io/pkg/ggmtools/man/confusion_at_threshold.html)
+  returns a list (was a named numeric vector) with `precision` and `F1`
+  added, and its third argument is now called `threshold` (was `thr`),
+  with default 0.5. Use `cm$TPR` rather than `cm["TPR"]`.
+  [`plot_recovery()`](https://mljaniczek.github.io/multiGGMr/reference/plot_recovery.md)
+  returns these lists.
+- [`plot_roc()`](https://rdrr.io/pkg/ggmtools/man/plot_roc.html) now
+  uses base graphics and returns the ROC list invisibly (it previously
+  returned a ggplot object). It gains `add = TRUE` to overlay curves.
+- [`precision_to_pcor()`](https://rdrr.io/pkg/ggmtools/man/precision_to_pcor.html)
+  returns a matrix of `NA` with a warning (instead of an error) for a
+  non-positive diagonal, and keeps dimnames.
+- New methods for the ggmtools generics
+  [`pip_table()`](https://rdrr.io/pkg/ggmtools/man/pip_table.html) (PIPs
+  as a long edge table) and
+  [`pcor_estimate()`](https://rdrr.io/pkg/ggmtools/man/pcor_estimate.html)
+  (posterior-mean partial correlations, one matrix per group). Scripts
+  written with these work on spikeyglass fits too.
+
 ### Bug fixes
 
 - SSVS and multi-platform samplers: the spike-and-slab update of the
@@ -24,8 +62,6 @@
   now shares one base graph across platforms (it drew an independent
   graph per platform); the data-generating process is documented, and
   the base and platform graphs are returned.
-- [`roc_auc()`](https://mljaniczek.github.io/multiGGMr/reference/roc_auc.md)
-  handles tied scores: the AUC no longer depends on edge order.
 
 ### Changes
 

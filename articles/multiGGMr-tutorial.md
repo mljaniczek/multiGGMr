@@ -209,8 +209,8 @@ cm <- plot_recovery(fit, sim$adj_list, pip_threshold = 0.5)
 
 for (k in seq_along(cm)) {
   cat(sprintf("Group %d: TP=%d, FP=%d, FN=%d, TN=%d, TPR=%.2f, FPR=%.2f\n",
-              k, cm[[k]]["TP"], cm[[k]]["FP"], cm[[k]]["FN"], cm[[k]]["TN"],
-              cm[[k]]["TPR"], cm[[k]]["FPR"]))
+              k, cm[[k]]$TP, cm[[k]]$FP, cm[[k]]$FN, cm[[k]]$TN,
+              cm[[k]]$TPR, cm[[k]]$FPR))
 }
 #> Group 1: TP=15, FP=70, FN=0, TN=105, TPR=1.00, FPR=0.40
 #> Group 2: TP=30, FP=59, FN=2, TN=99, TPR=0.94, FPR=0.37
@@ -344,15 +344,15 @@ summary(fit_mc$chains[[1]], pip_threshold = 0.3)
 #> 
 #> Acceptance rates:
 #>   gamma (edge toggle): 0.2% 
-#>   theta (within-model): 3.5% 
-#>   nu (edge log-odds): 61.9% 
+#>   theta (within-model): 3.6% 
+#>   nu (edge log-odds): 61.7% 
 #> 
 #> Selected edges (PIP >= 0.3 ):
-#>   Group 1 : 190 edges
-#>   Group 2 : 190 edges
+#>   Group 1 : 186 edges
+#>   Group 2 : 186 edges
 #> 
 #> Graph similarity (theta):
-#>   theta[1,2]: mean = 2.624, P(nonzero) = 100.0%
+#>   theta[1,2]: mean = 1.868, P(nonzero) = 100.0%
 ```
 
 Most utility functions accept a `chain` argument to select which chain
@@ -367,7 +367,7 @@ pip_c2 <- pip_edges(fit_mc, chain = 2)
 idx <- upper.tri(pip_c1[, , 1])
 cat(sprintf("PIP correlation between chain 1 and 2 (Group 1): %.3f\n",
             cor(pip_c1[, , 1][idx], pip_c2[, , 1][idx])))
-#> PIP correlation between chain 1 and 2 (Group 1): 0.695
+#> PIP correlation between chain 1 and 2 (Group 1): 0.832
 ```
 
 ### Comparing trace plots across chains
@@ -443,12 +443,12 @@ summary(fit_mc, pip_threshold = 0.5)
 #> multiGGM MCMC Summary: 3 chains, K = 2
 #> ==========================================
 #> Pooled selected edges (PIP >= 0.5 ):
-#>   Group 1: 188 edges
-#>   Group 2: 187 edges
+#>   Group 1: 170 edges
+#>   Group 2: 170 edges
 #> 
 #> Largest difference in PIP between chains:
-#>   Group 1: 0.563
-#>   Group 2: 0.558
+#>   Group 1: 0.676
+#>   Group 2: 0.665
 #> 
 #> --- Chain 1 ---
 #> multiGGM MCMC Summary
@@ -457,15 +457,15 @@ summary(fit_mc, pip_threshold = 0.5)
 #> 
 #> Acceptance rates:
 #>   gamma (edge toggle): 0.2% 
-#>   theta (within-model): 3.5% 
-#>   nu (edge log-odds): 61.9% 
+#>   theta (within-model): 3.6% 
+#>   nu (edge log-odds): 61.7% 
 #> 
 #> Selected edges (PIP >= 0.5 ):
-#>   Group 1 : 188 edges
-#>   Group 2 : 188 edges
+#>   Group 1 : 167 edges
+#>   Group 2 : 168 edges
 #> 
 #> Graph similarity (theta):
-#>   theta[1,2]: mean = 2.624, P(nonzero) = 100.0%
+#>   theta[1,2]: mean = 1.868, P(nonzero) = 100.0%
 #> 
 #> 
 #> --- Chain 2 ---
@@ -476,14 +476,14 @@ summary(fit_mc, pip_threshold = 0.5)
 #> Acceptance rates:
 #>   gamma (edge toggle): 0.2% 
 #>   theta (within-model): 2.4% 
-#>   nu (edge log-odds): 67.1% 
+#>   nu (edge log-odds): 66.0% 
 #> 
 #> Selected edges (PIP >= 0.5 ):
-#>   Group 1 : 184 edges
-#>   Group 2 : 184 edges
+#>   Group 1 : 149 edges
+#>   Group 2 : 151 edges
 #> 
 #> Graph similarity (theta):
-#>   theta[1,2]: mean = 2.276, P(nonzero) = 100.0%
+#>   theta[1,2]: mean = 1.706, P(nonzero) = 100.0%
 #> 
 #> 
 #> --- Chain 3 ---
@@ -493,15 +493,15 @@ summary(fit_mc, pip_threshold = 0.5)
 #> 
 #> Acceptance rates:
 #>   gamma (edge toggle): 0.0% 
-#>   theta (within-model): 2.1% 
-#>   nu (edge log-odds): 65.3% 
+#>   theta (within-model): 1.9% 
+#>   nu (edge log-odds): 66.8% 
 #> 
 #> Selected edges (PIP >= 0.5 ):
-#>   Group 1 : 180 edges
-#>   Group 2 : 181 edges
+#>   Group 1 : 173 edges
+#>   Group 2 : 175 edges
 #> 
 #> Graph similarity (theta):
-#>   theta[1,2]: mean = 2.072, P(nonzero) = 100.0%
+#>   theta[1,2]: mean = 1.988, P(nonzero) = 100.0%
 ```
 
 To work with the raw draws yourself, concatenate the saved arrays along
@@ -527,7 +527,7 @@ pip_pooled <- apply(pool_adj, c(1, 2, 3), mean)
 
 cat(sprintf("Pooled edges (PIP > 0.5, Group 1): %d\n",
             sum(pip_pooled[, , 1][upper.tri(pip_pooled[, , 1])] > 0.5)))
-#> Pooled edges (PIP > 0.5, Group 1): 188
+#> Pooled edges (PIP > 0.5, Group 1): 170
 ```
 
 ### Summary of multi-chain functions
