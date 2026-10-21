@@ -13,3 +13,6 @@ src/*.dll
 # Papers and other reference files belong outside the package
 /*.pdf
 /*.html
+# Claude Code: per-session worktrees and personal settings
+.claude/worktrees/
+.claude/settings.local.json
