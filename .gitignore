@@ -4,3 +4,12 @@
 .Ruserdata
 .positai
 docs
+# Build outputs
+src/*.o
+src/*.so
+src/*.dll
+*.Rcheck/
+*.tar.gz
+# Papers and other reference files belong outside the package
+/*.pdf
+/*.html

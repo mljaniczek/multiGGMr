@@ -4,8 +4,6 @@
 
 #include <RcppEigen.h>
 
-#define EIGEN_USE_BLAS
-#define EIGEN_USE_LAPACKE
 
 // [[Rcpp::plugins("cpp11")]]
 // [[Rcpp::depends(RcppEigen)]]

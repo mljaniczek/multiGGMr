@@ -7,8 +7,8 @@
 plot_trace(fit, what = c("theta", "edges"))
 }
 \arguments{
-\item{fit}{A \code{multiggm_fit} object returned by
-\code{\link{multiggm_mcmc}}.}
+\item{fit}{A \code{multiggm_fit} or \code{multiggm_fit_list} object
+returned by \code{\link{multiggm_mcmc}}; chains are overlaid in colour.}
 
 \item{what}{Character; what to plot:
 \describe{

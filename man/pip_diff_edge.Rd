@@ -4,14 +4,14 @@
 \alias{pip_diff_edge}
 \title{Posterior probability of differential edge inclusion (K=2)}
 \usage{
-pip_diff_edge(fit, chain = 1L)
+pip_diff_edge(fit, chain = NULL)
 }
 \arguments{
 \item{fit}{A \code{multiggm_fit} object (single chain) or
 \code{multiggm_fit_list} object. Must have \code{K = 2}.}
 
-\item{chain}{Integer; which chain to use if \code{fit} is a
-\code{multiggm_fit_list}. Default 1.}
+\item{chain}{\code{NULL} (default) pools the draws of all chains of a
+\code{multiggm_fit_list}; an integer vector selects chains.}
 }
 \value{
 A symmetric numeric matrix \code{[p, p]} where entry \code{[i,j]}

@@ -4,8 +4,6 @@
 
 #include <RcppEigen.h>
 
-#define EIGEN_USE_BLAS
-#define EIGEN_USE_LAPACKE
 #define pi 3.141592653589793
 #define s2pi 2.506628274631
 

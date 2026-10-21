@@ -7,8 +7,6 @@
 #include <math.h>     
 #include <vector>
 
-#define EIGEN_USE_BLAS
-#define EIGEN_USE_LAPACKE
 
 // [[Rcpp::depends(RcppEigen)]]
 // [[Rcpp::depends(BH)]] 

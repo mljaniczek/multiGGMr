@@ -3,8 +3,6 @@
 // Modified for multiGGM; every change is listed in inst/mghs/UPSTREAM.md.
 
 #include <RcppEigen.h>
-#define EIGEN_USE_BLAS
-#define EIGEN_USE_LAPACKE
 #define pi 3.141592653589793
 
 // [[Rcpp::plugins("cpp11")]]

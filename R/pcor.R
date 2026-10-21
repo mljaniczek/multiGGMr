@@ -45,8 +45,8 @@ precision_to_pcor <- function(Omega) {
 #'     \item{\code{"Sig_save"}}{Use the covariance matrix draws, inverting
 #'       each to get precision first. Slower; mainly for cross-checking.}
 #'   }
-#' @param chain Integer; which chain to use if \code{fit} is a
-#'   \code{multiggm_fit_list}. Default 1.
+#' @param chain \code{NULL} (default) pools the draws of all chains of a
+#'   \code{multiggm_fit_list}; an integer vector selects chains.
 #'
 #' @return A numeric array of dimension \code{[p, p, K, nsave]}. Entry
 #'   \code{pcor[i, j, k, s]} is the partial correlation between variables
@@ -68,18 +68,22 @@ precision_to_pcor <- function(Omega) {
 #'
 #' @seealso [precision_to_pcor()], [posterior_ci()], [fitted.multiggm_fit()]
 #' @export
-posterior_pcor <- function(fit, use = c("C_save", "Sig_save"), chain = 1L) {
+posterior_pcor <- function(fit, use = c("C_save", "Sig_save"), chain = NULL) {
   use <- match.arg(use)
-  if (inherits(fit, "multiggm_fit_list")) fit <- fit$chains[[chain]]
-  if (!inherits(fit, "multiggm_fit")) stop("fit must be multiggm_fit or multiggm_fit_list")
+  arrs <- lapply(.fit_chains(fit, chain), .posterior_pcor_one, use = use)
+  if (length(arrs) == 1L) return(arrs[[1]])
+  d <- dim(arrs[[1]])
+  array(unlist(arrs, use.names = FALSE),
+        dim = c(d[1:3], sum(vapply(arrs, function(x) dim(x)[4], numeric(1)))))
+}
+
+.posterior_pcor_one <- function(fit, use) {
   if (is.null(fit[[use]]))
     stop("This fit has no ", use, " draws. mGHS fits store precision draws ",
          "only (C_save), and none when save_draws = FALSE; use coef(), ",
          "fitted() or diff_summary() instead.", call. = FALSE)
-
   p <- fit$p; K <- fit$K
   nsave <- dim(fit[[use]])[4]
-
   if (use == "C_save") {
     Omega <- fit$C_save
   } else {
@@ -91,18 +95,15 @@ posterior_pcor <- function(fit, use = c("C_save", "Sig_save"), chain = 1L) {
       }
     }
   }
-
   pcor <- array(0, dim = c(p, p, K, nsave))
   for (s in seq_len(nsave)) {
     for (k in seq_len(K)) {
       Om <- Omega[, , k, s]
       d <- sqrt(pmax(diag(Om), .Machine$double.eps))
-      denom <- outer(d, d)
-      R <- -Om / denom
+      R <- -Om / outer(d, d)
       diag(R) <- 1
       # force symmetry for numerical noise
-      R <- 0.5 * (R + t(R))
-      pcor[, , k, s] <- R
+      pcor[, , k, s] <- 0.5 * (R + t(R))
     }
   }
   pcor
@@ -200,8 +201,8 @@ diff_prob_pcor <- function(pcor, delta = 0) {
 #'
 #' @param fit A \code{multiggm_fit} object (single chain),
 #'   \code{multiggm_fit_list} object, or \code{multiggm_platform_fit} object.
-#' @param chain Integer; which chain to use if \code{fit} is a
-#'   \code{multiggm_fit_list}. Default 1.
+#' @param chain \code{NULL} (default) pools the draws of all chains of a
+#'   \code{multiggm_fit_list}; an integer vector selects chains.
 #' @param platform Integer; which platform to extract (required for
 #'   \code{multiggm_platform_fit} objects). Ignored for single-platform fits.
 #'
@@ -221,19 +222,27 @@ diff_prob_pcor <- function(pcor, delta = 0) {
 #' @seealso [pip_diff_edge()], [confusion_at_threshold()], [roc_auc()]
 #' @export
 #'
-pip_edges <- function(fit, chain = 1L, platform = NULL) {
+pip_edges <- function(fit, chain = NULL, platform = NULL) {
   if (inherits(fit, "multiggm_platform_fit")) {
     if (is.null(platform)) stop("For multiggm_platform_fit, specify 'platform' argument.")
     plat <- fit$platforms[[platform]]
     A <- plat$adj_save
     return(apply(A, c(1,2,3), mean, na.rm = TRUE))
   }
-  if (inherits(fit, "multiggm_fit_list")) fit <- fit$chains[[chain]]
-  .require_indicators(fit, "pip_edges()")
-  A <- fit$adj_save
-  # A is [p,p,K,nsave] integer
-  apply(A, c(1,2,3), mean, na.rm = TRUE)
-  # TODO make this a list of matrices rather than an array and label the rows and columns of the array by feature names
+  .pooled_mean(.fit_chains(fit, chain), "pip_edges()", function(A) A)
+}
+
+# Average of f(adj_save) over all draws of the given chains.
+.pooled_mean <- function(chains, fn, f) {
+  tot <- NULL; n <- 0
+  for (ch in chains) {
+    .require_indicators(ch, fn)
+    x <- f(ch$adj_save)
+    s <- apply(x, seq_len(length(dim(x)) - 1L), sum)
+    tot <- if (is.null(tot)) s else tot + s
+    n <- n + dim(x)[length(dim(x))]
+  }
+  tot / n
 }
 
 #' Posterior probability of differential edge inclusion (K=2)
@@ -244,8 +253,8 @@ pip_edges <- function(fit, chain = 1L, platform = NULL) {
 #'
 #' @param fit A \code{multiggm_fit} object (single chain) or
 #'   \code{multiggm_fit_list} object. Must have \code{K = 2}.
-#' @param chain Integer; which chain to use if \code{fit} is a
-#'   \code{multiggm_fit_list}. Default 1.
+#' @param chain \code{NULL} (default) pools the draws of all chains of a
+#'   \code{multiggm_fit_list}; an integer vector selects chains.
 #'
 #' @return A symmetric numeric matrix \code{[p, p]} where entry \code{[i,j]}
 #'   is the posterior probability that edge (i,j) has different inclusion
@@ -259,13 +268,11 @@ pip_edges <- function(fit, chain = 1L, platform = NULL) {
 #'
 #' @seealso [pip_edges()], [diff_prob_pcor()]
 #' @export
-pip_diff_edge <- function(fit, chain = 1L) {
-  if (inherits(fit, "multiggm_fit_list")) fit <- fit$chains[[chain]]
-  .require_indicators(fit, "pip_diff_edge()")
-  A <- fit$adj_save
-  stopifnot(dim(A)[3] == 2L)
-  d <- (A[, , 1, ] != A[, , 2, ])
-  apply(d, c(1,2), mean, na.rm = TRUE)
+pip_diff_edge <- function(fit, chain = NULL) {
+  chains <- .fit_chains(fit, chain)
+  if (chains[[1]]$K != 2L) stop("pip_diff_edge() needs K = 2 groups.")
+  .pooled_mean(chains, "pip_diff_edge()",
+               function(A) array(A[, , 1, ] != A[, , 2, ], dim(A)[c(1, 2, 4)]))
 }
 
 #' Confusion metrics at a PIP threshold
@@ -330,8 +337,8 @@ confusion_at_threshold <- function(score_mat, truth_mat, thr, upper_only = TRUE)
 #' @param summary_fun Function to apply across posterior draws for each
 #'   matrix entry. Default \code{mean}. Other useful choices include
 #'   \code{median} or \code{sd}.
-#' @param chain Integer; which chain to use if \code{fit} is a
-#'   \code{multiggm_fit_list}. Default 1.
+#' @param chain \code{NULL} (default) pools the draws of all chains of a
+#'   \code{multiggm_fit_list}; an integer vector selects chains.
 #'
 #' @return A named list of K numeric matrices (each p x p). List names are
 #'   \code{"Group_1"}, \code{"Group_2"}, etc.
@@ -346,20 +353,23 @@ confusion_at_threshold <- function(score_mat, truth_mat, thr, upper_only = TRUE)
 #'
 #' @seealso [coef.multiggm_fit()], [posterior_pcor()]
 #' @export
-posterior_precision <- function(fit, summary_fun = mean, chain = 1L) {
-  if (inherits(fit, "multiggm_fit_list")) fit <- fit$chains[[chain]]
-  K <- fit$K
-  if (is.null(fit$C_save)) {
-    if (!identical(summary_fun, mean) || is.null(fit$C_mean))
+posterior_precision <- function(fit, summary_fun = mean, chain = NULL) {
+  chains <- .fit_chains(fit, chain)
+  K <- chains[[1]]$K; p <- chains[[1]]$p
+  if (any(vapply(chains, function(ch) is.null(ch$C_save), logical(1)))) {
+    if (!identical(summary_fun, mean) ||
+        any(vapply(chains, function(ch) is.null(ch$C_mean), logical(1))))
       stop("This fit did not save posterior draws (save_draws = FALSE); ",
            "only the posterior mean is available.", call. = FALSE)
-    out <- lapply(seq_len(K), function(k) fit$C_mean[, , k])
-    names(out) <- paste0("Group_", seq_len(K))
-    return(out)
-  }
-  out <- vector("list", K)
-  for (k in seq_len(K)) {
-    out[[k]] <- apply(fit$C_save[, , k, , drop = FALSE], c(1, 2), summary_fun)
+    wts <- vapply(chains, function(ch) as.numeric(ch$n_post), numeric(1))
+    C_mean <- Reduce(`+`, Map(function(ch, w) ch$C_mean * w, chains, wts)) / sum(wts)
+    out <- lapply(seq_len(K), function(k) C_mean[, , k])
+  } else {
+    C <- if (length(chains) == 1L) chains[[1]]$C_save else
+      array(unlist(lapply(chains, `[[`, "C_save"), use.names = FALSE),
+            dim = c(p, p, K, sum(vapply(chains, function(ch) dim(ch$C_save)[4], numeric(1)))))
+    out <- lapply(seq_len(K), function(k)
+      apply(C[, , k, , drop = FALSE], c(1, 2), summary_fun))
   }
   names(out) <- paste0("Group_", seq_len(K))
   out
@@ -372,7 +382,9 @@ posterior_precision <- function(fit, summary_fun = mean, chain = 1L) {
 #'
 #' @param fit A \code{multiggm_fit} or \code{multiggm_fit_list} object.
 #' @param chain Integer; which chain to use if \code{fit} is a
-#'   \code{multiggm_fit_list}. Default 1.
+#'   \code{multiggm_fit_list}. Default 1. Unlike the posterior summaries,
+#'   edge counts are a per-chain trace, so chains are not pooled; use
+#'   \code{plot(fit_list, type = "trace_edges")} to overlay chains.
 #'
 #' @return An integer matrix with \code{nsave} rows and \code{K} columns.
 #'   Entry \code{[s, k]} is the number of edges (upper triangle only) in
@@ -424,9 +436,13 @@ edge_counts <- function(fit, chain = 1L) {
 #'       threshold (starts at 0, ends at 1).}
 #'     \item{\code{TPR}}{Numeric vector; true positive rates at each
 #'       threshold (starts at 0, ends at 1).}
-#'     \item{\code{auc}}{Numeric scalar; area under the ROC curve.
-#'       Values near 1 indicate excellent discrimination.}
+#'     \item{\code{auc}}{Numeric scalar; area under the ROC curve, i.e. the
+#'       probability that a true edge scores higher than a non-edge, with
+#'       ties counted as 1/2. Values near 1 indicate excellent
+#'       discrimination; 0.5 is chance.}
 #'   }
+#'   Tied scores share one threshold, so the curve and the AUC do not
+#'   depend on the order of the edges.
 #'
 #' @examples
 #' sim <- simulate_multiggm(K = 2, p = 8, n = 80, seed = 1)
@@ -443,19 +459,20 @@ roc_auc <- function(score_mat, truth_mat) {
   s <- score_mat[idx]
   y <- truth_mat[idx] > 0
 
-  ord <- order(s, decreasing = TRUE)
-  s <- s[ord]; y <- y[ord]
-
   P <- sum(y); N <- sum(!y)
   if (P == 0 || N == 0) stop("Need both positives and negatives in truth_mat.")
 
-  TP <- cumsum(y)
-  FP <- cumsum(!y)
-  TPR <- TP / P
-  FPR <- FP / N
+  # One ROC point per distinct score, so tied scores form a single
+  # (diagonal) step whatever their input order.
+  thr <- sort(unique(s), decreasing = TRUE)
+  bin <- match(s, thr)
+  TPR <- cumsum(tabulate(bin[y], nbins = length(thr))) / P
+  FPR <- cumsum(tabulate(bin[!y], nbins = length(thr))) / N
 
-  # trapezoidal AUC in FPR-TPR space
-  auc <- sum(diff(c(0, FPR)) * (head(c(0, TPR), -1) + tail(c(0, TPR), -1)) / 2)
+  # Mann-Whitney form: P(score of a true edge > score of a non-edge), ties
+  # counted as 1/2. Equals the trapezoidal area under the curve above.
+  r <- rank(s)
+  auc <- (sum(r[y]) - P * (P + 1) / 2) / (P * N)
 
   list(FPR = c(0, FPR), TPR = c(0, TPR), auc = auc)
 }

@@ -4,7 +4,7 @@
 \alias{posterior_precision}
 \title{Extract posterior summary of precision matrices}
 \usage{
-posterior_precision(fit, summary_fun = mean, chain = 1L)
+posterior_precision(fit, summary_fun = mean, chain = NULL)
 }
 \arguments{
 \item{fit}{A \code{multiggm_fit} or \code{multiggm_fit_list} object.}
@@ -13,8 +13,8 @@ posterior_precision(fit, summary_fun = mean, chain = 1L)
 matrix entry. Default \code{mean}. Other useful choices include
 \code{median} or \code{sd}.}
 
-\item{chain}{Integer; which chain to use if \code{fit} is a
-\code{multiggm_fit_list}. Default 1.}
+\item{chain}{\code{NULL} (default) pools the draws of all chains of a
+\code{multiggm_fit_list}; an integer vector selects chains.}
 }
 \value{
 A named list of K numeric matrices (each p x p). List names are

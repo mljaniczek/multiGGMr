@@ -5,13 +5,14 @@
 // S data platforms (e.g., metabolomics + transcriptomics).
 //
 // Phases per iteration:
-//   1. Per-platform precision Gibbs (column-wise spike-slab) — identical to SSVS engine
+//   1. Per-platform precision Gibbs (column-wise spike-slab) - identical to SSVS engine
 //   2. Per-platform Theta update (MODIFIED: includes platform coupling term via Phi)
-//   3. Per-platform nu update — identical to SSVS engine
+//   3. Per-platform nu update - identical to SSVS engine
 //   4. Phi update (NEW: platform similarity via MH)
 //   5. w_plat update (NEW: platform-level edge log-odds via MH)
 
 #include "wangli_internal.h"
+#include "spike_slab_mh.h"
 
 // [[Rcpp::depends(RcppArmadillo)]]
 
@@ -222,7 +223,7 @@ Rcpp::List mcmc_ssvs_platform_engine_cpp(
   arma::cube Phi_save(S, S, nsave, arma::fill::zeros);
   arma::cube w_save(K, K, nsave, arma::fill::zeros);
 
-  // Acceptance tracking — per-platform
+  // Acceptance tracking - per-platform
   std::vector<arma::mat> ar_gamma(S);
   std::vector<arma::mat> ar_theta(S);
   std::vector<arma::mat> n_within_model(S);
@@ -248,6 +249,11 @@ Rcpp::List mcmc_ssvs_platform_engine_cpp(
   // =========================================================================
   // MCMC main loop
   // =========================================================================
+  // Theta's slab prior and proposal use rates (alpha/beta_rate, alpha_prop/beta_prop);
+  // Phi's use scales (eta/kappa, eta_prop/kappa_prop). The helper takes scales.
+  const GammaSpikeSlab g_theta = {alpha, 1.0 / beta_rate, alpha_prop, 1.0 / beta_prop, w_prior};
+  const GammaSpikeSlab g_phi = {eta, kappa, eta_prop, kappa_prop, u_prior};
+
   for (int iter = 1; iter <= niter; iter++) {
     if (verbose && (iter % print_every == 0)) {
       Rcpp::Rcout << "iter = " << iter << " / " << niter << std::endl;
@@ -255,7 +261,7 @@ Rcpp::List mcmc_ssvs_platform_engine_cpp(
     Rcpp::checkUserInterrupt();
 
     // -----------------------------------------------------------------------
-    // Phase 1: Update (C_k, Sig_k, adj_k) per platform — column-wise Gibbs
+    // Phase 1: Update (C_k, Sig_k, adj_k) per platform - column-wise Gibbs
     // -----------------------------------------------------------------------
     for (int s = 0; s < S; s++) {
       int p_s = p_vec[s];
@@ -384,7 +390,7 @@ Rcpp::List mcmc_ssvs_platform_engine_cpp(
     } // end platform s
 
     // -----------------------------------------------------------------------
-    // Phase 2: Update Theta[s](k,m) per platform — with platform coupling
+    // Phase 2: Update Theta[s](k,m) per platform - with platform coupling
     // -----------------------------------------------------------------------
     for (int s = 0; s < S; s++) {
       int p_s = p_vec[s];
@@ -399,7 +405,7 @@ Rcpp::List mcmc_ssvs_platform_engine_cpp(
           // Between-model move
           double theta_prop;
           if (curr_is_zero) {
-            theta_prop = R::rgamma(alpha_prop, beta_prop); // scale param
+            theta_prop = spike_slab_propose(g_theta);
           } else {
             theta_prop = 0.0;
           }
@@ -435,27 +441,8 @@ Rcpp::List mcmc_ssvs_platform_engine_cpp(
             }
           }
 
-          // Log MH ratio
-          double log_ar;
-          if (theta_prop == 0.0) {
-            // Proposing spike from slab
-            log_ar = alpha_prop * std::log(beta_prop) - ::lgamma(alpha_prop)
-                   + ::lgamma(alpha) - alpha * std::log(beta_rate)
-                   - (alpha - alpha_prop) * std::log(theta_curr)
-                   + (beta_rate - beta_prop) * theta_curr
-                   + sum_edges
-                   + std::log(1.0 - w_prior) - std::log(w_prior)
-                   + platform_term;
-          } else {
-            // Proposing slab from spike
-            log_ar = alpha * std::log(beta_rate) - ::lgamma(alpha)
-                   + ::lgamma(alpha_prop) - alpha_prop * std::log(beta_prop)
-                   - (alpha - alpha_prop) * std::log(theta_prop)
-                   - (beta_rate - beta_prop) * theta_prop
-                   + sum_edges
-                   + std::log(w_prior) - std::log(1.0 - w_prior)
-                   + platform_term;
-          }
+          double log_ar = spike_slab_log_ratio_between(theta_curr, theta_prop, g_theta)
+                        + sum_edges + platform_term;
 
           if (std::isfinite(log_ar) && log_ar > std::log(R::runif(0.0, 1.0))) {
             Theta[s](k, m) = theta_prop;
@@ -469,7 +456,7 @@ Rcpp::List mcmc_ssvs_platform_engine_cpp(
           // Within-model (slab) move
           if (Theta[s](k, m) != 0.0) {
             double theta_curr2 = Theta[s](k, m);
-            double theta_prop2 = R::rgamma(alpha_prop, beta_prop);
+            double theta_prop2 = spike_slab_propose(g_theta);
             n_within_model[s](k, m) += 1.0;
 
             arma::mat Theta_p2 = Theta[s];
@@ -479,8 +466,7 @@ Rcpp::List mcmc_ssvs_platform_engine_cpp(
             double sum_edges2 = sum_logC_diff_edges_plat(Theta[s], Theta_p2, nu[s], adj_arr[s],
                                                           k, m, theta_prop2 - theta_curr2, p_s);
 
-            double log_theta_ar = (alpha - alpha_prop) * (std::log(theta_prop2) - std::log(theta_curr2))
-                                + (beta_rate - beta_prop) * (theta_curr2 - theta_prop2)
+            double log_theta_ar = spike_slab_log_ratio_within(theta_curr2, theta_prop2, g_theta)
                                 + sum_edges2;
 
             if (std::isfinite(log_theta_ar) && log_theta_ar > std::log(R::runif(0.0, 1.0))) {
@@ -523,7 +509,7 @@ Rcpp::List mcmc_ssvs_platform_engine_cpp(
     } // end platform s
 
     // -----------------------------------------------------------------------
-    // Phase 4: Update Phi(s1, s2) — platform similarity
+    // Phase 4: Update Phi(s1, s2) - platform similarity
     // -----------------------------------------------------------------------
     if (S > 1) {
       for (int s1 = 0; s1 < S - 1; s1++) {
@@ -534,7 +520,7 @@ Rcpp::List mcmc_ssvs_platform_engine_cpp(
           // Between-model move
           double phi_prop;
           if (phi_curr == 0.0) {
-            phi_prop = R::rgamma(eta_prop, kappa_prop); // scale param
+            phi_prop = spike_slab_propose(g_phi);
           } else {
             phi_prop = 0.0;
           }
@@ -547,24 +533,8 @@ Rcpp::List mcmc_ssvs_platform_engine_cpp(
           double sum_groups = sum_logC_diff_groups(Phi, Phi_p, w_plat, xi_mats,
                                                     s1, s2, phi_prop - phi_curr, K);
 
-          double log_ar_phi;
-          if (phi_prop == 0.0) {
-            // Proposing spike from slab
-            log_ar_phi = eta_prop * std::log(kappa_prop) - ::lgamma(eta_prop)
-                       + ::lgamma(eta) - eta * std::log(kappa)
-                       - (eta - eta_prop) * std::log(phi_curr)
-                       + (1.0/kappa - 1.0/kappa_prop) * phi_curr
-                       + sum_groups
-                       + std::log(1.0 - u_prior) - std::log(u_prior);
-          } else {
-            // Proposing slab from spike
-            log_ar_phi = eta * std::log(1.0/kappa) - ::lgamma(eta)
-                       + ::lgamma(eta_prop) - eta_prop * std::log(kappa_prop)
-                       - (eta - eta_prop) * std::log(phi_prop)
-                       - (1.0/kappa - 1.0/kappa_prop) * phi_prop
-                       + sum_groups
-                       + std::log(u_prior) - std::log(1.0 - u_prior);
-          }
+          double log_ar_phi = spike_slab_log_ratio_between(phi_curr, phi_prop, g_phi)
+                            + sum_groups;
 
           if (std::isfinite(log_ar_phi) && log_ar_phi > std::log(R::runif(0.0, 1.0))) {
             Phi(s1, s2) = phi_prop;
@@ -575,7 +545,7 @@ Rcpp::List mcmc_ssvs_platform_engine_cpp(
           // Within-model move
           if (Phi(s1, s2) != 0.0) {
             double phi_curr2 = Phi(s1, s2);
-            double phi_prop2 = R::rgamma(eta_prop, kappa_prop);
+            double phi_prop2 = spike_slab_propose(g_phi);
             n_phi_within(s1, s2) += 1.0;
 
             arma::mat Phi_p2 = Phi;
@@ -585,8 +555,7 @@ Rcpp::List mcmc_ssvs_platform_engine_cpp(
             double sum_groups2 = sum_logC_diff_groups(Phi, Phi_p2, w_plat, xi_mats,
                                                        s1, s2, phi_prop2 - phi_curr2, K);
 
-            double log_phi_ar2 = (eta - eta_prop) * (std::log(phi_prop2) - std::log(phi_curr2))
-                               + (1.0/kappa - 1.0/kappa_prop) * (phi_curr2 - phi_prop2)
+            double log_phi_ar2 = spike_slab_log_ratio_within(phi_curr2, phi_prop2, g_phi)
                                + sum_groups2;
 
             if (std::isfinite(log_phi_ar2) && log_phi_ar2 > std::log(R::runif(0.0, 1.0))) {
@@ -601,7 +570,7 @@ Rcpp::List mcmc_ssvs_platform_engine_cpp(
     } // end if S > 1
 
     // -----------------------------------------------------------------------
-    // Phase 5: Update w_plat(k,m) — platform-level edge log-odds
+    // Phase 5: Update w_plat(k,m) - platform-level edge log-odds
     // -----------------------------------------------------------------------
     if (S > 1) {
       for (int k = 0; k < K - 1; k++) {
