@@ -26,6 +26,7 @@ Copyright: The mGHS sampler sources in src/ (mGHS.cpp, rgamma3p.cpp,
     inst/mghs/UPSTREAM.md.
 Encoding: UTF-8
 Imports:
+    ggmtools,
     Rcpp,
     stats,
     utils,
@@ -49,3 +50,5 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 URL: https://mljaniczek.github.io/multiGGMr/, https://github.com/mljaniczek/multiGGMr
 BugReports: https://github.com/mljaniczek/multiGGMr/issues
+Remotes:
+    mljaniczek/ggmtools

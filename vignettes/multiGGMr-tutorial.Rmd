@@ -159,8 +159,8 @@ cm <- plot_recovery(fit, sim$adj_list, pip_threshold = 0.5)
 ```{r confusion}
 for (k in seq_along(cm)) {
   cat(sprintf("Group %d: TP=%d, FP=%d, FN=%d, TN=%d, TPR=%.2f, FPR=%.2f\n",
-              k, cm[[k]]["TP"], cm[[k]]["FP"], cm[[k]]["FN"], cm[[k]]["TN"],
-              cm[[k]]["TPR"], cm[[k]]["FPR"]))
+              k, cm[[k]]$TP, cm[[k]]$FP, cm[[k]]$FN, cm[[k]]$TN,
+              cm[[k]]$TPR, cm[[k]]$FPR))
 }
 ```
 

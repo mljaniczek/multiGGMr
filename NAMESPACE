@@ -8,6 +8,14 @@ importFrom(rlang, .data)
 importFrom(igraph, graph_from_adjacency_matrix, V, "V<-", layout_with_fr)
 importFrom(igraph, plot.igraph)
 
+# Shared with other multiple-GGM packages: defined in ggmtools, re-exported
+# here (see R/reexports.R)
+importFrom(ggmtools, precision_to_pcor, confusion_at_threshold, roc_auc,
+           plot_roc, pip_table, pcor_estimate, edge_index)
+export(pip_table)
+export(pcor_estimate)
+export(edge_index)
+
 # Main fitting function
 export(multiggm_mcmc)
 
@@ -68,3 +76,9 @@ S3method(coef, multiggm_platform_fit)
 S3method(fitted, multiggm_platform_fit)
 S3method(print, multiggm_diff_selection)
 S3method(print, summary.multiggm_mghs)
+S3method(pip_table, multiggm_fit)
+S3method(pip_table, multiggm_fit_list)
+S3method(pip_table, multiggm_platform_fit)
+S3method(pcor_estimate, multiggm_fit)
+S3method(pcor_estimate, multiggm_fit_list)
+S3method(pcor_estimate, multiggm_platform_fit)
