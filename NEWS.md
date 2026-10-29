@@ -1,4 +1,42 @@
-# multiGGM (development version)
+# multiGGM 0.5.0
+
+## Posterior edge probabilities without saving draws
+
+* Every sampler except `"ssvs_platform"` now keeps running sums over all
+  post-burn-in iterations (`fit$edge_acc`) for a common family of per-edge
+  posterior probabilities. Each is counted per iteration and averaged, never
+  assembled from the groups' marginal summaries. They do not draw random
+  numbers: chains, and every existing output, are unchanged for a given seed
+  (mGHS outputs are bit-identical to 0.4.0; tested).
+  - Per group: posterior mean and SD (precision and partial correlation),
+    `P(|x| > c)`, and the structural probability: the PIP for G-Wishart and
+    SSVS; for mGHS `P(w > 0.5)` and `E[w]` with `w = lambda^2/(1 + lambda^2)`,
+    plus the cut-model `P(Z = 1)`.
+  - Per pair of groups: `P(G_s != G_t)` (mGHS: `P(S_s != S_t)` and
+    `P(Z_s != Z_t)`), `P(|D| > c)`, the union `P(structural difference or
+    |D| > c)`, the mean and SD of `D`, and the sign probability (labelled as
+    not a probability of difference).
+* New `edge_probs()` (tidy data frame), `edge_prob_matrix()` (one p x p
+  matrix) and `select_edges()` (per-group selection, rules `"structural"`,
+  `"magnitude"`, `"cut"`, `"median_shrinkage"`).
+* `select_diff_edges()` gains rules `"union"` and `"cut"`, a `decision`
+  argument (`"bfdr"` or `"median"`) and `c` (alias of `delta`, whose default
+  is unchanged). The structural rule now also works for mGHS (it used to
+  stop with an error) and for fits without saved draws.
+* `save_draws = FALSE` now works for the G-Wishart and SSVS samplers too:
+  only the running sums, posterior means and the `Theta` trace are kept,
+  which makes fits at p = 100-250 practical. `pip_edges()`,
+  `pip_diff_edge()`, `coef()`, `fitted()`, `diff_summary()` and `summary()`
+  use the running sums when draws are missing.
+* `diff_deltas` (the thresholds `c`) applies to every sampler. Thresholds
+  outside the grid can be computed after fitting when draws were saved.
+* `bayes_fdr()` keeps tied probabilities together: the cutoff falls only
+  between distinct values.
+* The G-Wishart engine no longer allocates three unused draw-sized arrays.
+* Documented (not changed): mGHS's structural and cut-model probabilities are
+  weak for null edges, because the paper's weight `w` excludes the global
+  scale `tau` and the upstream cut model draws `Z ~ Bernoulli(Phi(w - t))`
+  rather than the paper's closed form. Use the magnitude rule for mGHS.
 
 ## Shared tools: ggmtools
 

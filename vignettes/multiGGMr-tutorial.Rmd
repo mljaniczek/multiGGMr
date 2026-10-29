@@ -214,7 +214,9 @@ select_diff_edges(fit, rule = "magnitude", delta = 0.1, alpha = 0.1)
 ```
 
 Avoid calling differences by whether a credible interval for the difference
-excludes zero: see the calibration caveat in `vignette("mghs-horseshoe")`.
+excludes zero. `vignette("edge-selection")` explains the structural,
+magnitude and union rules, when each applies, and how to choose `c`; all of
+them are available without saving draws (`save_draws = FALSE`).
 
 ## 8. Running multiple chains
 
