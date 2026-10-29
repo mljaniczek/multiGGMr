@@ -5,6 +5,7 @@
 // The MRF coupling, Theta, and nu updates are identical to the G-Wishart engine.
 
 #include "wangli_internal.h"
+#include "edge_prob_acc.h"
 #include "spike_slab_mh.h"
 
 // [[Rcpp::depends(RcppArmadillo)]]
@@ -51,7 +52,8 @@ Rcpp::List mcmc_ssvs_engine_cpp(Rcpp::List S_list_r,
                                  Rcpp::NumericMatrix nu_init_r,
                                  Rcpp::NumericVector C_init_r,
                                  Rcpp::NumericVector Sig_init_r,
-                                 bool verbose, int print_every) {
+                                 bool verbose, int print_every,
+                            bool save_draws, Rcpp::NumericVector diff_deltas) {
 
   int K = S_list_r.size();
   int p = Rcpp::as<Rcpp::NumericMatrix>(S_list_r[0]).nrow();
@@ -125,11 +127,11 @@ Rcpp::List mcmc_ssvs_engine_cpp(Rcpp::List S_list_r,
   int nmc = nsave * thin;
   int niter = burnin + nmc;
 
-  std::vector<double> C_save_vec(p * p * K * nsave, 0.0);
-  std::vector<double> Sig_save_vec(p * p * K * nsave, 0.0);
-  std::vector<int> adj_save_vec(p * p * K * nsave, 0);
+  std::vector<double> C_save_vec(save_draws ? p * p * K * nsave : 0, 0.0);
+  std::vector<double> Sig_save_vec(save_draws ? p * p * K * nsave : 0, 0.0);
+  std::vector<int> adj_save_vec(save_draws ? p * p * K * nsave : 0, 0);
   arma::cube Theta_save(K, K, nsave, arma::fill::zeros);
-  arma::cube nu_save(p, p, nsave, arma::fill::zeros);
+  arma::cube nu_save(p, p, save_draws ? nsave : 0, arma::fill::zeros);
 
   // Acceptance tracking
   arma::mat ar_gamma(K, K, arma::fill::zeros);
@@ -138,6 +140,11 @@ Rcpp::List mcmc_ssvs_engine_cpp(Rcpp::List S_list_r,
   arma::mat ar_nu(p, p, arma::fill::zeros);
 
   int save_idx = 0;
+
+  // Running per-edge sums over every post-burn-in iteration (no random draws)
+  std::vector<double> deltas(diff_deltas.begin(), diff_deltas.end());
+  EdgeProbAcc acc(p, K, deltas, false);
+  arma::mat nu_sum(p, p, arma::fill::zeros);
 
   double log_v0 = std::log(v0);
   double log_v1 = std::log(v1);
@@ -404,7 +411,7 @@ Rcpp::List mcmc_ssvs_engine_cpp(Rcpp::List S_list_r,
     if (iter > burnin && ((iter - burnin) % thin == 0)) {
       if (save_idx < nsave) {
         int base = save_idx * p * p * K;
-        for (int k = 0; k < K; k++) {
+        for (int k = 0; k < K && save_draws; k++) {
           int off = base + k * p * p;
           for (int j = 0; j < p; j++) {
             for (int i = 0; i < p; i++) {
@@ -416,9 +423,17 @@ Rcpp::List mcmc_ssvs_engine_cpp(Rcpp::List S_list_r,
           }
         }
         Theta_save.slice(save_idx) = Theta;
-        nu_save.slice(save_idx) = nu;
+        if (save_draws) nu_save.slice(save_idx) = nu;
         save_idx++;
       }
+    }
+
+    if (iter > burnin) {
+      acc.add([&](int i, int j, int k) { return C_arr(i, j, k); },
+              [&](int i, int j, int k) { return adj_arr(i, j, k) != 0u; },
+              [](int, int, int) { return 0.0; },
+              [](int, int, int) { return false; });
+      nu_sum += nu;
     }
   }
 
@@ -434,21 +449,26 @@ Rcpp::List mcmc_ssvs_engine_cpp(Rcpp::List S_list_r,
   // Return results
   Rcpp::IntegerVector dims = Rcpp::IntegerVector::create(p, p, K, nsave);
 
-  Rcpp::NumericVector C_out(C_save_vec.begin(), C_save_vec.end());
-  C_out.attr("dim") = dims;
-
-  Rcpp::NumericVector Sig_out(Sig_save_vec.begin(), Sig_save_vec.end());
-  Sig_out.attr("dim") = dims;
-
-  Rcpp::IntegerVector adj_out(adj_save_vec.begin(), adj_save_vec.end());
-  adj_out.attr("dim") = dims;
+  Rcpp::RObject C_out = R_NilValue, Sig_out = R_NilValue, adj_out = R_NilValue,
+                nu_out = R_NilValue;
+  if (save_draws) {
+    Rcpp::NumericVector C_v(C_save_vec.begin(), C_save_vec.end());
+    C_v.attr("dim") = dims;
+    Rcpp::NumericVector Sig_v(Sig_save_vec.begin(), Sig_save_vec.end());
+    Sig_v.attr("dim") = dims;
+    Rcpp::IntegerVector adj_v(adj_save_vec.begin(), adj_save_vec.end());
+    adj_v.attr("dim") = dims;
+    C_out = C_v; Sig_out = Sig_v; adj_out = adj_v; nu_out = Rcpp::wrap(nu_save);
+  }
 
   return Rcpp::List::create(
     Rcpp::_["C_save"] = C_out,
     Rcpp::_["Sig_save"] = Sig_out,
     Rcpp::_["adj_save"] = adj_out,
     Rcpp::_["Theta_save"] = Theta_save,
-    Rcpp::_["nu_save"] = nu_save,
+    Rcpp::_["nu_save"] = nu_out,
+    Rcpp::_["nu_mean"] = nu_sum / (double)nmc,
+    Rcpp::_["edge_acc"] = acc.to_list(),
     Rcpp::_["ar_gamma"] = ar_gamma,
     Rcpp::_["ar_theta"] = ar_theta,
     Rcpp::_["ar_nu"] = ar_nu

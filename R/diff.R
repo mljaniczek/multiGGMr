@@ -207,7 +207,9 @@ diff_summary <- function(fit, groups = c(1, 2), scale = c("pcor", "precision"),
 #' @details The guarantee is only as good as the calibration of \code{prob}.
 #'   For differential edges, pass a probability of a real difference such as
 #'   \eqn{P(|D| > c)} or \eqn{P(g_k \ne g_m)}, not a sign probability (see
-#'   [diff_summary()]). Ties at the cutoff are broken by input order.
+#'   [diff_summary()]). Tied probabilities are kept together: the cutoff
+#'   falls only between distinct values, so tied hypotheses are all selected
+#'   or all rejected.
 #'
 #' @return A logical vector, or a symmetric logical matrix with \code{FALSE}
 #'   diagonal, marking the selected hypotheses. Attributes:
@@ -237,8 +239,13 @@ bayes_fdr <- function(prob, alpha = 0.05) {
   if (any(v < 0 | v > 1, na.rm = TRUE)) stop("prob must lie in [0, 1].")
 
   ord <- order(v, decreasing = TRUE, na.last = NA)
-  running <- cumsum(1 - v[ord]) / seq_along(ord)
-  k <- sum(cummax(running) <= alpha)
+  vs <- v[ord]
+  running <- cumsum(1 - vs) / seq_along(vs)
+  # Cut only between distinct values, so tied probabilities are selected or
+  # rejected together.
+  ends <- c(which(diff(vs) != 0), length(vs))
+  ok <- ends[cummax(running)[ends] <= alpha]
+  k <- if (length(ok)) max(ok) else 0L
   sel <- logical(length(v))
   if (k > 0) sel[ord[seq_len(k)]] <- TRUE
 
@@ -262,24 +269,39 @@ bayes_fdr <- function(prob, alpha = 0.05) {
 #' @inheritParams diff_summary
 #' @param alpha Target posterior expected FDR. Default 0.05.
 #' @param rule \describe{
-#'   \item{\code{"magnitude"}}{(default) \eqn{P(|D_{ij}| > \delta)}, where
+#'   \item{\code{"magnitude"}}{(default) \eqn{P(|D_{ij}| > c)}, where
 #'     \eqn{D} is the group difference on \code{scale}. Works for every
-#'     sampler. FDR is controlled for the hypothesis \eqn{|D_{ij}| > \delta}:
-#'     a true difference smaller than \code{delta} counts as a null.}
-#'   \item{\code{"structural"}}{\eqn{P(g_{k,ij} \ne g_{m,ij})}, the posterior
-#'     probability that the edge is in exactly one of the two graphs. Needs
-#'     edge-inclusion indicators, so it is not available for mGHS fits.}
+#'     sampler. FDR is controlled for the hypothesis \eqn{|D_{ij}| > c}:
+#'     a true difference smaller than \code{c} counts as a null.}
+#'   \item{\code{"structural"}}{\eqn{P(G_{s,ij} \ne G_{t,ij})}, the posterior
+#'     probability that the edge is in exactly one of the two graphs. For
+#'     mGHS, \eqn{P(S_s \ne S_t)} with \eqn{S = 1(w > 0.5)} on the shrinkage
+#'     weight. Detects edges present in one group only, not changes in
+#'     strength.}
+#'   \item{\code{"union"}}{\eqn{P(\textrm{structural difference or }
+#'     |D_{ij}| > c)}, counted per iteration (mGHS: the cut-model indicator
+#'     is the structural part). Detects both deletions and changes in
+#'     strength.}
+#'   \item{\code{"cut"}}{mGHS only: \eqn{P(Z_s \ne Z_t)} for the cut-model
+#'     indicator.}
 #' }
-#' @param delta Magnitude threshold for \code{rule = "magnitude"}, on the
-#'   scale given by \code{scale}. Default 0.05.
+#'   See [edge_probs()] for the exact definitions.
+#' @param delta,c Threshold \eqn{c} for the magnitude and union rules, on the
+#'   scale given by \code{scale}: the smallest difference worth detecting.
+#'   \code{c} is an alias of \code{delta} (default 0.05).
+#' @param decision \code{"bfdr"} (default) selects the largest set with
+#'   posterior expected FDR at most \code{alpha} ([bayes_fdr()], keeping tied
+#'   probabilities together); \code{"median"} selects probability > 0.5.
 #'
 #' @return An object of class \code{"multiggm_diff_selection"}: a list with
 #'   \code{selected} (symmetric logical \code{[p, p]} matrix), \code{prob}
 #'   (symmetric \code{[p, p]} matrix of the edge probabilities used),
 #'   \code{edges} (data frame of the selected edges with \code{i}, \code{j},
 #'   \code{prob} and, for the magnitude rule, \code{mean} difference),
-#'   \code{expected_fdr}, \code{n_selected}, \code{alpha}, \code{rule},
-#'   \code{delta}, \code{scale} and \code{groups}.
+#'   \code{expected_fdr} (posterior expected FDR of the selected set),
+#'   \code{n_selected}, \code{alpha}, \code{rule}, \code{delta} (the
+#'   threshold used, or \code{NA}), \code{scale}, \code{groups} and
+#'   \code{decision}.
 #'
 #' @examples
 #' sim <- simulate_multiggm(K = 2, p = 8, n = 80, seed = 1)
@@ -290,49 +312,52 @@ bayes_fdr <- function(prob, alpha = 0.05) {
 #' @seealso [diff_summary()], [bayes_fdr()], [pip_diff_edge()]
 #' @export
 select_diff_edges <- function(fit, groups = c(1, 2), alpha = 0.05,
-                              rule = c("magnitude", "structural"),
+                              rule = c("magnitude", "structural", "union", "cut"),
                               delta = 0.05, scale = c("pcor", "precision"),
-                              chain = NULL) {
+                              chain = NULL, decision = c("bfdr", "median"), c = delta) {
+  if (identical(rule, "median_shrinkage"))
+    stop("rule = \"median_shrinkage\" selects edges within one group; use select_edges().",
+         call. = FALSE)
   rule <- match.arg(rule)
   scale <- match.arg(scale)
+  decision <- match.arg(decision)
   chains <- .fit_chains(fit, chain)
   p <- chains[[1]]$p
   groups <- .check_groups(groups, chains[[1]]$K)
+  is_mghs <- identical(chains[[1]]$method, "mghs")
   mean_diff <- NULL
 
   if (rule == "magnitude") {
-    ds <- diff_summary(fit, groups = groups, scale = scale, deltas = delta,
+    ds <- diff_summary(fit, groups = groups, scale = scale, deltas = c,
                        probs = NULL, chain = chain)
-    v <- ds[[ncol(ds)]]
-    mean_diff <- ds$mean
-  } else {
-    for (ch in chains) .require_indicators(ch, "select_diff_edges(rule = \"structural\")")
+    prob <- matrix(0, p, p)
+    prob[upper.tri(prob)] <- ds[[ncol(ds)]]
+    prob <- prob + t(prob)
+    mean_diff <- matrix(0, p, p)
+    mean_diff[upper.tri(mean_diff)] <- ds$mean
+  } else if (rule == "structural" && !is_mghs &&
+             all(vapply(chains, function(ch) !is.null(ch$adj_save), logical(1)))) {
     A <- lapply(chains, function(ch) ch$adj_save[, , groups[1], , drop = FALSE] !=
                                       ch$adj_save[, , groups[2], , drop = FALSE])
     n <- sum(vapply(A, function(a) dim(a)[4], numeric(1)))
-    P <- Reduce(`+`, lapply(A, function(a) apply(a, c(1, 2), sum))) / n
-    v <- P[upper.tri(P)]
-    delta <- NA_real_
+    prob <- Reduce(`+`, lapply(A, function(a) apply(a, c(1, 2), sum))) / n
+    dim(prob) <- c(p, p)
+  } else {
+    if (rule == "cut" && !is_mghs)
+      stop("rule = \"cut\" needs the mGHS cut model; this fit has edge indicators, ",
+           "so use rule = \"structural\".", call. = FALSE)
+    qty <- switch(rule, structural = "p_struct", union = "p_union", cut = "p_cut")
+    prob <- edge_prob_matrix(fit, qty, pair = groups, c = if (rule == "union") c,
+                             scale = scale, chain = chain)
   }
 
-  prob <- matrix(0, p, p)
-  prob[upper.tri(prob)] <- v
-  prob <- prob + t(prob)
-  sel <- bayes_fdr(prob, alpha = alpha)
-
-  idx <- which(upper.tri(prob), arr.ind = TRUE)
-  keep <- sel[upper.tri(sel)]
-  edges <- data.frame(i = idx[keep, 1], j = idx[keep, 2], prob = v[keep])
-  if (!is.null(mean_diff)) edges$mean <- mean_diff[keep]
-  edges <- edges[order(-edges$prob), , drop = FALSE]
-  rownames(edges) <- NULL
-
-  structure(list(selected = unname(matrix(as.logical(sel), p, p)),
-                 prob = prob, edges = edges,
-                 expected_fdr = attr(sel, "expected_fdr"),
-                 n_selected = attr(sel, "n_selected"),
-                 alpha = alpha, rule = rule, delta = delta,
-                 scale = scale, groups = groups),
+  s <- .select_by_prob(prob, decision, alpha)
+  structure(list(selected = s$selected, prob = prob,
+                 edges = .edge_table(prob, s$selected, mean_diff),
+                 expected_fdr = s$expected_fdr, n_selected = s$n_selected,
+                 alpha = alpha, rule = rule,
+                 delta = if (rule %in% c("magnitude", "union")) c else NA_real_,
+                 scale = scale, groups = groups, decision = decision),
             class = "multiggm_diff_selection")
 }
 
@@ -340,16 +365,21 @@ select_diff_edges <- function(fit, groups = c(1, 2), alpha = 0.05,
 print.multiggm_diff_selection <- function(x, ...) {
   cat("<multiggm_diff_selection>\n")
   cat(sprintf("  Groups %d vs %d, rule: %s", x$groups[1], x$groups[2], x$rule))
-  if (x$rule == "magnitude") cat(sprintf(" (P(|D| > %g), %s scale)", x$delta, x$scale))
-  cat("\n")
-  cat(sprintf("  Selected %d edges at target FDR %g (posterior expected FDR %.3f)\n",
-              x$n_selected, x$alpha, x$expected_fdr))
+  if (x$rule %in% c("magnitude", "union"))
+    cat(sprintf(" (c = %g, %s scale)", x$delta, x$scale))
+  decision <- if (is.null(x$decision)) "bfdr" else x$decision
+  cat(sprintf(", decision: %s\n", decision))
+  if (decision == "bfdr")
+    cat(sprintf("  Selected %d edges at target FDR %g (posterior expected FDR %.3f)\n",
+                x$n_selected, x$alpha, x$expected_fdr))
+  else cat(sprintf("  Selected %d edges with probability > 0.5 (posterior expected FDR %.3f)\n",
+                   x$n_selected, x$expected_fdr))
   if (x$n_selected > 0) print(utils::head(x$edges, 10))
   invisible(x)
 }
 
 .require_indicators <- function(fit, fn) {
-  if (identical(fit$method, "mghs") || is.null(fit$adj_save))
+  if (identical(fit$method, "mghs") || (is.null(fit$adj_save) && is.null(fit$edge_acc)))
     stop(fn, " needs edge-inclusion indicators, which the mGHS sampler does ",
          "not have (its shrinkage is continuous). For differential edges use ",
          "select_diff_edges(rule = \"magnitude\") or diff_summary(); for ",

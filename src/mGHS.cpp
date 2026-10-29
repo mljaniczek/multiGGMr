@@ -16,6 +16,7 @@
 #include "utils_rgamma3p.h"
 #include "utils_mGHS.h"
 #include "utils_rIW.h"
+#include "edge_prob_acc.h"
 
 typedef boost::multi_array<double, 1> vector_type;
 typedef boost::multi_array<double, 2> matrix_type;
@@ -72,7 +73,7 @@ static Rcpp::List stuck_result (const int& b, const int& reason)
 
 
 // [[Rcpp::export]]
-Rcpp::List mghs_engine_cpp (const int& burnin, const int& nsave, const int& thin, const Eigen::VectorXd& n, const Rcpp::List& S, const int& p, const Eigen::VectorXd hyp_ta, const bool& save_draws, const Rcpp::NumericVector& diff_deltas, const bool& verbose, const int& print_every) 
+Rcpp::List mghs_engine_cpp (const int& burnin, const int& nsave, const int& thin, const Eigen::VectorXd& n, const Rcpp::List& S, const int& p, const Eigen::VectorXd hyp_ta, const bool& save_draws, const Rcpp::NumericVector& diff_deltas, const bool& verbose, const int& print_every, const bool& save_weights = false) 
 {
   // multiGGM: derived from upstream mGHS_chain(). The sampling steps are
   // unchanged, so for thin = 1 the draws match upstream for the same seed.
@@ -196,6 +197,13 @@ Rcpp::List mghs_engine_cpp (const int& burnin, const int& nsave, const int& thin
   const int ngp = gp1.size();
   std::vector<double> deltas(diff_deltas.begin(), diff_deltas.end());
   DiffAcc acc_prec(npe, ngp, deltas), acc_pcor(npe, ngp, deltas);
+  // multiGGM: per-edge posterior probabilities (see edge_prob_acc.h). The
+  // shrinkage weight is w = Lambda / (1 + Lambda) = lambda^2 / (1 + lambda^2),
+  // the paper's kappa (Busatto & Stingo, Section 5); Z is the cut-model
+  // indicator, stored row-wise.
+  EdgeProbAcc edge_acc(p, K, deltas, true);
+  Rcpp::NumericVector W_save(save_weights ? p * p * K * nsave : 0);
+  Rcpp::IntegerVector Z_save(save_weights ? p * p * K * nsave : 0);
   int n_post = 0, e = 0, g = 0, h1 = 0, h2 = 0, s_idx = 0;
   double d1 = 0.0, d2 = 0.0;
   
@@ -441,6 +449,10 @@ Rcpp::List mghs_engine_cpp (const int& burnin, const int& nsave, const int& thin
     if (b >= bn)
     {
       n_post += 1;
+      edge_acc.add([&](int i, int j, int k) { return Omega[i][j][k]; },
+                   [](int, int, int) { return false; },
+                   [&](int i, int j, int k) { return Lambda[i][j][k] / (1.0 + Lambda[i][j][k]); },
+                   [&](int i, int j, int k) { return Z(i * (2 * p - i - 1) / 2 + (j - i - 1), k) != 0.0; });
       for (h = 0; h < K; h++)
         for (j = 0; j < p; j++)
           dsq(j, h) = std::sqrt(Omega[j][j][h]);
@@ -500,6 +512,15 @@ Rcpp::List mghs_engine_cpp (const int& burnin, const int& nsave, const int& thin
             for (j = 0; j < p; j++)
               for (js = 0; js < p; js++)
                 C_save[js + p * j + p * p * h + p * p * K * s_idx] = Omega[js][j][h];
+          if (save_weights)
+            for (j = 0; j < p; j++)
+              for (js = 0; js < p; js++)
+                if (js != j)
+                {
+                  const int lo = (js < j) ? js : j, hi = (js < j) ? j : js;
+                  W_save[js + p * j + p * p * h + p * p * K * s_idx] = Lambda[js][j][h] / (1.0 + Lambda[js][j][h]);
+                  Z_save[js + p * j + p * p * h + p * p * K * s_idx] = (int)Z(lo * (2 * p - lo - 1) / 2 + (hi - lo - 1), h);
+                }
         }
       }
     }
@@ -535,6 +556,12 @@ Rcpp::List mghs_engine_cpp (const int& burnin, const int& nsave, const int& thin
   Rcpp::IntegerMatrix pairs(ngp, 2);
   for (g = 0; g < ngp; g++) { pairs(g, 0) = gp1[g] + 1; pairs(g, 1) = gp2[g] + 1; }
   
+  if (save_weights)
+  {
+    W_save.attr("dim") = Rcpp::IntegerVector::create(p, p, K, nsave);
+    Z_save.attr("dim") = Rcpp::IntegerVector::create(p, p, K, nsave);
+  }
+  
   return Rcpp::List::create(
     Rcpp::Named("stuck") = 0,
     Rcpp::Named("n_post") = n_post,
@@ -546,6 +573,9 @@ Rcpp::List mghs_engine_cpp (const int& burnin, const int& nsave, const int& thin
     Rcpp::Named("C_mean") = C_sum,
     Rcpp::Named("pcor_mean") = pcor_sum,
     Rcpp::Named("cut_z_mean") = z_sum,
+    Rcpp::Named("edge_acc") = edge_acc.to_list(),
+    Rcpp::Named("weight_save") = save_weights ? Rcpp::RObject(W_save) : Rcpp::RObject(R_NilValue),
+    Rcpp::Named("cut_save") = save_weights ? Rcpp::RObject(Z_save) : Rcpp::RObject(R_NilValue),
     Rcpp::Named("diff_acc") = Rcpp::List::create(
       Rcpp::Named("precision") = acc_prec.to_list(),
       Rcpp::Named("pcor") = acc_pcor.to_list(),

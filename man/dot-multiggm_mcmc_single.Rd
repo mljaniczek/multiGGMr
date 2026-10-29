@@ -18,6 +18,8 @@
   method = "gwishart",
   hyper = NULL,
   engine = "cpp",
+  save_draws = TRUE,
+  diff_deltas = .default_deltas,
   ...
 )
 }

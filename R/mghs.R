@@ -14,9 +14,8 @@
 }
 
 .mghs_single <- function(S_list, n_vec, burnin, nsave, thin, hyper = NULL,
-                         save_draws = TRUE,
-                         diff_deltas = c(0.01, 0.02, 0.03, 0.05, 0.10),
-                         max_attempts = 3L, disp = FALSE, ...) {
+                         save_draws = TRUE, diff_deltas = .default_deltas,
+                         max_attempts = 3L, disp = FALSE, save_weights = FALSE, ...) {
   K <- length(S_list); p <- nrow(S_list[[1L]])
   if (K < 2L) stop("method = \"mghs\" needs at least 2 groups.")
   if (!all(vapply(S_list, function(S) all(is.finite(S)), logical(1))))
@@ -30,7 +29,8 @@
       burnin = as.integer(burnin), nsave = as.integer(nsave), thin = as.integer(thin),
       n = as.numeric(n_vec), S = lapply(S_list, as.matrix), p = as.integer(p),
       hyp_ta = h$hyp_ta, save_draws = isTRUE(save_draws),
-      diff_deltas = diff_deltas, verbose = isTRUE(disp), print_every = 500L)
+      diff_deltas = diff_deltas, verbose = isTRUE(disp), print_every = 500L,
+      save_weights = isTRUE(save_weights))
     if (res$stuck == 0L) break
     if (isTRUE(disp))
       message(sprintf("mghs attempt %d stuck at iteration %d; restarting.",
@@ -52,7 +52,8 @@
     R_save = res$R_save, tau_save = res$tau_save,
     C_mean = res$C_mean, pcor_mean = res$pcor_mean,
     cut_z_mean = res$cut_z_mean, ta_save = res$ta_save,
-    diff_acc = res$diff_acc, n_post = res$n_post,
+    diff_acc = res$diff_acc, edge_acc = res$edge_acc, n_post = res$n_post,
+    weight_save = res$weight_save, cut_save = res$cut_save,
     attempts = attempt, reject_tries = res$reject_tries,
     save_draws = isTRUE(save_draws),
     hyper = h, call = match.call()
@@ -62,6 +63,11 @@
 # Running sums of D = X_k - X_m for one chain, oriented as groups = c(k, m).
 .mghs_diff_acc <- function(fit, groups, scale) {
   da <- fit$diff_acc
+  if (is.null(da) && !is.null(fit$edge_acc)) {
+    ea <- fit$edge_acc
+    da <- list(precision = ea$pair$precision, pcor = ea$pair$pcor,
+               deltas = ea$deltas, group_pairs = ea$group_pairs)
+  }
   if (is.null(da))
     stop("This fit has neither saved draws nor running difference summaries.")
   g <- which(da$group_pairs[, 1] == min(groups) & da$group_pairs[, 2] == max(groups))

@@ -199,7 +199,30 @@ pip_edges <- function(fit, chain = NULL, platform = NULL) {
     A <- plat$adj_save
     return(apply(A, c(1,2,3), mean, na.rm = TRUE))
   }
-  .pooled_mean(.fit_chains(fit, chain), "pip_edges()", function(A) A)
+  chains <- .fit_chains(fit, chain)
+  if (!.all_have_draws(chains, "pip_edges()")) {
+    acc <- .pool_acc(lapply(chains, .chain_edge_acc))
+    return(.acc_to_array(acc$group$n_struct / acc$n, acc$p))
+  }
+  .pooled_mean(chains, "pip_edges()", function(A) A)
+}
+
+# TRUE if every chain saved edge-indicator draws; FALSE if some only have the
+# running sums of save_draws = FALSE. Errors for fits without indicators.
+.all_have_draws <- function(chains, fn) {
+  for (ch in chains) .require_indicators(ch, fn)
+  all(vapply(chains, function(ch) !is.null(ch$adj_save), logical(1)))
+}
+
+# Columns of a [p(p-1)/2, K] matrix (upper.tri order) as a symmetric [p, p, K] array.
+.acc_to_array <- function(v, p) {
+  K <- ncol(v)
+  out <- array(0, c(p, p, K))
+  for (k in seq_len(K)) {
+    m <- matrix(0, p, p); m[upper.tri(m)] <- v[, k]
+    out[, , k] <- m + t(m)
+  }
+  out
 }
 
 # Average of f(adj_save) over all draws of the given chains.
@@ -241,6 +264,10 @@ pip_edges <- function(fit, chain = NULL, platform = NULL) {
 pip_diff_edge <- function(fit, chain = NULL) {
   chains <- .fit_chains(fit, chain)
   if (chains[[1]]$K != 2L) stop("pip_diff_edge() needs K = 2 groups.")
+  if (!.all_have_draws(chains, "pip_diff_edge()")) {
+    acc <- .pool_acc(lapply(chains, .chain_edge_acc))
+    return(.acc_to_array(acc$pair$n_struct / acc$n, acc$p)[, , 1])
+  }
   .pooled_mean(chains, "pip_diff_edge()",
                function(A) array(A[, , 1, ] != A[, , 2, ], dim(A)[c(1, 2, 4)]))
 }
@@ -320,6 +347,8 @@ posterior_precision <- function(fit, summary_fun = mean, chain = NULL) {
 edge_counts <- function(fit, chain = 1L) {
   if (inherits(fit, "multiggm_fit_list")) fit <- fit$chains[[chain]]
   .require_indicators(fit, "edge_counts()")
+  if (is.null(fit$adj_save))
+    stop("edge_counts() needs saved draws; refit with save_draws = TRUE.", call. = FALSE)
   A <- fit$adj_save  # [p, p, K, nsave]
   nsave <- dim(A)[4]
   K <- dim(A)[3]

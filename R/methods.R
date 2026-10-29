@@ -15,7 +15,8 @@ print.multiggm_fit <- function(x, ...) {
     cat("  Posterior draws:", dim(x$R_save)[3],
         if (isTRUE(x$save_draws)) "" else "(summaries only)", "\n")
   } else {
-    cat("  Posterior draws:", dim(x$adj_save)[4], "\n")
+    cat("  Posterior draws:", dim(x$Theta_save)[3],
+        if (is.null(x$adj_save)) "(summaries only)" else "", "\n")
   }
   invisible(x)
 }
@@ -80,7 +81,7 @@ summary.multiggm_fit <- function(object, pip_threshold = 0.5, ...) {
   if (identical(object$method, "mghs")) return(.summary_mghs(object))
   K <- object$K
   p <- object$p
-  nsave <- dim(object$adj_save)[4]
+  nsave <- dim(object$Theta_save)[3]
 
   # Acceptance rates (upper triangle only for symmetric quantities)
   ar_gamma_mean <- if (K > 1) mean(object$ar_gamma[upper.tri(object$ar_gamma)]) else NA_real_

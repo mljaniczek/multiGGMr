@@ -8,10 +8,12 @@ select_diff_edges(
   fit,
   groups = c(1, 2),
   alpha = 0.05,
-  rule = c("magnitude", "structural"),
+  rule = c("magnitude", "structural", "union", "cut"),
   delta = 0.05,
   scale = c("pcor", "precision"),
-  chain = NULL
+  chain = NULL,
+  decision = c("bfdr", "median"),
+  c = delta
 )
 }
 \arguments{
@@ -23,23 +25,37 @@ compare. Default \code{c(1, 2)}.}
 \item{alpha}{Target posterior expected FDR. Default 0.05.}
 
 \item{rule}{\describe{
-\item{\code{"magnitude"}}{(default) \eqn{P(|D_{ij}| > \delta)}, where
+\item{\code{"magnitude"}}{(default) \eqn{P(|D_{ij}| > c)}, where
 \eqn{D} is the group difference on \code{scale}. Works for every
-sampler. FDR is controlled for the hypothesis \eqn{|D_{ij}| > \delta}:
-a true difference smaller than \code{delta} counts as a null.}
-\item{\code{"structural"}}{\eqn{P(g_{k,ij} \ne g_{m,ij})}, the posterior
-probability that the edge is in exactly one of the two graphs. Needs
-edge-inclusion indicators, so it is not available for mGHS fits.}
-}}
+sampler. FDR is controlled for the hypothesis \eqn{|D_{ij}| > c}:
+a true difference smaller than \code{c} counts as a null.}
+\item{\code{"structural"}}{\eqn{P(G_{s,ij} \ne G_{t,ij})}, the posterior
+probability that the edge is in exactly one of the two graphs. For
+mGHS, \eqn{P(S_s \ne S_t)} with \eqn{S = 1(w > 0.5)} on the shrinkage
+weight. Detects edges present in one group only, not changes in
+strength.}
+\item{\code{"union"}}{\eqn{P(\textrm{structural difference or }
+    |D_{ij}| > c)}, counted per iteration (mGHS: the cut-model indicator
+is the structural part). Detects both deletions and changes in
+strength.}
+\item{\code{"cut"}}{mGHS only: \eqn{P(Z_s \ne Z_t)} for the cut-model
+indicator.}
+}
+See \code{\link[=edge_probs]{edge_probs()}} for the exact definitions.}
 
-\item{delta}{Magnitude threshold for \code{rule = "magnitude"}, on the
-scale given by \code{scale}. Default 0.05.}
+\item{delta, c}{Threshold \eqn{c} for the magnitude and union rules, on the
+scale given by \code{scale}: the smallest difference worth detecting.
+\code{c} is an alias of \code{delta} (default 0.05).}
 
 \item{scale}{\code{"pcor"} (default) for partial correlations or
 \code{"precision"} for precision-matrix entries.}
 
 \item{chain}{\code{NULL} (default) pools all chains; an integer vector
 selects chains of a \code{multiggm_fit_list}.}
+
+\item{decision}{\code{"bfdr"} (default) selects the largest set with
+posterior expected FDR at most \code{alpha} (\code{\link[=bayes_fdr]{bayes_fdr()}}, keeping tied
+probabilities together); \code{"median"} selects probability > 0.5.}
 }
 \value{
 An object of class \code{"multiggm_diff_selection"}: a list with
@@ -47,8 +63,10 @@ An object of class \code{"multiggm_diff_selection"}: a list with
 (symmetric \code{[p, p]} matrix of the edge probabilities used),
 \code{edges} (data frame of the selected edges with \code{i}, \code{j},
 \code{prob} and, for the magnitude rule, \code{mean} difference),
-\code{expected_fdr}, \code{n_selected}, \code{alpha}, \code{rule},
-\code{delta}, \code{scale} and \code{groups}.
+\code{expected_fdr} (posterior expected FDR of the selected set),
+\code{n_selected}, \code{alpha}, \code{rule}, \code{delta} (the
+threshold used, or \code{NA}), \code{scale}, \code{groups} and
+\code{decision}.
 }
 \description{
 Computes a per-edge posterior probability that two groups differ and

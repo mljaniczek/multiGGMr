@@ -30,7 +30,9 @@ the mean of \eqn{1 - prob} over them.
 The guarantee is only as good as the calibration of \code{prob}.
 For differential edges, pass a probability of a real difference such as
 \eqn{P(|D| > c)} or \eqn{P(g_k \ne g_m)}, not a sign probability (see
-\code{\link[=diff_summary]{diff_summary()}}). Ties at the cutoff are broken by input order.
+\code{\link[=diff_summary]{diff_summary()}}). Tied probabilities are kept together: the cutoff
+falls only between distinct values, so tied hypotheses are all selected
+or all rejected.
 }
 \examples{
 bayes_fdr(c(0.99, 0.97, 0.9, 0.6, 0.2), alpha = 0.05)

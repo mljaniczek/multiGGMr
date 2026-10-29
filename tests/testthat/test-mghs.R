@@ -14,7 +14,8 @@ test_that("mghs fit has the multiggm_fit layout and no indicators", {
   expect_error(pip_edges(fit), "edge-inclusion indicators")
   expect_error(pip_diff_edge(fit), "edge-inclusion indicators")
   expect_error(edge_counts(fit), "edge-inclusion indicators")
-  expect_error(select_diff_edges(fit, rule = "structural"), "edge-inclusion indicators")
+  # since 0.5.0 the structural rule uses the shrinkage weight: P(S_1 != S_2)
+  expect_s3_class(select_diff_edges(fit, rule = "structural"), "multiggm_diff_selection")
   expect_error(posterior_pcor(fit, use = "Sig_save"), "no Sig_save draws")
 
   expect_output(print(fit), "mGHS")

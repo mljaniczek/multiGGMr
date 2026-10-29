@@ -76,12 +76,14 @@ MCMC engine. \code{"R"} uses the pure R fallback (slower, mainly for
 debugging). Only applies when \code{method = "gwishart"}.}
 
 \item{...}{Additional arguments forwarded to the single-chain engine.
-For \code{method = "mghs"}: \code{save_draws} (default \code{TRUE};
-\code{FALSE} keeps only running summaries, see Details),
-\code{diff_deltas} (thresholds \code{c} for the running counts of
-\eqn{|D| > c}, default \code{c(0.01, 0.02, 0.03, 0.05, 0.10)}) and
-\code{max_attempts} (restarts allowed when the chain gets stuck,
-default 3).}
+For \code{method = "gwishart"}, \code{"ssvs"} and \code{"mghs"}:
+\code{save_draws} (default \code{TRUE}; \code{FALSE} keeps only the
+running summaries, see "Edge probabilities and memory") and
+\code{diff_deltas} (the thresholds \code{c} for the running
+probabilities \eqn{P(|x| > c)}, \eqn{P(|D| > c)} and the union rule,
+default \code{c(0.01, 0.02, 0.03, 0.05, 0.10)}). For
+\code{method = "mghs"} also \code{max_attempts} (restarts allowed when
+the chain gets stuck, default 3).}
 }
 \value{
 For a single chain (\code{nchains = 1}), an object of class
@@ -208,6 +210,24 @@ in which case \code{\link[=diff_summary]{diff_summary()}}, \code{\link[=coef]{co
 summaries and draw-based functions stop with an error. A chain whose
 shrinkage parameters become non-finite is restarted from scratch, up to
 \code{max_attempts} times.
+
+\strong{Edge probabilities and memory.} Every sampler except
+\code{"ssvs_platform"} keeps running sums over every post-burn-in
+iteration (\code{edge_acc}) from which \code{\link[=edge_probs]{edge_probs()}}, \code{\link[=select_edges]{select_edges()}}
+and \code{\link[=select_diff_edges]{select_diff_edges()}} compute per-group and per-pair posterior edge
+probabilities, and \code{C_mean} / \code{pcor_mean} (posterior means).
+They do not draw random numbers, so a chain is the same with or without
+them. Their size is about \eqn{8 m [K (5 + 2d) + P (9 + 4d)]} bytes, with
+\eqn{m = p(p-1)/2} edges, \eqn{P = K(K-1)/2} group pairs and \eqn{d}
+thresholds in \code{diff_deltas} (plus \eqn{8 m (2K + P)} for mGHS): about
+2.5 MB at p = 100, K = 2 and 15 MB at p = 250 with the default 5 thresholds.
+Saved draws take \eqn{8 p^2 K} \code{nsave} bytes for the precision
+matrices alone (160 MB at p = 100, K = 2, \code{nsave} = 1000); G-Wishart
+and SSVS also save covariance, edge-indicator and \eqn{\nu} draws of
+similar size. With \code{save_draws = FALSE} only the running sums and the
+small \eqn{\theta} (or \eqn{R}, \eqn{\tau}) traces are kept; thresholds
+\code{c} must then come from \code{diff_deltas}, so choose a fine grid if
+you want to pick \code{c} after fitting.
 
 \strong{Platform-level hyperparameters (\code{method = "ssvs_platform"} only):}
 \describe{

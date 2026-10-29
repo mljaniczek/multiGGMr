@@ -46,12 +46,14 @@
 #'   MCMC engine. \code{"R"} uses the pure R fallback (slower, mainly for
 #'   debugging). Only applies when \code{method = "gwishart"}.
 #' @param ... Additional arguments forwarded to the single-chain engine.
-#'   For \code{method = "mghs"}: \code{save_draws} (default \code{TRUE};
-#'   \code{FALSE} keeps only running summaries, see Details),
-#'   \code{diff_deltas} (thresholds \code{c} for the running counts of
-#'   \eqn{|D| > c}, default \code{c(0.01, 0.02, 0.03, 0.05, 0.10)}) and
-#'   \code{max_attempts} (restarts allowed when the chain gets stuck,
-#'   default 3).
+#'   For \code{method = "gwishart"}, \code{"ssvs"} and \code{"mghs"}:
+#'   \code{save_draws} (default \code{TRUE}; \code{FALSE} keeps only the
+#'   running summaries, see "Edge probabilities and memory") and
+#'   \code{diff_deltas} (the thresholds \code{c} for the running
+#'   probabilities \eqn{P(|x| > c)}, \eqn{P(|D| > c)} and the union rule,
+#'   default \code{c(0.01, 0.02, 0.03, 0.05, 0.10)}). For
+#'   \code{method = "mghs"} also \code{max_attempts} (restarts allowed when
+#'   the chain gets stuck, default 3).
 #'
 #' @details
 #' \strong{Method selection:} \code{method = "gwishart"} uses the G-Wishart
@@ -124,6 +126,24 @@
 #' summaries and draw-based functions stop with an error. A chain whose
 #' shrinkage parameters become non-finite is restarted from scratch, up to
 #' \code{max_attempts} times.
+#'
+#' \strong{Edge probabilities and memory.} Every sampler except
+#' \code{"ssvs_platform"} keeps running sums over every post-burn-in
+#' iteration (\code{edge_acc}) from which [edge_probs()], [select_edges()]
+#' and [select_diff_edges()] compute per-group and per-pair posterior edge
+#' probabilities, and \code{C_mean} / \code{pcor_mean} (posterior means).
+#' They do not draw random numbers, so a chain is the same with or without
+#' them. Their size is about \eqn{8 m [K (5 + 2d) + P (9 + 4d)]} bytes, with
+#' \eqn{m = p(p-1)/2} edges, \eqn{P = K(K-1)/2} group pairs and \eqn{d}
+#' thresholds in \code{diff_deltas} (plus \eqn{8 m (2K + P)} for mGHS): about
+#' 2.5 MB at p = 100, K = 2 and 15 MB at p = 250 with the default 5 thresholds.
+#' Saved draws take \eqn{8 p^2 K} \code{nsave} bytes for the precision
+#' matrices alone (160 MB at p = 100, K = 2, \code{nsave} = 1000); G-Wishart
+#' and SSVS also save covariance, edge-indicator and \eqn{\nu} draws of
+#' similar size. With \code{save_draws = FALSE} only the running sums and the
+#' small \eqn{\theta} (or \eqn{R}, \eqn{\tau}) traces are kept; thresholds
+#' \code{c} must then come from \code{diff_deltas}, so choose a fine grid if
+#' you want to pick \code{c} after fitting.
 #'
 #' \strong{Platform-level hyperparameters (\code{method = "ssvs_platform"} only):}
 #' \describe{
@@ -331,15 +351,21 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
                                  disp = FALSE,
                                  method = "gwishart",
                                  hyper = NULL,
-                                 engine = "cpp", ...) {
+                                 engine = "cpp",
+                                 save_draws = TRUE,
+                                 diff_deltas = .default_deltas, ...) {
 
   stopifnot(is.list(S_list), length(S_list) >= 1L)
+  diff_deltas <- sort(unique(as.numeric(diff_deltas)))
+  if (length(diff_deltas) == 0 || any(!is.finite(diff_deltas)) || any(diff_deltas < 0))
+    stop("diff_deltas must be a non-empty vector of non-negative numbers.")
   K <- length(S_list)
   p <- nrow(S_list[[1L]])
 
   if (method == "mghs")
     return(.mghs_single(S_list = S_list, n_vec = n_vec, burnin = burnin,
                         nsave = nsave, thin = thin, hyper = hyper,
+                        save_draws = save_draws, diff_deltas = diff_deltas,
                         disp = disp, ...))
 
   hyper <- .merge_hyper(hyper, .default_hyper(method, p), method)
@@ -405,7 +431,9 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
       C_init_r     = as.numeric(C_arr),
       Sig_init_r   = as.numeric(Sig_arr),
       verbose      = isTRUE(disp),
-      print_every  = 500L
+      print_every  = 500L,
+      save_draws   = isTRUE(save_draws),
+      diff_deltas  = diff_deltas
     )
 
     return(structure(list(
@@ -417,6 +445,12 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
       adj_save   = res$adj_save,
       Theta_save = res$Theta_save,
       nu_save    = res$nu_save,
+      nu_mean    = res$nu_mean,
+      edge_acc   = res$edge_acc,
+      n_post     = as.integer(res$edge_acc$n),
+      C_mean     = .acc_means(res$edge_acc)$C_mean,
+      pcor_mean  = .acc_means(res$edge_acc)$pcor_mean,
+      save_draws = isTRUE(save_draws),
       ar_gamma   = res$ar_gamma,
       ar_theta   = res$ar_theta,
       ar_nu      = res$ar_nu,
@@ -452,7 +486,9 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
       nu_init_r    = nu,
       C_init_r     = as.numeric(C_arr),
       verbose     = isTRUE(disp),
-      print_every = 500L
+      print_every = 500L,
+      save_draws  = isTRUE(save_draws),
+      diff_deltas = diff_deltas
     )
 
     return(structure(list(
@@ -464,6 +500,12 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
       adj_save   = res$adj_save,
       Theta_save = res$Theta_save,
       nu_save    = res$nu_save,
+      nu_mean    = res$nu_mean,
+      edge_acc   = res$edge_acc,
+      n_post     = as.integer(res$edge_acc$n),
+      C_mean     = .acc_means(res$edge_acc)$C_mean,
+      pcor_mean  = .acc_means(res$edge_acc)$pcor_mean,
+      save_draws = isTRUE(save_draws),
       ar_gamma   = res$ar_gamma,
       ar_theta   = res$ar_theta,
       ar_nu      = res$ar_nu,
@@ -473,6 +515,9 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
   }
 
   # --- Pure R fallback engine ---
+  if (!isTRUE(save_draws))
+    stop("engine = \"R\" always saves draws; use engine = \"cpp\" for save_draws = FALSE.",
+         call. = FALSE)
   b_prior_vec <- rep_len(b_prior, K)
   D_prior_arr <- array(D_prior, dim = c(p, p, K))
   S_arr <- array(NA_real_, dim = c(p, p, K))
@@ -621,11 +666,19 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
   for (k in 1:(K - 1)) for (m in (k + 1):K)
     if (n_within_model[k, m] > 0) ar_theta[k, m] <- ar_theta[k, m] / n_within_model[k, m]
 
+  # The R engine accumulates over the saved draws (equal to the C++ engines'
+  # running sums when thin = 1).
+  edge_acc <- .edge_acc_from_draws(C_save, adj_save, diff_deltas)
+  means <- .acc_means(edge_acc)
+
   structure(list(
     K = K, p = p, method = "gwishart",
     C_save = C_save, Sig_save = Sig_save, adj_save = adj_save,
     Theta_save = Theta_save, nu_save = nu_save, ar_gamma = ar_gamma,
     ar_theta = ar_theta, ar_nu = ar_nu,
+    edge_acc = edge_acc, n_post = as.integer(edge_acc$n),
+    C_mean = means$C_mean, pcor_mean = means$pcor_mean,
+    save_draws = TRUE,
     hyper = c(hyper, list(a_prop = a_prop, b_prop = b_prop)),
     call = match.call()
   ), class = "multiggm_fit")
