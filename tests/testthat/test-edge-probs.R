@@ -2,7 +2,8 @@
 
 # Exact comparison in a normal (optimized) build; debug builds such as
 # devtools::load_all() (-O0) round differently, so allow rounding there.
-dev_build <- function() isNamespaceLoaded("pkgload") && pkgload::is_dev_package("multiGGM")
+# pkgload marks namespaces loaded with load_all() with .__DEVTOOLS__.
+dev_build <- function() exists(".__DEVTOOLS__", envir = asNamespace("multiGGM"), inherits = FALSE)
 expect_same <- function(object, expected, platform, ...) {
   if (!dev_build() && identical(platform, R.version$platform)) {
     expect_identical(object, expected, ...)
