@@ -7,7 +7,7 @@
 edge_prob_matrix(
   fit,
   quantity = c("p_struct", "p_cut", "mean_weight", "mean", "sd", "p_sign", "p_exceed",
-    "p_union"),
+    "p_union", "p_up", "p_down", "mcse_struct", "mcse_cut", "mcse_exceed", "mcse_union"),
   group = NULL,
   pair = NULL,
   c = NULL,
@@ -18,17 +18,21 @@ edge_prob_matrix(
 \arguments{
 \item{fit}{A \code{multiggm_fit} or \code{multiggm_fit_list}.}
 
-\item{quantity}{One of \code{"p_struct"}, \code{"p_cut"},
-\code{"mean_weight"}, \code{"mean"}, \code{"sd"}, \code{"p_sign"},
-\code{"p_exceed"}, \code{"p_union"} (see \code{\link[=edge_probs]{edge_probs()}}).}
+\item{quantity}{One of the columns of \code{\link[=edge_probs]{edge_probs()}} without the threshold
+suffix: \code{"p_struct"}, \code{"p_cut"}, \code{"mean_weight"},
+\code{"mean"}, \code{"sd"}, \code{"p_sign"}, \code{"p_exceed"},
+\code{"p_union"}, \code{"p_up"}, \code{"p_down"}, \code{"mcse_struct"},
+\code{"mcse_cut"}, \code{"mcse_exceed"} or \code{"mcse_union"}.}
 
 \item{group}{A single group, for per-group quantities.}
 
 \item{pair}{Two groups \code{c(s, t)}, for differential quantities. For
-\code{quantity = "mean"} the sign follows the order (\eqn{x_s - x_t}).}
+\code{"mean"}, \code{"p_up"} and \code{"p_down"} the direction follows
+the order (\eqn{D = x_s - x_t}).}
 
-\item{c}{A single threshold, required for \code{"p_exceed"} and
-\code{"p_union"}.}
+\item{c}{A single threshold, required for the quantities with a threshold
+(\code{"p_exceed"}, \code{"p_union"}, \code{"p_up"}, \code{"p_down"},
+\code{"mcse_exceed"}, \code{"mcse_union"}).}
 
 \item{scale}{\code{"precision"} (default) or \code{"pcor"}: the scale of
 \code{mean}, \code{sd}, \code{p_exceed_*}, \code{p_union_*} and

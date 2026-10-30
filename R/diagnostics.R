@@ -69,19 +69,28 @@ plot.multiggm_fit_list <- function(x, type = c("trace_theta", "trace_edges", "pi
 
 #' Trace plots for MCMC diagnostics
 #'
-#' Creates trace plots to assess MCMC convergence. Supports plotting either
-#' the graph similarity parameter (theta) or the number of edges per group
-#' across saved iterations.
+#' Trace plots of scalar summaries of the chain, overlaid by chain. All but
+#' \code{"theta"} use per-iteration traces that every sampler keeps, so they
+#' work with \code{save_draws = FALSE}.
 #'
 #' @param fit A \code{multiggm_fit} or \code{multiggm_fit_list} object
 #'   returned by \code{\link{multiggm_mcmc}}; chains are overlaid in colour.
 #' @param what Character; what to plot:
 #'   \describe{
 #'     \item{\code{"theta"}}{Graph similarity parameters \eqn{\theta_{km}}
-#'       for each pair of groups. Requires K >= 2.}
-#'     \item{\code{"edges"}}{Number of edges per group at each saved
-#'       iteration. Color-coded by group.}
+#'       for each pair of groups (mGHS: edge-scale correlations \eqn{R}).
+#'       Requires K >= 2.}
+#'     \item{\code{"edges"}}{Number of edges per group (mGHS: edges with
+#'       shrinkage weight \eqn{w > 0.5}).}
+#'     \item{\code{"loglik"}}{Gaussian log-likelihood of each group.}
+#'     \item{\code{"diff"}}{Number of differential edges per pair of groups,
+#'       by \code{rule}.}
 #'   }
+#' @param rule,c,scale For \code{what = "diff"}: which edges count as
+#'   differential (\code{"structural"}, the default for G-Wishart and SSVS;
+#'   \code{"magnitude"}, the default for mGHS; \code{"union"};
+#'   \code{"cut"}), the threshold \code{c} (default the largest value of
+#'   \code{diff_deltas}) and the scale of \eqn{D}.
 #'
 #' @return A \code{ggplot} object.
 #'
@@ -90,58 +99,78 @@ plot.multiggm_fit_list <- function(x, type = c("trace_theta", "trace_edges", "pi
 #' fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 200, nsave = 100)
 #' plot_trace(fit, "theta")
 #' plot_trace(fit, "edges")
+#' plot_trace(fit, "loglik")
+#' plot_trace(fit, "diff")
 #'
-#' @seealso [plot.multiggm_fit()], [edge_counts()]
+#' @seealso [mcmc_diagnostics()], [plot.multiggm_fit()], [edge_counts()]
 #' @export
-plot_trace <- function(fit, what = c("theta", "edges")) {
+plot_trace <- function(fit, what = c("theta", "edges", "loglik", "diff"),
+                       rule = NULL, c = NULL, scale = c("pcor", "precision")) {
   what <- match.arg(what)
+  scale <- match.arg(scale)
   chains <- .fit_chains(fit)
   multi <- length(chains) > 1L
   K <- chains[[1]]$K
+  is_mghs <- identical(chains[[1]]$method, "mghs")
+  long <- function(get, labels) {
+    do.call(rbind, lapply(seq_along(chains), function(ch) {
+      M <- as.matrix(get(chains[[ch]]))
+      do.call(rbind, lapply(seq_len(ncol(M)), function(j)
+        data.frame(iteration = seq_len(nrow(M)), value = M[, j], panel = labels[j],
+                   chain = paste("Chain", ch), stringsAsFactors = FALSE)))
+    }))
+  }
+  pairs <- if (K > 1) t(utils::combn(K, 2)) else matrix(integer(0), 0, 2)
+  pair_lab <- function(nm) sprintf("%s[%d,%d]", nm, pairs[, 1], pairs[, 2])
 
   if (what == "theta") {
     if (K < 2) stop("Theta trace requires K >= 2.")
-    is_mghs <- identical(chains[[1]]$method, "mghs")
     nm <- if (is_mghs) "R" else "theta"
-    df <- do.call(rbind, lapply(seq_along(chains), function(ch) {
-      S <- if (is_mghs) chains[[ch]]$R_save else chains[[ch]]$Theta_save
-      do.call(rbind, lapply(seq_len(K - 1), function(k) do.call(rbind, lapply((k + 1):K, function(m)
-        data.frame(iteration = seq_len(dim(S)[3]), value = S[k, m, ],
-                   pair = sprintf("%s[%d,%d]", nm, k, m), chain = paste("Chain", ch),
-                   stringsAsFactors = FALSE)))))
-    }))
-    aes <- if (multi) ggplot2::aes(x = .data$iteration, y = .data$value, color = .data$chain)
-           else ggplot2::aes(x = .data$iteration, y = .data$value)
-    ggplot2::ggplot(df, aes) +
-      ggplot2::geom_line(alpha = 0.6) +
-      ggplot2::facet_wrap(~ pair, scales = "free_y") +
-      ggplot2::labs(title = if (is_mghs) "Trace: correlation of edge scales (R)"
-                            else "Trace: graph similarity (theta)",
-                    x = "Iteration (post-burnin)", y = nm, color = "Chain") +
-      ggplot2::theme_minimal()
+    df <- long(function(ch) {
+      S <- if (is_mghs) ch$R_save else ch$Theta_save
+      vapply(seq_len(nrow(pairs)), function(g) S[pairs[g, 1], pairs[g, 2], ],
+             numeric(dim(S)[3]))
+    }, pair_lab(nm))
+    title <- if (is_mghs) "Trace: correlation of edge scales (R)" else "Trace: graph similarity (theta)"
+    ylab <- nm
+  } else if (what == "edges") {
+    df <- long(function(ch) {
+      if (!is_mghs && !is.null(ch$adj_save)) edge_counts(ch)
+      else { .require_trace(list(ch)); ch$trace$n_edges }
+    }, paste("Group", seq_len(K)))
+    title <- "Trace: edge count per group"
+    ylab <- "Number of edges"
+  } else if (what == "loglik") {
+    .require_trace(chains)
+    if (is.null(chains[[1]]$trace$loglik))
+      stop("This fit has no log-likelihood trace (prior_only fit or older version).",
+           call. = FALSE)
+    df <- long(function(ch) ch$trace$loglik, paste("Group", seq_len(K)))
+    title <- "Trace: log-likelihood per group"
+    ylab <- "Log-likelihood"
   } else {
-    df <- do.call(rbind, lapply(seq_along(chains), function(ch) {
-      ec <- edge_counts(chains[[ch]])
-      do.call(rbind, lapply(seq_len(ncol(ec)), function(k)
-        data.frame(iteration = seq_len(nrow(ec)), edges = ec[, k],
-                   group = paste("Group", k), chain = paste("Chain", ch),
-                   stringsAsFactors = FALSE)))
-    }))
-    if (multi) {
-      ggplot2::ggplot(df, ggplot2::aes(x = .data$iteration, y = .data$edges, color = .data$chain)) +
-        ggplot2::geom_line(alpha = 0.6) +
-        ggplot2::facet_wrap(~ group, scales = "free_y") +
-        ggplot2::labs(title = "Trace: edge count per group",
-                      x = "Iteration (post-burnin)", y = "Number of edges", color = "Chain") +
-        ggplot2::theme_minimal()
-    } else {
-      ggplot2::ggplot(df, ggplot2::aes(x = .data$iteration, y = .data$edges, color = .data$group)) +
-        ggplot2::geom_line(alpha = 0.6) +
-        ggplot2::labs(title = "Trace: edge count per group",
-                      x = "Iteration (post-burnin)", y = "Number of edges", color = "Group") +
-        ggplot2::theme_minimal()
-    }
+    if (K < 2) stop("Differential-edge trace requires K >= 2.")
+    .require_trace(chains)
+    if (is.null(rule)) rule <- if (is_mghs) "magnitude" else "structural"
+    rule <- match.arg(rule, c("structural", "magnitude", "union", "cut"))
+    acc1 <- .chain_edge_acc(chains[[1]])
+    if (is.null(c)) c <- max(acc1$deltas)
+    t <- .grid_index(acc1, c)
+    .check_diff_rule(rule, c, isTRUE(acc1$shrinkage))
+    df <- long(function(ch) vapply(seq_len(nrow(pairs)), function(g)
+      .diff_trace(ch$trace, rule, t, g, scale), numeric(nrow(ch$trace$n_edges))),
+      pair_lab("n_diff"))
+    title <- paste0("Trace: differential edges (", rule,
+                    if (rule %in% c("magnitude", "union")) sprintf(", c = %g", c), ")")
+    ylab <- "Number of differential edges"
   }
+  aes <- if (multi) ggplot2::aes(x = .data$iteration, y = .data$value, color = .data$chain)
+         else ggplot2::aes(x = .data$iteration, y = .data$value)
+  ggplot2::ggplot(df, aes) +
+    ggplot2::geom_line(alpha = 0.6) +
+    ggplot2::facet_wrap(~ panel, scales = "free_y") +
+    ggplot2::labs(title = title, x = "Iteration (post-burnin)", y = ylab, color = "Chain") +
+    ggplot2::theme_minimal()
 }
 
 #' Heatmap of posterior inclusion probabilities

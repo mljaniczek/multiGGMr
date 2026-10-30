@@ -51,7 +51,12 @@
 #'   running summaries, see "Edge probabilities and memory") and
 #'   \code{diff_deltas} (the thresholds \code{c} for the running
 #'   probabilities \eqn{P(|x| > c)}, \eqn{P(|D| > c)} and the union rule,
-#'   default \code{c(0.01, 0.02, 0.03, 0.05, 0.10)}). For
+#'   default \code{c(0.01, 0.02, 0.03, 0.05, 0.10)}), \code{mcse_batches}
+#'   (number of batches for the Monte Carlo SEs of edge probabilities,
+#'   default 20; 0 turns them off), \code{waic} (\code{TRUE} keeps the
+#'   per-observation sums for [compute_waic()]; needs \code{data_list}) and
+#'   \code{prior_only} (\code{TRUE} ignores the data and samples the prior,
+#'   for [edge_bayes_factors()]; not for mGHS). For
 #'   \code{method = "mghs"} also \code{max_attempts} (restarts allowed when
 #'   the chain gets stuck, default 3).
 #'
@@ -133,17 +138,38 @@
 #' and [select_diff_edges()] compute per-group and per-pair posterior edge
 #' probabilities, and \code{C_mean} / \code{pcor_mean} (posterior means).
 #' They do not draw random numbers, so a chain is the same with or without
-#' them. Their size is about \eqn{8 m [K (5 + 2d) + P (9 + 4d)]} bytes, with
-#' \eqn{m = p(p-1)/2} edges, \eqn{P = K(K-1)/2} group pairs and \eqn{d}
-#' thresholds in \code{diff_deltas} (plus \eqn{8 m (2K + P)} for mGHS): about
-#' 2.5 MB at p = 100, K = 2 and 15 MB at p = 250 with the default 5 thresholds.
+#' them. Their size grows with the number of edges \eqn{p(p-1)/2}, the
+#' number of group pairs and the number of thresholds in
+#' \code{diff_deltas}: with K = 2 and the default 5 thresholds, about 5 MB
+#' at p = 100 and 30 MB at p = 250, half of which are the batch counts for
+#' Monte Carlo SEs (\code{mcse_batches = 0} drops them).
 #' Saved draws take \eqn{8 p^2 K} \code{nsave} bytes for the precision
 #' matrices alone (160 MB at p = 100, K = 2, \code{nsave} = 1000); G-Wishart
 #' and SSVS also save covariance, edge-indicator and \eqn{\nu} draws of
 #' similar size. With \code{save_draws = FALSE} only the running sums and the
-#' small \eqn{\theta} (or \eqn{R}, \eqn{\tau}) traces are kept; thresholds
-#' \code{c} must then come from \code{diff_deltas}, so choose a fine grid if
-#' you want to pick \code{c} after fitting.
+#' small traces are kept; thresholds \code{c} must then come from
+#' \code{diff_deltas}, so choose a fine grid if you want to pick \code{c}
+#' after fitting.
+#'
+#' \strong{Diagnostics.} Every sampler except \code{"ssvs_platform"} also
+#' keeps, without drawing random numbers:
+#' \itemize{
+#'   \item \code{trace}: per post-burn-in iteration, the number of edges per
+#'     group, the number of differential edges per pair of groups
+#'     (structural, \eqn{|D| > c} and union, for each \code{c}) and the
+#'     log-likelihood of each group, used by [mcmc_diagnostics()],
+#'     [plot_trace()] and [diff_count_posterior()];
+#'   \item batch counts in \code{edge_acc$batch} for the Monte Carlo SE of
+#'     every edge probability (\code{mcse_*} columns of [edge_probs()]),
+#'     which roughly double the size of \code{edge_acc};
+#'   \item node-level sums in \code{edge_acc$node} for
+#'     [node_diff_summary()];
+#'   \item with \code{waic = TRUE}, \code{waic_acc} for [compute_waic()]:
+#'     \eqn{3 n_k} numbers per group, at a cost of \eqn{O(n_k p^2)} per
+#'     iteration.
+#' }
+#' The log-likelihood needs one Cholesky factorization per group and
+#' iteration (\eqn{O(p^3)}), small next to a sampler sweep.
 #'
 #' \strong{Platform-level hyperparameters (\code{method = "ssvs_platform"} only):}
 #' \describe{
@@ -277,7 +303,7 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
     K <- length(data_list)
     p <- ncol(data_list[[1L]])
     n_vec <- integer(K)
-    S_list <- vector("list", K)
+    S_list <- X_list <- vector("list", K)
     for (k in seq_len(K)) {
       Xk <- as.matrix(data_list[[k]])
       if (ncol(Xk) != p) stop("All data matrices must have the same number of columns.")
@@ -285,11 +311,13 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
       # Column-center and compute cross-product (not cov(); paper uses X'X)
       Xk <- scale(Xk, center = TRUE, scale = FALSE)
       S_list[[k]] <- crossprod(Xk)
+      X_list[[k]] <- matrix(Xk, nrow(Xk))
     }
   } else {
     if (!is.list(S_list) || length(S_list) < 1L)
       stop("S_list must be a non-empty list of cross-product matrices.")
     K <- length(S_list)
+    X_list <- NULL
     n_vec <- as.integer(n_vec)
     if (length(n_vec) != K) stop("n_vec must have length equal to length(S_list).")
   }
@@ -302,7 +330,7 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
     .multiggm_mcmc_single(S_list = S_list, n_vec = n_vec,
                          burnin = burnin, nsave = nsave, thin = thin,
                          chain_id = chain_id, method = method, hyper = hyper,
-                         engine = engine, ...)
+                         engine = engine, X_list = X_list, ...)
   }
 
   if (nchains == 1L) {
@@ -320,7 +348,7 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
     } else {
       cl <- parallel::makeCluster(ncores)
       on.exit(parallel::stopCluster(cl), add = TRUE)
-      parallel::clusterExport(cl, varlist = c("S_list", "n_vec", "burnin", "nsave",
+      parallel::clusterExport(cl, varlist = c("S_list", "X_list", "n_vec", "burnin", "nsave",
                                                "thin", "seed", "hyper"),
                               envir = environment())
       fits <- parallel::parLapply(cl, seq_len(nchains), chain_fun)
@@ -353,7 +381,9 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
                                  hyper = NULL,
                                  engine = "cpp",
                                  save_draws = TRUE,
-                                 diff_deltas = .default_deltas, ...) {
+                                 diff_deltas = .default_deltas,
+                                 mcse_batches = 20L, waic = FALSE,
+                                 prior_only = FALSE, X_list = NULL, ...) {
 
   stopifnot(is.list(S_list), length(S_list) >= 1L)
   diff_deltas <- sort(unique(as.numeric(diff_deltas)))
@@ -361,12 +391,23 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
     stop("diff_deltas must be a non-empty vector of non-negative numbers.")
   K <- length(S_list)
   p <- nrow(S_list[[1L]])
+  if (isTRUE(prior_only) && method == "mghs")
+    stop("prior_only = TRUE is not available for method = \"mghs\": the graphical ",
+         "horseshoe puts a flat (improper) prior on the diagonal, so there is no ",
+         "proper prior to sample. Under the half-Cauchy local scale the shrinkage ",
+         "weight w has a Beta(1/2, 1/2) prior, so P(w > 0.5) = 0.5 a priori.",
+         call. = FALSE)
+  diag_opts <- .diag_opts(S_list, n_vec, X_list, waic, prior_only, mcse_batches)
+  if (isTRUE(prior_only)) {
+    S_list <- lapply(S_list, function(S) S * 0)
+    n_vec <- n_vec * 0
+  }
 
   if (method == "mghs")
     return(.mghs_single(S_list = S_list, n_vec = n_vec, burnin = burnin,
                         nsave = nsave, thin = thin, hyper = hyper,
                         save_draws = save_draws, diff_deltas = diff_deltas,
-                        disp = disp, ...))
+                        disp = disp, diag_opts = diag_opts, ...))
 
   hyper <- .merge_hyper(hyper, .default_hyper(method, p), method)
 
@@ -433,7 +474,8 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
       verbose      = isTRUE(disp),
       print_every  = 500L,
       save_draws   = isTRUE(save_draws),
-      diff_deltas  = diff_deltas
+      diff_deltas  = diff_deltas,
+      diag_opts    = diag_opts
     )
 
     return(structure(list(
@@ -451,6 +493,9 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
       C_mean     = .acc_means(res$edge_acc)$C_mean,
       pcor_mean  = .acc_means(res$edge_acc)$pcor_mean,
       save_draws = isTRUE(save_draws),
+      trace      = res$trace,
+      waic_acc   = res$waic_acc,
+      prior_only = isTRUE(prior_only),
       ar_gamma   = res$ar_gamma,
       ar_theta   = res$ar_theta,
       ar_nu      = res$ar_nu,
@@ -488,7 +533,8 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
       verbose     = isTRUE(disp),
       print_every = 500L,
       save_draws  = isTRUE(save_draws),
-      diff_deltas = diff_deltas
+      diff_deltas = diff_deltas,
+      diag_opts   = diag_opts
     )
 
     return(structure(list(
@@ -506,6 +552,9 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
       C_mean     = .acc_means(res$edge_acc)$C_mean,
       pcor_mean  = .acc_means(res$edge_acc)$pcor_mean,
       save_draws = isTRUE(save_draws),
+      trace      = res$trace,
+      waic_acc   = res$waic_acc,
+      prior_only = isTRUE(prior_only),
       ar_gamma   = res$ar_gamma,
       ar_theta   = res$ar_theta,
       ar_nu      = res$ar_nu,
@@ -518,6 +567,8 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
   if (!isTRUE(save_draws))
     stop("engine = \"R\" always saves draws; use engine = \"cpp\" for save_draws = FALSE.",
          call. = FALSE)
+  if (isTRUE(waic) || isTRUE(prior_only))
+    stop("waic and prior_only need engine = \"cpp\".", call. = FALSE)
   b_prior_vec <- rep_len(b_prior, K)
   D_prior_arr <- array(D_prior, dim = c(p, p, K))
   S_arr <- array(NA_real_, dim = c(p, p, K))
@@ -668,7 +719,9 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
 
   # The R engine accumulates over the saved draws (equal to the C++ engines'
   # running sums when thin = 1).
-  edge_acc <- .edge_acc_from_draws(C_save, adj_save, diff_deltas)
+  dd <- .diag_from_draws(C_save, adj_save, diff_deltas, n_batch = mcse_batches,
+                         S_list = S_list, n_vec = n_vec)
+  edge_acc <- dd$edge_acc
   means <- .acc_means(edge_acc)
 
   structure(list(
@@ -678,7 +731,7 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
     ar_theta = ar_theta, ar_nu = ar_nu,
     edge_acc = edge_acc, n_post = as.integer(edge_acc$n),
     C_mean = means$C_mean, pcor_mean = means$pcor_mean,
-    save_draws = TRUE,
+    save_draws = TRUE, trace = dd$trace, prior_only = FALSE,
     hyper = c(hyper, list(a_prop = a_prop, b_prop = b_prop)),
     call = match.call()
   ), class = "multiggm_fit")

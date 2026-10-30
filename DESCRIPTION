@@ -1,7 +1,7 @@
 Package: multiGGM
 Type: Package
 Title: Bayesian Inference of Multiple Gaussian Graphical Models
-Version: 0.5.0
+Version: 0.6.0
 Authors@R: c(
     person(given = "Margaret", family = "Janiczek", role = c("aut", "cre"), email = "mjaniczek@umass.edu"),
     person(given = "Claudio", family = "Busatto", role = c("ctb", "cph"),

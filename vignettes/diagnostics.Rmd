@@ -1,0 +1,213 @@
+---
+title: "Checking and Evaluating a Fit"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Checking and Evaluating a Fit}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height = 4)
+```
+
+Edge probabilities are only as good as the chain that produced them. This
+vignette covers the checks to run before reporting a network: convergence,
+Monte Carlo error, how far the data moved each edge from its prior, and
+summaries of differences beyond single edges. Every tool here works with
+`save_draws = FALSE`: the samplers keep small per-iteration traces and running
+sums for them, without drawing extra random numbers.
+
+```{r fit}
+library(multiGGM)
+sim <- simulate_multiggm(K = 2, p = 10, n = 150, seed = 1)
+fit <- multiggm_mcmc(data_list = sim$data_list, method = "ssvs", burnin = 1000,
+                     nsave = 3000, nchains = 2, seed = 1, save_draws = FALSE,
+                     waic = TRUE, diff_deltas = c(0.05, 0.1, 0.15))
+```
+
+## 1. Convergence
+
+Run several chains from different seeds. `mcmc_diagnostics()` gathers the
+checks in one table:
+
+```{r diag}
+d <- mcmc_diagnostics(fit, c = 0.1)
+d
+```
+
+* **Scalar summaries**: the number of edges per group, the number of
+  differential edges, the log-likelihood and the graph-similarity parameters
+  $\theta$, with rank-normalized split R-hat and bulk and tail effective
+  sample sizes (Vehtari et al. 2021). Aim for R-hat below 1.01 and ESS above
+  about 400. Whole-graph counts are the most sensitive check: chains exploring
+  different parts of graph space disagree on them first.
+* **Edge probabilities**: R-hat is not informative for a single 0/1 edge
+  indicator. Instead, each probability has a batch-means Monte Carlo SE
+  (`mcse_*` columns of `edge_probs()`), and with several chains the table
+  reports the largest disagreement between chains.
+* **Acceptance rates** of the Metropolis-Hastings steps, flagged outside
+  (0.05, 0.95).
+
+Flags mean "run longer" (or check the model), not that the fit is wrong. With
+only 500 iterations per chain, this example flags most of the scalar
+summaries; 3000 iterations clear almost all of them.
+
+Trace plots of the same quantities:
+
+```{r trace}
+plot_trace(fit, "edges")
+plot_trace(fit, "diff", rule = "union", c = 0.1)
+```
+
+Edge probabilities from each chain against chain 1 should lie on the diagonal:
+
+```{r agreement, fig.height = 3.5}
+plot_chain_agreement(fit, "p_struct")
+```
+
+**Monte Carlo error near a cutoff.** An edge whose probability is within about
+two Monte Carlo SEs of the selection cutoff could be selected or rejected by
+another run of the same length:
+
+```{r mcse}
+ep <- edge_probs(fit, scale = "pcor", c = 0.1)
+pairs <- ep[ep$type == "pair", ]
+summary(pairs$mcse_union_0.1)
+```
+
+## 2. How much did the data say?
+
+The priors put a probability on every edge and on every difference, and it is
+not 0.5: the MRF prior favours sparse graphs, and the SSVS spike gives
+$P(|D| > c)$ a small but nonzero prior value. A posterior probability of 0.8
+means little if the prior gave 0.6. Fit the same model with
+`prior_only = TRUE`, which ignores the data, and compare:
+
+```{r prior}
+prior <- multiggm_mcmc(data_list = sim$data_list, method = "ssvs", burnin = 1000,
+                       nsave = 3000, seed = 2, save_draws = FALSE, prior_only = TRUE,
+                       diff_deltas = c(0.05, 0.1, 0.15))
+bf <- edge_bayes_factors(fit, prior, quantity = "p_union", c = 0.1)
+head(bf[order(-bf$log10_bf), ])
+```
+
+A Bayes factor above 10 is commonly read as strong evidence for a difference,
+below 1/10 as strong evidence against (Kass & Raftery 1995). The same
+comparison works for the whole network. `diff_count_posterior()` gives the
+posterior of the number of differential edges; compare it with the same count
+under the prior:
+
+```{r count}
+post_n <- diff_count_posterior(fit, rule = "union", c = 0.1)
+prior_n <- diff_count_posterior(prior, rule = "union", c = 0.1)
+post_n
+prior_n
+```
+
+The ratio of posterior to prior odds of "at least one differential edge" is a
+network-level Bayes factor, but only when the prior probability is not close
+to 1. With 45 edges, as here, the prior almost surely has some difference
+above `c`; it becomes informative for larger `c` or larger networks with
+sparser priors.
+
+mGHS has no proper prior to sample (its diagonal prior is flat), so
+`prior_only` is not available for it. Under its half-Cauchy local scales the
+shrinkage weight $w$ has a Beta(1/2, 1/2) prior, so $P(w > 0.5) = 0.5$ a
+priori, which is why its structural probabilities are weak.
+
+## 3. Beyond single edges
+
+**Direction.** `p_up_<c>` and `p_down_<c>` split $P(|D| > c)$ into
+$P(D > c)$ and $P(D < -c)$, with $D = x_1 - x_2$: whether a connection is
+stronger in group 1 or in group 2.
+
+```{r direction}
+sel <- select_diff_edges(fit, rule = "union", c = 0.1, scale = "pcor")
+dirs <- merge(sel$edges, pairs[, c("i", "j", "p_up_0.1", "p_down_0.1")])
+dirs
+```
+
+**Nodes.** Many small changes meeting at one node can each miss the FDR cutoff
+while the node as a whole has clearly changed. `node_diff_summary()` counts,
+per iteration, the differential edges at each node:
+
+```{r nodes}
+nd <- node_diff_summary(fit, rule = "union", c = 0.1)
+nd[order(-nd$diff_degree), ][1:5, ]
+```
+
+`diff_degree` is the posterior mean number of differential edges at the node,
+`p_any` the probability that it has at least one, and `rewiring` the posterior
+mean of $\sum_j |D_{ij}|$, a threshold-free score.
+
+**q-values.** Each selected edge has a Bayesian FDR q-value: the smallest
+target FDR at which it would be selected. Edges with `q_value <= alpha` are
+exactly those selected at `alpha`, so a single table serves every FDR level:
+
+```{r qvalues}
+sel$edges
+```
+
+## 4. Comparing models with WAIC
+
+With `waic = TRUE`, the samplers keep per-observation sums of the likelihood,
+and `compute_waic()` returns the widely applicable information criterion
+(lower is better). Use it to compare fits to the same data, for example two
+spike variances:
+
+```{r waic}
+fit2 <- multiggm_mcmc(data_list = sim$data_list, method = "ssvs", burnin = 500,
+                      nsave = 500, seed = 1, save_draws = FALSE, waic = TRUE,
+                      hyper = list(v0 = 0.05^2))
+w1 <- compute_waic(fit)
+w2 <- compute_waic(fit2)
+w1
+# difference in elpd and its standard error, from the paired pointwise values
+d <- w1$pointwise$elpd_waic - w2$pointwise$elpd_waic
+c(elpd_diff = sum(d), se = sqrt(length(d) * var(d)))
+```
+
+Judge a difference by its paired standard error, not by the standard errors
+of the two WAICs. A difference smaller than about twice its standard error
+is not meaningful. The warning flags observations with a large
+$p_{\mathrm{waic},i}$ (above 0.4), which is common for graphical models with
+many parameters per observation; WAIC is then only a rough guide, and
+PSIS-LOO from the **loo** package (which needs saved draws) is more reliable.
+WAIC costs $O(n_k p^2)$ per iteration, so it is off by default.
+
+## 5. Calibration in simulations
+
+In a simulation study the truth is known, and `fdr_calibration()` compares the
+posterior expected FDR of each selection with the achieved false discovery
+proportion:
+
+```{r calibration}
+fdr_calibration(fit, sim, rule = "union", c = 0.1, alpha = c(0.05, 0.1, 0.2))
+```
+
+Here the achieved FDR is above target, and the reason is instructive: the
+first false discovery is edge (9, 10), whose true difference in partial
+correlation is 0.06, but `c = 0.1` is below the sampling noise of a
+difference, about $\sqrt{2/150} \approx 0.12$. Edges with true differences
+just under `c` then pass it by chance. This is the failure described under
+"Choosing c" in the edge-selection vignette; a larger `c` or larger samples
+fix it. A single dataset with a handful of selections gives a noisy achieved
+FDR, so average over many simulated datasets. Achieved FDR consistently above the
+target means the edge probabilities are overconfident for that rule and
+threshold. See the
+edge-selection vignette (`vignette("edge-selection", package = "multiGGM")`)
+for why the "credible interval excludes zero" rule fails this check.
+
+## References
+
+Vehtari, A., Gelman, A., Simpson, D., Carpenter, B. & Buerkner, P.-C. (2021).
+Rank-normalization, folding, and localization: an improved R-hat for
+assessing convergence of MCMC. *Bayesian Analysis*, 16(2), 667-718.
+
+Watanabe, S. (2010). Asymptotic equivalence of Bayes cross validation and
+widely applicable information criterion in singular learning theory.
+*Journal of Machine Learning Research*, 11, 3571-3594.
+
+Kass, R.E. & Raftery, A.E. (1995). Bayes factors. *Journal of the American
+Statistical Association*, 90(430), 773-795.

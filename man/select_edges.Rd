@@ -49,10 +49,11 @@ chains.}
 }
 \value{
 An object of class \code{"multiggm_edge_selection"}: a list with
-\code{selected} (logical \code{p x p}), \code{prob}, \code{edges},
-\code{expected_fdr} (posterior expected FDR of the selected set),
-\code{n_selected}, \code{alpha}, \code{rule}, \code{c},
-\code{decision}, \code{scale} and \code{group}.
+\code{selected} (logical \code{p x p}), \code{prob}, \code{edges}
+(the selected edges with their probability and Bayesian FDR
+q-value, see \code{\link[=bfdr_qvalues]{bfdr_qvalues()}}), \code{expected_fdr} (posterior
+expected FDR of the selected set), \code{n_selected}, \code{alpha},
+\code{rule}, \code{c}, \code{decision}, \code{scale} and \code{group}.
 }
 \description{
 Selects the edges of one group's graph from the per-edge posterior

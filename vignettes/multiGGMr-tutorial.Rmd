@@ -217,6 +217,8 @@ Avoid calling differences by whether a credible interval for the difference
 excludes zero. `vignette("edge-selection")` explains the structural,
 magnitude and union rules, when each applies, and how to choose `c`; all of
 them are available without saving draws (`save_draws = FALSE`).
+`vignette("diagnostics")` covers convergence checks, Monte Carlo error,
+prior-versus-posterior comparisons, node-level summaries and WAIC.
 
 ## 8. Running multiple chains
 

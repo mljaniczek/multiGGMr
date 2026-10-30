@@ -1,3 +1,51 @@
+# multiGGM 0.6.0
+
+## Diagnostics and evaluation without saving draws
+
+Everything below works with `save_draws = FALSE` for the G-Wishart, SSVS and
+mGHS samplers. The samplers keep the extra traces and running sums without
+drawing random numbers, so chains and all existing outputs are unchanged for
+a given seed (tested against 0.4.0 and 0.5.0).
+
+* **Convergence.** New `mcmc_diagnostics()` reports rank-normalized split
+  R-hat and bulk/tail ESS (Vehtari et al. 2021) for whole-chain summaries
+  recorded at every iteration (`fit$trace`): edges per group, differential
+  edges per pair (structural, `|D| > c`, union), the log-likelihood of each
+  group, and `theta` (mGHS: `R`, `tau`). It also reports the Monte Carlo
+  error of edge probabilities, the largest disagreement between chains and
+  the acceptance rates, with flags. New `plot_chain_agreement()` plots each
+  chain's edge probabilities against chain 1.
+* **`plot_trace()`** gains `"loglik"` and `"diff"` and now works without
+  saved draws and for mGHS (`"edges"` counts edges with `w > 0.5`).
+  `edge_counts()` uses the trace when draws were not saved.
+* **Monte Carlo SEs of edge probabilities.** Every count used for selection
+  is also kept in batches (`mcse_batches`, default 20); `edge_probs()` gains
+  `mcse_struct`, `mcse_cut`, `mcse_exceed_<c>` and `mcse_union_<c>`, pooled
+  correctly over chains.
+* **Direction of differences.** `edge_probs()` gains `p_up_<c>` = P(D > c)
+  and `p_down_<c>` = P(D < -c).
+* **Node level.** New `node_diff_summary()`: per node, the posterior mean
+  number of differential edges, the probability of at least one, and the
+  rewiring score `sum_j |D_ij|`, all counted per iteration.
+* **Network level.** New `diff_count_posterior()`: the posterior of the
+  number of differential edges and P(at least one).
+* **q-values.** New `bfdr_qvalues()`; the edge tables of `select_edges()`
+  and `select_diff_edges()` gain a `q_value` column.
+* **Prior versus posterior.** New `prior_only = TRUE` samples the prior
+  (G-Wishart and SSVS; mGHS's flat diagonal prior is improper), and
+  `edge_bayes_factors()` compares each edge probability with its prior value.
+* **WAIC.** New `waic = TRUE` keeps per-observation sums and
+  `compute_waic()` returns WAIC with standard errors, overall and per group.
+* **Calibration.** New `fdr_calibration()` compares the posterior expected
+  FDR with the achieved FDR and power against a known truth, for
+  simulation studies.
+* New vignette "Checking and Evaluating a Fit".
+* Cost: no measurable change in run time at p = 100 (SSVS and mGHS, with
+  or without WAIC). The batch counts roughly double `edge_acc` (an SSVS fit
+  without draws grows from 2.7 to 4.9 MB at p = 100, K = 2; set
+  `mcse_batches = 0` to drop them). The traces are a few numbers per
+  iteration.
+
 # multiGGM 0.5.0
 
 ## Posterior edge probabilities without saving draws

@@ -73,7 +73,7 @@ static Rcpp::List stuck_result (const int& b, const int& reason)
 
 
 // [[Rcpp::export]]
-Rcpp::List mghs_engine_cpp (const int& burnin, const int& nsave, const int& thin, const Eigen::VectorXd& n, const Rcpp::List& S, const int& p, const Eigen::VectorXd hyp_ta, const bool& save_draws, const Rcpp::NumericVector& diff_deltas, const bool& verbose, const int& print_every, const bool& save_weights = false) 
+Rcpp::List mghs_engine_cpp (const int& burnin, const int& nsave, const int& thin, const Eigen::VectorXd& n, const Rcpp::List& S, const int& p, const Eigen::VectorXd hyp_ta, const bool& save_draws, const Rcpp::NumericVector& diff_deltas, const bool& verbose, const int& print_every, const bool& save_weights = false, Rcpp::Nullable<Rcpp::List> diag_opts = R_NilValue) 
 {
   // multiGGM: derived from upstream mGHS_chain(). The sampling steps are
   // unchanged, so for thin = 1 the draws match upstream for the same seed.
@@ -201,7 +201,11 @@ Rcpp::List mghs_engine_cpp (const int& burnin, const int& nsave, const int& thin
   // shrinkage weight is w = Lambda / (1 + Lambda) = lambda^2 / (1 + lambda^2),
   // the paper's kappa (Busatto & Stingo, Section 5); Z is the cut-model
   // indicator, stored row-wise.
-  EdgeProbAcc edge_acc(p, K, deltas, true);
+  Rcpp::List dopts = diag_opts.isNotNull() ? Rcpp::List(diag_opts) : Rcpp::List();
+  EdgeProbAcc edge_acc(p, K, deltas, true, nsave * thin,
+                       dopts.containsElementNamed("n_batch") ? Rcpp::as<int>(dopts["n_batch"]) : 0);
+  if (dopts.containsElementNamed("S"))
+    edge_acc.set_data(dopts["S"], dopts["n"], dopts["X"]);
   Rcpp::NumericVector W_save(save_weights ? p * p * K * nsave : 0);
   Rcpp::IntegerVector Z_save(save_weights ? p * p * K * nsave : 0);
   int n_post = 0, e = 0, g = 0, h1 = 0, h2 = 0, s_idx = 0;
@@ -574,6 +578,8 @@ Rcpp::List mghs_engine_cpp (const int& burnin, const int& nsave, const int& thin
     Rcpp::Named("pcor_mean") = pcor_sum,
     Rcpp::Named("cut_z_mean") = z_sum,
     Rcpp::Named("edge_acc") = edge_acc.to_list(),
+    Rcpp::Named("trace") = edge_acc.trace_list(),
+    Rcpp::Named("waic_acc") = edge_acc.waic_list(),
     Rcpp::Named("weight_save") = save_weights ? Rcpp::RObject(W_save) : Rcpp::RObject(R_NilValue),
     Rcpp::Named("cut_save") = save_weights ? Rcpp::RObject(Z_save) : Rcpp::RObject(R_NilValue),
     Rcpp::Named("diff_acc") = Rcpp::List::create(

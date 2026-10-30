@@ -15,7 +15,8 @@
 
 .mghs_single <- function(S_list, n_vec, burnin, nsave, thin, hyper = NULL,
                          save_draws = TRUE, diff_deltas = .default_deltas,
-                         max_attempts = 3L, disp = FALSE, save_weights = FALSE, ...) {
+                         max_attempts = 3L, disp = FALSE, save_weights = FALSE,
+                         diag_opts = list(n_batch = 0L), ...) {
   K <- length(S_list); p <- nrow(S_list[[1L]])
   if (K < 2L) stop("method = \"mghs\" needs at least 2 groups.")
   if (!all(vapply(S_list, function(S) all(is.finite(S)), logical(1))))
@@ -30,7 +31,7 @@
       n = as.numeric(n_vec), S = lapply(S_list, as.matrix), p = as.integer(p),
       hyp_ta = h$hyp_ta, save_draws = isTRUE(save_draws),
       diff_deltas = diff_deltas, verbose = isTRUE(disp), print_every = 500L,
-      save_weights = isTRUE(save_weights))
+      save_weights = isTRUE(save_weights), diag_opts = diag_opts)
     if (res$stuck == 0L) break
     if (isTRUE(disp))
       message(sprintf("mghs attempt %d stuck at iteration %d; restarting.",
@@ -54,6 +55,7 @@
     cut_z_mean = res$cut_z_mean, ta_save = res$ta_save,
     diff_acc = res$diff_acc, edge_acc = res$edge_acc, n_post = res$n_post,
     weight_save = res$weight_save, cut_save = res$cut_save,
+    trace = res$trace, waic_acc = res$waic_acc, prior_only = FALSE,
     attempts = attempt, reject_tries = res$reject_tries,
     save_draws = isTRUE(save_draws),
     hyper = h, call = match.call()

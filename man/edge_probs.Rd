@@ -62,6 +62,18 @@ indicator for G-Wishart and SSVS and the cut-model indicator for mGHS.}
 \item{\code{p_sign}}{Pair rows: \eqn{\max\{P(D > 0), P(D < 0)\}}. This is
 \strong{not} a probability that the edge differs (see
 \code{\link[=diff_summary]{diff_summary()}}); it is reported for description only.}
+\item{\code{p_up_<c>}, \code{p_down_<c>}}{Pair rows: \eqn{P(D > c)} and
+\eqn{P(D < -c)}, the direction of a difference: with \eqn{D =
+    x_{group1} - x_{group2}}, \code{p_up} means the entry is larger in
+\code{group1}. They add up to \code{p_exceed_<c>}.}
+\item{\code{mcse_struct}, \code{mcse_cut}, \code{mcse_exceed_<c>},
+\code{mcse_union_<c>}}{Batch-means Monte Carlo standard errors of
+\code{p_struct}, \code{p_cut}, \code{p_exceed_<c>} and
+\code{p_union_<c>} (\code{NA} if the fit was made with
+\code{mcse_batches = 0} or by an older version). With several chains
+they are pooled as for the probabilities. An edge whose probability
+is within about two Monte Carlo SEs of a selection cutoff needs a
+longer run.}
 }
 Columns that do not apply are \code{NA}.
 

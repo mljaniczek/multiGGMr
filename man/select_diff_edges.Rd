@@ -62,7 +62,8 @@ An object of class \code{"multiggm_diff_selection"}: a list with
 \code{selected} (symmetric logical \code{[p, p]} matrix), \code{prob}
 (symmetric \code{[p, p]} matrix of the edge probabilities used),
 \code{edges} (data frame of the selected edges with \code{i}, \code{j},
-\code{prob} and, for the magnitude rule, \code{mean} difference),
+\code{prob}, \code{q_value} (see \code{\link[=bfdr_qvalues]{bfdr_qvalues()}}) and, for the
+magnitude rule, \code{mean} difference),
 \code{expected_fdr} (posterior expected FDR of the selected set),
 \code{n_selected}, \code{alpha}, \code{rule}, \code{delta} (the
 threshold used, or \code{NA}), \code{scale}, \code{groups} and

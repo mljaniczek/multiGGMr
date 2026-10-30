@@ -4,7 +4,13 @@
 \alias{plot_trace}
 \title{Trace plots for MCMC diagnostics}
 \usage{
-plot_trace(fit, what = c("theta", "edges"))
+plot_trace(
+  fit,
+  what = c("theta", "edges", "loglik", "diff"),
+  rule = NULL,
+  c = NULL,
+  scale = c("pcor", "precision")
+)
 }
 \arguments{
 \item{fit}{A \code{multiggm_fit} or \code{multiggm_fit_list} object
@@ -13,26 +19,38 @@ returned by \code{\link{multiggm_mcmc}}; chains are overlaid in colour.}
 \item{what}{Character; what to plot:
 \describe{
 \item{\code{"theta"}}{Graph similarity parameters \eqn{\theta_{km}}
-for each pair of groups. Requires K >= 2.}
-\item{\code{"edges"}}{Number of edges per group at each saved
-iteration. Color-coded by group.}
+for each pair of groups (mGHS: edge-scale correlations \eqn{R}).
+Requires K >= 2.}
+\item{\code{"edges"}}{Number of edges per group (mGHS: edges with
+shrinkage weight \eqn{w > 0.5}).}
+\item{\code{"loglik"}}{Gaussian log-likelihood of each group.}
+\item{\code{"diff"}}{Number of differential edges per pair of groups,
+by \code{rule}.}
 }}
+
+\item{rule, c, scale}{For \code{what = "diff"}: which edges count as
+differential (\code{"structural"}, the default for G-Wishart and SSVS;
+\code{"magnitude"}, the default for mGHS; \code{"union"};
+\code{"cut"}), the threshold \code{c} (default the largest value of
+\code{diff_deltas}) and the scale of \eqn{D}.}
 }
 \value{
 A \code{ggplot} object.
 }
 \description{
-Creates trace plots to assess MCMC convergence. Supports plotting either
-the graph similarity parameter (theta) or the number of edges per group
-across saved iterations.
+Trace plots of scalar summaries of the chain, overlaid by chain. All but
+\code{"theta"} use per-iteration traces that every sampler keeps, so they
+work with \code{save_draws = FALSE}.
 }
 \examples{
 sim <- simulate_multiggm(K = 2, p = 8, n = 80, seed = 1)
 fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 200, nsave = 100)
 plot_trace(fit, "theta")
 plot_trace(fit, "edges")
+plot_trace(fit, "loglik")
+plot_trace(fit, "diff")
 
 }
 \seealso{
-\code{\link[=plot.multiggm_fit]{plot.multiggm_fit()}}, \code{\link[=edge_counts]{edge_counts()}}
+\code{\link[=mcmc_diagnostics]{mcmc_diagnostics()}}, \code{\link[=plot.multiggm_fit]{plot.multiggm_fit()}}, \code{\link[=edge_counts]{edge_counts()}}
 }

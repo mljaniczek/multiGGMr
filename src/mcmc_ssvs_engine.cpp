@@ -53,7 +53,8 @@ Rcpp::List mcmc_ssvs_engine_cpp(Rcpp::List S_list_r,
                                  Rcpp::NumericVector C_init_r,
                                  Rcpp::NumericVector Sig_init_r,
                                  bool verbose, int print_every,
-                            bool save_draws, Rcpp::NumericVector diff_deltas) {
+                            bool save_draws, Rcpp::NumericVector diff_deltas,
+                            Rcpp::List diag_opts) {
 
   int K = S_list_r.size();
   int p = Rcpp::as<Rcpp::NumericMatrix>(S_list_r[0]).nrow();
@@ -143,7 +144,9 @@ Rcpp::List mcmc_ssvs_engine_cpp(Rcpp::List S_list_r,
 
   // Running per-edge sums over every post-burn-in iteration (no random draws)
   std::vector<double> deltas(diff_deltas.begin(), diff_deltas.end());
-  EdgeProbAcc acc(p, K, deltas, false);
+  EdgeProbAcc acc(p, K, deltas, false, nmc, Rcpp::as<int>(diag_opts["n_batch"]));
+  if (diag_opts.containsElementNamed("S"))
+    acc.set_data(diag_opts["S"], diag_opts["n"], diag_opts["X"]);
   arma::mat nu_sum(p, p, arma::fill::zeros);
 
   double log_v0 = std::log(v0);
@@ -469,6 +472,8 @@ Rcpp::List mcmc_ssvs_engine_cpp(Rcpp::List S_list_r,
     Rcpp::_["nu_save"] = nu_out,
     Rcpp::_["nu_mean"] = nu_sum / (double)nmc,
     Rcpp::_["edge_acc"] = acc.to_list(),
+    Rcpp::_["trace"] = acc.trace_list(),
+    Rcpp::_["waic_acc"] = acc.waic_list(),
     Rcpp::_["ar_gamma"] = ar_gamma,
     Rcpp::_["ar_theta"] = ar_theta,
     Rcpp::_["ar_nu"] = ar_nu

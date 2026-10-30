@@ -25,8 +25,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // mghs_engine_cpp
-Rcpp::List mghs_engine_cpp(const int& burnin, const int& nsave, const int& thin, const Eigen::VectorXd& n, const Rcpp::List& S, const int& p, const Eigen::VectorXd hyp_ta, const bool& save_draws, const Rcpp::NumericVector& diff_deltas, const bool& verbose, const int& print_every, const bool& save_weights);
-RcppExport SEXP _multiGGM_mghs_engine_cpp(SEXP burninSEXP, SEXP nsaveSEXP, SEXP thinSEXP, SEXP nSEXP, SEXP SSEXP, SEXP pSEXP, SEXP hyp_taSEXP, SEXP save_drawsSEXP, SEXP diff_deltasSEXP, SEXP verboseSEXP, SEXP print_everySEXP, SEXP save_weightsSEXP) {
+Rcpp::List mghs_engine_cpp(const int& burnin, const int& nsave, const int& thin, const Eigen::VectorXd& n, const Rcpp::List& S, const int& p, const Eigen::VectorXd hyp_ta, const bool& save_draws, const Rcpp::NumericVector& diff_deltas, const bool& verbose, const int& print_every, const bool& save_weights, Rcpp::Nullable<Rcpp::List> diag_opts);
+RcppExport SEXP _multiGGM_mghs_engine_cpp(SEXP burninSEXP, SEXP nsaveSEXP, SEXP thinSEXP, SEXP nSEXP, SEXP SSEXP, SEXP pSEXP, SEXP hyp_taSEXP, SEXP save_drawsSEXP, SEXP diff_deltasSEXP, SEXP verboseSEXP, SEXP print_everySEXP, SEXP save_weightsSEXP, SEXP diag_optsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -42,13 +42,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const bool& >::type verbose(verboseSEXP);
     Rcpp::traits::input_parameter< const int& >::type print_every(print_everySEXP);
     Rcpp::traits::input_parameter< const bool& >::type save_weights(save_weightsSEXP);
-    rcpp_result_gen = Rcpp::wrap(mghs_engine_cpp(burnin, nsave, thin, n, S, p, hyp_ta, save_draws, diff_deltas, verbose, print_every, save_weights));
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::List> >::type diag_opts(diag_optsSEXP);
+    rcpp_result_gen = Rcpp::wrap(mghs_engine_cpp(burnin, nsave, thin, n, S, p, hyp_ta, save_draws, diff_deltas, verbose, print_every, save_weights, diag_opts));
     return rcpp_result_gen;
 END_RCPP
 }
 // mcmc_engine_cpp
-Rcpp::List mcmc_engine_cpp(Rcpp::List S_list_r, Rcpp::NumericVector n_vec_r, int burnin, int nsave, int thin, double b_prior, Rcpp::NumericMatrix D_prior_r, double a, double b_beta, double alpha, double beta_rate, double w_prior, double alpha_prop, double beta_prop, double a_prop, double b_prop, Rcpp::NumericMatrix Theta_init_r, Rcpp::NumericMatrix nu_init_r, Rcpp::NumericVector C_init_r, bool verbose, int print_every, bool save_draws, Rcpp::NumericVector diff_deltas);
-RcppExport SEXP _multiGGM_mcmc_engine_cpp(SEXP S_list_rSEXP, SEXP n_vec_rSEXP, SEXP burninSEXP, SEXP nsaveSEXP, SEXP thinSEXP, SEXP b_priorSEXP, SEXP D_prior_rSEXP, SEXP aSEXP, SEXP b_betaSEXP, SEXP alphaSEXP, SEXP beta_rateSEXP, SEXP w_priorSEXP, SEXP alpha_propSEXP, SEXP beta_propSEXP, SEXP a_propSEXP, SEXP b_propSEXP, SEXP Theta_init_rSEXP, SEXP nu_init_rSEXP, SEXP C_init_rSEXP, SEXP verboseSEXP, SEXP print_everySEXP, SEXP save_drawsSEXP, SEXP diff_deltasSEXP) {
+Rcpp::List mcmc_engine_cpp(Rcpp::List S_list_r, Rcpp::NumericVector n_vec_r, int burnin, int nsave, int thin, double b_prior, Rcpp::NumericMatrix D_prior_r, double a, double b_beta, double alpha, double beta_rate, double w_prior, double alpha_prop, double beta_prop, double a_prop, double b_prop, Rcpp::NumericMatrix Theta_init_r, Rcpp::NumericMatrix nu_init_r, Rcpp::NumericVector C_init_r, bool verbose, int print_every, bool save_draws, Rcpp::NumericVector diff_deltas, Rcpp::List diag_opts);
+RcppExport SEXP _multiGGM_mcmc_engine_cpp(SEXP S_list_rSEXP, SEXP n_vec_rSEXP, SEXP burninSEXP, SEXP nsaveSEXP, SEXP thinSEXP, SEXP b_priorSEXP, SEXP D_prior_rSEXP, SEXP aSEXP, SEXP b_betaSEXP, SEXP alphaSEXP, SEXP beta_rateSEXP, SEXP w_priorSEXP, SEXP alpha_propSEXP, SEXP beta_propSEXP, SEXP a_propSEXP, SEXP b_propSEXP, SEXP Theta_init_rSEXP, SEXP nu_init_rSEXP, SEXP C_init_rSEXP, SEXP verboseSEXP, SEXP print_everySEXP, SEXP save_drawsSEXP, SEXP diff_deltasSEXP, SEXP diag_optsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -75,13 +76,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type print_every(print_everySEXP);
     Rcpp::traits::input_parameter< bool >::type save_draws(save_drawsSEXP);
     Rcpp::traits::input_parameter< Rcpp::NumericVector >::type diff_deltas(diff_deltasSEXP);
-    rcpp_result_gen = Rcpp::wrap(mcmc_engine_cpp(S_list_r, n_vec_r, burnin, nsave, thin, b_prior, D_prior_r, a, b_beta, alpha, beta_rate, w_prior, alpha_prop, beta_prop, a_prop, b_prop, Theta_init_r, nu_init_r, C_init_r, verbose, print_every, save_draws, diff_deltas));
+    Rcpp::traits::input_parameter< Rcpp::List >::type diag_opts(diag_optsSEXP);
+    rcpp_result_gen = Rcpp::wrap(mcmc_engine_cpp(S_list_r, n_vec_r, burnin, nsave, thin, b_prior, D_prior_r, a, b_beta, alpha, beta_rate, w_prior, alpha_prop, beta_prop, a_prop, b_prop, Theta_init_r, nu_init_r, C_init_r, verbose, print_every, save_draws, diff_deltas, diag_opts));
     return rcpp_result_gen;
 END_RCPP
 }
 // mcmc_ssvs_engine_cpp
-Rcpp::List mcmc_ssvs_engine_cpp(Rcpp::List S_list_r, Rcpp::NumericVector n_vec_r, int burnin, int nsave, int thin, double v0, double v1, double lambda_param, double a, double b_beta, double alpha, double beta_rate, double w_prior, double alpha_prop, double beta_prop, double a_prop, double b_prop, Rcpp::NumericMatrix Theta_init_r, Rcpp::NumericMatrix nu_init_r, Rcpp::NumericVector C_init_r, Rcpp::NumericVector Sig_init_r, bool verbose, int print_every, bool save_draws, Rcpp::NumericVector diff_deltas);
-RcppExport SEXP _multiGGM_mcmc_ssvs_engine_cpp(SEXP S_list_rSEXP, SEXP n_vec_rSEXP, SEXP burninSEXP, SEXP nsaveSEXP, SEXP thinSEXP, SEXP v0SEXP, SEXP v1SEXP, SEXP lambda_paramSEXP, SEXP aSEXP, SEXP b_betaSEXP, SEXP alphaSEXP, SEXP beta_rateSEXP, SEXP w_priorSEXP, SEXP alpha_propSEXP, SEXP beta_propSEXP, SEXP a_propSEXP, SEXP b_propSEXP, SEXP Theta_init_rSEXP, SEXP nu_init_rSEXP, SEXP C_init_rSEXP, SEXP Sig_init_rSEXP, SEXP verboseSEXP, SEXP print_everySEXP, SEXP save_drawsSEXP, SEXP diff_deltasSEXP) {
+Rcpp::List mcmc_ssvs_engine_cpp(Rcpp::List S_list_r, Rcpp::NumericVector n_vec_r, int burnin, int nsave, int thin, double v0, double v1, double lambda_param, double a, double b_beta, double alpha, double beta_rate, double w_prior, double alpha_prop, double beta_prop, double a_prop, double b_prop, Rcpp::NumericMatrix Theta_init_r, Rcpp::NumericMatrix nu_init_r, Rcpp::NumericVector C_init_r, Rcpp::NumericVector Sig_init_r, bool verbose, int print_every, bool save_draws, Rcpp::NumericVector diff_deltas, Rcpp::List diag_opts);
+RcppExport SEXP _multiGGM_mcmc_ssvs_engine_cpp(SEXP S_list_rSEXP, SEXP n_vec_rSEXP, SEXP burninSEXP, SEXP nsaveSEXP, SEXP thinSEXP, SEXP v0SEXP, SEXP v1SEXP, SEXP lambda_paramSEXP, SEXP aSEXP, SEXP b_betaSEXP, SEXP alphaSEXP, SEXP beta_rateSEXP, SEXP w_priorSEXP, SEXP alpha_propSEXP, SEXP beta_propSEXP, SEXP a_propSEXP, SEXP b_propSEXP, SEXP Theta_init_rSEXP, SEXP nu_init_rSEXP, SEXP C_init_rSEXP, SEXP Sig_init_rSEXP, SEXP verboseSEXP, SEXP print_everySEXP, SEXP save_drawsSEXP, SEXP diff_deltasSEXP, SEXP diag_optsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -110,7 +112,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type print_every(print_everySEXP);
     Rcpp::traits::input_parameter< bool >::type save_draws(save_drawsSEXP);
     Rcpp::traits::input_parameter< Rcpp::NumericVector >::type diff_deltas(diff_deltasSEXP);
-    rcpp_result_gen = Rcpp::wrap(mcmc_ssvs_engine_cpp(S_list_r, n_vec_r, burnin, nsave, thin, v0, v1, lambda_param, a, b_beta, alpha, beta_rate, w_prior, alpha_prop, beta_prop, a_prop, b_prop, Theta_init_r, nu_init_r, C_init_r, Sig_init_r, verbose, print_every, save_draws, diff_deltas));
+    Rcpp::traits::input_parameter< Rcpp::List >::type diag_opts(diag_optsSEXP);
+    rcpp_result_gen = Rcpp::wrap(mcmc_ssvs_engine_cpp(S_list_r, n_vec_r, burnin, nsave, thin, v0, v1, lambda_param, a, b_beta, alpha, beta_rate, w_prior, alpha_prop, beta_prop, a_prop, b_prop, Theta_init_r, nu_init_r, C_init_r, Sig_init_r, verbose, print_every, save_draws, diff_deltas, diag_opts));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -312,9 +315,9 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_multiGGM_calc_mrf_logC_cpp", (DL_FUNC) &_multiGGM_calc_mrf_logC_cpp, 2},
-    {"_multiGGM_mghs_engine_cpp", (DL_FUNC) &_multiGGM_mghs_engine_cpp, 12},
-    {"_multiGGM_mcmc_engine_cpp", (DL_FUNC) &_multiGGM_mcmc_engine_cpp, 23},
-    {"_multiGGM_mcmc_ssvs_engine_cpp", (DL_FUNC) &_multiGGM_mcmc_ssvs_engine_cpp, 25},
+    {"_multiGGM_mghs_engine_cpp", (DL_FUNC) &_multiGGM_mghs_engine_cpp, 13},
+    {"_multiGGM_mcmc_engine_cpp", (DL_FUNC) &_multiGGM_mcmc_engine_cpp, 24},
+    {"_multiGGM_mcmc_ssvs_engine_cpp", (DL_FUNC) &_multiGGM_mcmc_ssvs_engine_cpp, 26},
     {"_multiGGM_mcmc_ssvs_platform_engine_cpp", (DL_FUNC) &_multiGGM_mcmc_ssvs_platform_engine_cpp, 36},
     {"_multiGGM_spike_slab_prior_chain_cpp", (DL_FUNC) &_multiGGM_spike_slab_prior_chain_cpp, 6},
     {"_multiGGM_spike_slab_log_ratio_cpp", (DL_FUNC) &_multiGGM_spike_slab_log_ratio_cpp, 7},

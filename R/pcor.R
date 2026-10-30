@@ -347,8 +347,14 @@ posterior_precision <- function(fit, summary_fun = mean, chain = NULL) {
 edge_counts <- function(fit, chain = 1L) {
   if (inherits(fit, "multiggm_fit_list")) fit <- fit$chains[[chain]]
   .require_indicators(fit, "edge_counts()")
-  if (is.null(fit$adj_save))
-    stop("edge_counts() needs saved draws; refit with save_draws = TRUE.", call. = FALSE)
+  if (is.null(fit$adj_save)) {
+    if (is.null(fit$trace))
+      stop("edge_counts() needs saved draws; refit with save_draws = TRUE.", call. = FALSE)
+    ec <- fit$trace$n_edges
+    storage.mode(ec) <- "integer"
+    colnames(ec) <- paste0("Group_", seq_len(ncol(ec)))
+    return(ec)
+  }
   A <- fit$adj_save  # [p, p, K, nsave]
   nsave <- dim(A)[4]
   K <- dim(A)[3]

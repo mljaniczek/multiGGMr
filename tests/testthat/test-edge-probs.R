@@ -45,6 +45,7 @@ test_that("save_draws = FALSE gives the same running summaries and Theta trace",
     b <- multiggm_mcmc(data_list = sim2$data_list, method = m, burnin = 30, nsave = 20, seed = 9,
                        save_draws = FALSE)
     expect_identical(b$edge_acc, a$edge_acc, label = m)
+    expect_identical(b$trace, a$trace, label = m)
     expect_null(b$C_save)
     if (m != "mghs") {
       expect_identical(b$Theta_save, a$Theta_save)
@@ -56,12 +57,22 @@ test_that("save_draws = FALSE gives the same running summaries and Theta trace",
 
 # --- 2. Running sums equal the draw-based computation ------------------------
 
+centered <- function(sim) lapply(sim$data_list, function(x) {
+  x <- scale(x, scale = FALSE); matrix(x, nrow(x))
+})
+
 test_that("running sums equal the draw-based values (G-Wishart, SSVS)", {
   for (m in c("ssvs", "gwishart")) for (sim in list(sim2, sim3)) {
-    f <- multiggm_mcmc(data_list = sim$data_list, method = m, burnin = 30, nsave = 40,
-                       seed = 5, diff_deltas = c(0.02, 0.1, 0.25))
-    ref <- multiGGM:::.edge_acc_from_draws(f$C_save, f$adj_save, f$edge_acc$deltas)
-    expect_equal(f$edge_acc, ref, tolerance = 1e-12, label = m)
+    f <- multiggm_mcmc(data_list = sim$data_list, method = m, burnin = 30, nsave = 43,
+                       seed = 5, diff_deltas = c(0.02, 0.1, 0.25), waic = TRUE,
+                       mcse_batches = 6)
+    X <- centered(sim)
+    ref <- multiGGM:::.diag_from_draws(f$C_save, f$adj_save, f$edge_acc$deltas,
+                                       n_batch = 6, S_list = lapply(X, crossprod),
+                                       n_vec = vapply(X, nrow, 1), X_list = X)
+    expect_equal(f$edge_acc, ref$edge_acc, tolerance = 1e-12, label = m)
+    expect_equal(f$trace, ref$trace, tolerance = 1e-10, label = m)
+    expect_equal(f$waic_acc, ref$waic_acc, tolerance = 1e-10, label = m)
     expect_equal(f$C_mean, apply(f$C_save, 1:3, mean), tolerance = 1e-12)
     expect_equal(f$pcor_mean, apply(posterior_pcor(f), 1:3, mean), tolerance = 1e-12)
   }
@@ -70,10 +81,15 @@ test_that("running sums equal the draw-based values (G-Wishart, SSVS)", {
 test_that("running sums equal the draw-based values (mGHS, incl. weights and cut model)", {
   for (sim in list(sim2, sim3)) {
     f <- multiggm_mcmc(data_list = sim$data_list, method = "mghs", burnin = 40, nsave = 40,
-                       seed = 6, diff_deltas = c(0.02, 0.1), save_weights = TRUE)
-    ref <- multiGGM:::.edge_acc_from_draws(f$C_save, NULL, f$edge_acc$deltas,
-                                           f$weight_save, f$cut_save)
-    expect_equal(f$edge_acc, ref, tolerance = 1e-12)
+                       seed = 6, diff_deltas = c(0.02, 0.1), save_weights = TRUE, waic = TRUE)
+    X <- centered(sim)
+    ref <- multiGGM:::.diag_from_draws(f$C_save, NULL, f$edge_acc$deltas,
+                                       f$weight_save, f$cut_save, n_batch = 20,
+                                       S_list = lapply(X, crossprod),
+                                       n_vec = vapply(X, nrow, 1), X_list = X)
+    expect_equal(f$edge_acc, ref$edge_acc, tolerance = 1e-12)
+    expect_equal(f$trace, ref$trace, tolerance = 1e-10)
+    expect_equal(f$waic_acc, ref$waic_acc, tolerance = 1e-10)
     # cut-model indicator mapping agrees with the legacy running mean
     expect_equal(apply(f$cut_save, 1:3, mean)[upper.tri(diag(f$p))],
                  f$cut_z_mean[, , ][upper.tri(diag(f$p))], tolerance = 1e-12)
