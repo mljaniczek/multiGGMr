@@ -48,9 +48,11 @@ they differ, without choosing an FDR level.
 With continuous priors (SSVS spike, mGHS) every \eqn{D} is nonzero, so the
 count is meaningful only with a threshold \code{c} above sampling noise
 (see the edge-selection vignette). Compare the posterior with the same
-count under the prior (fit with \code{prior_only = TRUE}): a network-level
-Bayes factor for any difference is then the posterior odds of
-\code{p_any} divided by the prior odds.
+count under the prior (fit with \code{prior_only = TRUE}). The posterior
+odds of \code{p_any} divided by its prior odds is a network-level Bayes
+factor for any difference, informative only when the prior probability
+is not close to 1 (with many edges and a small \code{c} the prior almost
+surely has some difference).
 }
 \examples{
 sim <- simulate_multiggm(K = 2, p = 6, n = 60, seed = 1)

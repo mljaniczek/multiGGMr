@@ -1,3 +1,26 @@
+# multiGGM 0.7.0
+
+* New `posterior_predictive_check()` and `plot_ppc()`. Replicate data are
+  drawn from posterior precision draws with the observed group sizes and
+  compared with the data, giving posterior predictive p-values:
+  - per group: dependence strength (`max_abs_cor`, `sum_sq_cor`), and
+    outliers and heavy tails (`max_mahal`, `kurtosis`, as realized
+    discrepancies);
+  - per pair of groups: the total difference between groups
+    (`sum_sq_diff`), which shows whether differences are over-shrunk;
+  - per edge: each group's sample partial correlation (or correlation) and
+    its difference between groups.
+  Works for G-Wishart, SSVS and mGHS. It needs saved draws (thinning to
+  about 200 is enough); `use = "mean"` gives an approximate check for fits
+  without draws. Runs in R after fitting, so chains are unaffected.
+* The "Checking and Evaluating a Fit" vignette gains a section on posterior
+  predictive checks.
+
+## To do
+
+* Edge probabilities, diagnostics and posterior predictive checks for
+  `method = "ssvs_platform"` (currently an error).
+
 # multiGGM 0.6.0
 
 ## Diagnostics and evaluation without saving draws

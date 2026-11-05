@@ -13,8 +13,9 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height
 
 Edge probabilities are only as good as the chain that produced them. This
 vignette covers the checks to run before reporting a network: convergence,
-Monte Carlo error, how far the data moved each edge from its prior, and
-summaries of differences beyond single edges. Every tool here works with
+Monte Carlo error, how far the data moved each edge from its prior, summaries
+of differences beyond single edges, model comparison and posterior predictive
+checks. Every tool here except the posterior predictive checks works with
 `save_draws = FALSE`: the samplers keep small per-iteration traces and running
 sums for them, without drawing extra random numbers.
 
@@ -176,7 +177,67 @@ many parameters per observation; WAIC is then only a rough guide, and
 PSIS-LOO from the **loo** package (which needs saved draws) is more reliable.
 WAIC costs $O(n_k p^2)$ per iteration, so it is off by default.
 
-## 5. Calibration in simulations
+## 5. Posterior predictive checks
+
+Do the data look like data the fitted model would produce?
+`posterior_predictive_check()` draws replicate datasets, one per posterior
+draw of the precision matrices and with the observed group sizes, and
+compares discrepancy statistics. It needs saved precision draws; thinning to
+about 200 keeps them small. (`use = "mean"` gives an approximate check for
+fits without draws.)
+
+```{r ppc}
+fit_d <- multiggm_mcmc(data_list = sim$data_list, method = "ssvs", burnin = 1000,
+                       nsave = 200, thin = 10, seed = 1)
+pc <- posterior_predictive_check(fit_d, sim$data_list, seed = 1)
+pc
+```
+
+A posterior predictive p-value (ppp) is the share of replicates with a
+statistic at least as large as the observed one; values near 0 or 1 mark a
+feature the model does not reproduce.
+
+* `max_abs_cor` and `sum_sq_cor` check the strength of dependence in each
+  group.
+* `max_mahal` (largest squared Mahalanobis distance) and `kurtosis` (Mardia's
+  multivariate kurtosis) check for outliers and heavy tails. They are
+  *realized* discrepancies, computed with the same precision draw for
+  observed and replicate data.
+* `sum_sq_diff` checks the total difference between groups: a ppp near 0
+  means the observed groups differ more than the model implies, so the
+  differences are over-shrunk.
+* Per edge, the same comparison for each group's sample partial correlation
+  and for its difference between groups (`pc$edges`).
+
+Here nothing is flagged, as it should be, since the data were simulated from
+a Gaussian model. The same structure with heavy-tailed (multivariate t) data
+is flagged by the outlier and kurtosis checks, while the correlation checks
+still pass:
+
+```{r ppc-t}
+set.seed(3)
+tdat <- lapply(sim$Omega_list, function(O) {
+  Z <- matrix(rnorm(150 * 10), 150) %*% chol(solve(O))
+  Z / sqrt(rchisq(150, 4) / 4)
+})
+fit_t <- multiggm_mcmc(data_list = tdat, method = "ssvs", burnin = 1000,
+                       nsave = 200, thin = 10, seed = 1)
+pc_t <- posterior_predictive_check(fit_t, tdat, seed = 1)
+pc_t$global[pc_t$global$statistic %in% c("max_mahal", "kurtosis"), ]
+plot_ppc(pc_t)
+```
+
+Heavy tails or outliers can create apparent differences between groups, and
+FDR control cannot detect that. Consider a transformation (for example a
+nonparanormal or rank-based transform), or check whether a few observations
+drive the selected differences.
+
+Posterior predictive p-values are conservative: under a correct model they
+concentrate near 0.5, so a correct model flags fewer edges than `alpha`
+suggests. Many flagged edges, or extreme global ppp values, indicate misfit;
+few flags do not prove fit.
+
+## 6. Calibration in simulations
 
 In a simulation study the truth is known, and `fdr_calibration()` compares the
 posterior expected FDR of each selection with the achieved false discovery
@@ -204,6 +265,10 @@ for why the "credible interval excludes zero" rule fails this check.
 Vehtari, A., Gelman, A., Simpson, D., Carpenter, B. & Buerkner, P.-C. (2021).
 Rank-normalization, folding, and localization: an improved R-hat for
 assessing convergence of MCMC. *Bayesian Analysis*, 16(2), 667-718.
+
+Gelman, A., Meng, X.-L. & Stern, H. (1996). Posterior predictive assessment
+of model fitness via realized discrepancies. *Statistica Sinica*, 6(4),
+733-760.
 
 Watanabe, S. (2010). Asymptotic equivalence of Bayes cross validation and
 widely applicable information criterion in singular learning theory.
