@@ -25,8 +25,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // mghs_engine_cpp
-Rcpp::List mghs_engine_cpp(const int& burnin, const int& nsave, const int& thin, const Eigen::VectorXd& n, const Rcpp::List& S, const int& p, const Eigen::VectorXd hyp_ta, const bool& save_draws, const Rcpp::NumericVector& diff_deltas, const bool& verbose, const int& print_every, const bool& save_weights, Rcpp::Nullable<Rcpp::List> diag_opts);
-RcppExport SEXP _multiGGM_mghs_engine_cpp(SEXP burninSEXP, SEXP nsaveSEXP, SEXP thinSEXP, SEXP nSEXP, SEXP SSEXP, SEXP pSEXP, SEXP hyp_taSEXP, SEXP save_drawsSEXP, SEXP diff_deltasSEXP, SEXP verboseSEXP, SEXP print_everySEXP, SEXP save_weightsSEXP, SEXP diag_optsSEXP) {
+Rcpp::List mghs_engine_cpp(const int& burnin, const int& nsave, const int& thin, const Eigen::VectorXd& n, const Rcpp::List& S, const int& p, const Eigen::VectorXd hyp_ta, const bool& save_draws, const Rcpp::NumericVector& diff_deltas, const bool& verbose, const int& print_every, const bool& save_weights, Rcpp::Nullable<Rcpp::List> diag_opts, const double& R_eta);
+RcppExport SEXP _multiGGM_mghs_engine_cpp(SEXP burninSEXP, SEXP nsaveSEXP, SEXP thinSEXP, SEXP nSEXP, SEXP SSEXP, SEXP pSEXP, SEXP hyp_taSEXP, SEXP save_drawsSEXP, SEXP diff_deltasSEXP, SEXP verboseSEXP, SEXP print_everySEXP, SEXP save_weightsSEXP, SEXP diag_optsSEXP, SEXP R_etaSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -43,7 +43,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const int& >::type print_every(print_everySEXP);
     Rcpp::traits::input_parameter< const bool& >::type save_weights(save_weightsSEXP);
     Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::List> >::type diag_opts(diag_optsSEXP);
-    rcpp_result_gen = Rcpp::wrap(mghs_engine_cpp(burnin, nsave, thin, n, S, p, hyp_ta, save_draws, diff_deltas, verbose, print_every, save_weights, diag_opts));
+    Rcpp::traits::input_parameter< const double& >::type R_eta(R_etaSEXP);
+    rcpp_result_gen = Rcpp::wrap(mghs_engine_cpp(burnin, nsave, thin, n, S, p, hyp_ta, save_draws, diff_deltas, verbose, print_every, save_weights, diag_opts, R_eta));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -315,7 +316,7 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_multiGGM_calc_mrf_logC_cpp", (DL_FUNC) &_multiGGM_calc_mrf_logC_cpp, 2},
-    {"_multiGGM_mghs_engine_cpp", (DL_FUNC) &_multiGGM_mghs_engine_cpp, 13},
+    {"_multiGGM_mghs_engine_cpp", (DL_FUNC) &_multiGGM_mghs_engine_cpp, 14},
     {"_multiGGM_mcmc_engine_cpp", (DL_FUNC) &_multiGGM_mcmc_engine_cpp, 24},
     {"_multiGGM_mcmc_ssvs_engine_cpp", (DL_FUNC) &_multiGGM_mcmc_ssvs_engine_cpp, 26},
     {"_multiGGM_mcmc_ssvs_platform_engine_cpp", (DL_FUNC) &_multiGGM_mcmc_ssvs_platform_engine_cpp, 36},

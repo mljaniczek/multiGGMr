@@ -108,6 +108,21 @@
 #'     cut-model threshold. Default 0.6 and 0.05, the values used by the
 #'     authors' simulation scripts. The cut model does not feed back into the
 #'     precision matrices.}
+#'   \item{\code{R_eta}}{Shape \eqn{\eta} of an LKJ prior on the correlation
+#'     of edge scales across groups, \eqn{\pi(R) \propto |R|^{\eta - 1}}.
+#'     Default 1, the paper's uniform prior (the sampler is then unchanged).
+#'     With few observations per group, the posterior of \eqn{R} under the
+#'     uniform prior piles up at \eqn{\pm 1}, because the per-group local
+#'     scales can align the scaled edges of the groups and null edges carry
+#'     no sign information; the chain then fails with "global-scale parameter
+#'     above 1e6" and an error message naming \code{R_eta}. In that case use
+#'     \eqn{\eta > 1}: on a TCGA example (K = 2, n = 100, p = 28)
+#'     \eqn{\eta = 5} and \eqn{\eta = 10} ran without failure where
+#'     \eqn{\eta \le 3} failed, and partial correlations and differential
+#'     edge probabilities changed little between them, while the posterior
+#'     of \eqn{R} itself moved with \eqn{\eta}. Treat \eqn{R} as a nuisance
+#'     parameter in that regime. For K = 2, \eqn{R_{12}} has a
+#'     Beta(\eqn{\eta}, \eqn{\eta}) distribution stretched to (-1, 1).}
 #' }
 #'
 #' \strong{mGHS sampler (\code{method = "mghs"}):} the horseshoe prior is
@@ -956,7 +971,7 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
       d = 1, f = 19,                   # Beta prior on the platform-level edge log-odds
       d_prop = 2, f_prop = 4,          # Beta proposal for those log-odds
       u_prior = 0.1)),                 # P(zeta_st = 1)
-    mghs = list(t_mean = 0.6, t_var = 0.05),
+    mghs = list(t_mean = 0.6, t_var = 0.05, R_eta = 1),
     stop("Unknown method: ", method))
 }
 

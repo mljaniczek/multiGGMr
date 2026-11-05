@@ -72,3 +72,47 @@ test_that("non-finite input stops instead of hanging", {
   expect_error(multiggm_mcmc(data_list = sim$data_list, method = "mghs", burnin = 5,
                              nsave = 5, hyper = list(t_var = 0.5)), "t_var")
 })
+
+# --- Prior on the edge-scale correlation R (hyper$R_eta) -------------------
+
+test_that("default mGHS fits are bit-identical to 0.7.0 (p = 50, n = 1000)", {
+  skip_on_cran()
+  ref <- readRDS(test_path("fixtures", "ref_mghs_p50_0.7.0.rds"))
+  sim <- simulate_multiggm(K = 2, p = 50, n = 1000, seed = 1)
+  f <- multiggm_mcmc(data_list = sim$data_list, method = "mghs", burnin = 150, nsave = 100,
+                     seed = 11, save_draws = FALSE)
+  dev <- exists(".__DEVTOOLS__", envir = asNamespace("multiGGM"), inherits = FALSE)
+  for (nm in setdiff(names(ref), c("version", "platform"))) {
+    if (!dev && identical(ref$platform, R.version$platform))
+      expect_identical(f[[nm]], ref[[nm]], label = nm)
+    else expect_equal(f[[nm]], ref[[nm]], tolerance = 1e-8, label = nm)
+  }
+  # R_eta = 1 is the paper's uniform prior and the default
+  g <- multiggm_mcmc(data_list = sim$data_list, method = "mghs", burnin = 150, nsave = 100,
+                     seed = 11, save_draws = FALSE, hyper = list(R_eta = 1))
+  expect_identical(g$R_save, f$R_save)
+  expect_identical(g$C_mean, f$C_mean)
+})
+
+test_that("an LKJ prior on R keeps small-n fits away from the boundary", {
+  skip_on_cran()
+  sim <- simulate_multiggm(K = 2, p = 28, n = 100, seed = 7)
+  # Under the uniform prior this chain runs R to +-1 and stops, and the
+  # error says why.
+  expect_error(multiggm_mcmc(data_list = sim$data_list, method = "mghs", burnin = 2000,
+                             nsave = 2000, seed = 123, max_attempts = 1, save_draws = FALSE),
+               "R_eta")
+  f <- multiggm_mcmc(data_list = sim$data_list, method = "mghs", burnin = 2000, nsave = 2000,
+                     seed = 123, max_attempts = 1, save_draws = FALSE,
+                     hyper = list(R_eta = 10))
+  expect_equal(f$attempts, 1L)
+  expect_lt(max(abs(f$R_save[1, 2, ])), 0.99)
+  expect_identical(f$hyper$R_eta, 10)
+})
+
+test_that("R_eta is validated", {
+  sim <- simulate_multiggm(K = 2, p = 5, n = 30, seed = 1)
+  for (bad in list(0, -1, NA_real_, c(2, 3), "a"))
+    expect_error(multiggm_mcmc(data_list = sim$data_list, method = "mghs", burnin = 5,
+                               nsave = 5, hyper = list(R_eta = bad)), "R_eta")
+})

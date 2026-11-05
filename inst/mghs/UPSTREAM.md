@@ -62,6 +62,21 @@ files.
    which check fired (`stuck_reason`); the number of extra rejection-sampler
    tries is counted (`reject_tries`, a diagnostic for slow fits).
 
+6. **Optional LKJ prior on R** (`mGHS.cpp`, from multiGGM 0.8.0). The R
+   update accepts with `(|R*|/|R|)^((K+1)/2)` (Liu & Daniels' parameter-
+   expanded Metropolis-Hastings step for a uniform prior, as in the paper).
+   `hyper$R_eta` multiplies this by `(|R*|/|R|)^(R_eta - 1)`, the ratio of
+   LKJ(`R_eta`) prior densities. The default `R_eta = 1` skips the extra
+   factor, so default fits are bit-identical to upstream and to earlier
+   versions. `R_eta > 1` changes the prior, and hence the posterior; it is
+   needed when the uniform-prior posterior of R sits at +-1 (small n), where
+   the chain otherwise stops at the global-scale guard. A stuck chain now also
+   reports `stuck_mu`, the smallest `1 - r' R^{-1} r`, and the R wrapper warns
+   when a chain had to be restarted.
+
 Not changed: the cut model's use of `Lambda / (1 + Lambda)` without the
 global scale `tau`. The package does not expose cut-model edge selection
-(`cut_z_mean` is stored for reference only).
+(`cut_z_mean` is stored for reference only). Also not changed: for p > 5
+(more than 14 edges) `rg3p_approx()` draws the global scale from a normal
+approximation to its three-parameter-gamma full conditional without a
+Metropolis correction, so that step is approximate, as upstream.

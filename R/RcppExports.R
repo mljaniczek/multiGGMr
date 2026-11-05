@@ -14,8 +14,8 @@ calc_mrf_logC_cpp <- function(Theta, nu) {
     .Call(`_multiGGM_calc_mrf_logC_cpp`, Theta, nu)
 }
 
-mghs_engine_cpp <- function(burnin, nsave, thin, n, S, p, hyp_ta, save_draws, diff_deltas, verbose, print_every, save_weights = FALSE, diag_opts = NULL) {
-    .Call(`_multiGGM_mghs_engine_cpp`, burnin, nsave, thin, n, S, p, hyp_ta, save_draws, diff_deltas, verbose, print_every, save_weights, diag_opts)
+mghs_engine_cpp <- function(burnin, nsave, thin, n, S, p, hyp_ta, save_draws, diff_deltas, verbose, print_every, save_weights = FALSE, diag_opts = NULL, R_eta = 1.0) {
+    .Call(`_multiGGM_mghs_engine_cpp`, burnin, nsave, thin, n, S, p, hyp_ta, save_draws, diff_deltas, verbose, print_every, save_weights, diag_opts, R_eta)
 }
 
 mcmc_engine_cpp <- function(S_list_r, n_vec_r, burnin, nsave, thin, b_prior, D_prior_r, a, b_beta, alpha, beta_rate, w_prior, alpha_prop, beta_prop, a_prop, b_prop, Theta_init_r, nu_init_r, C_init_r, verbose, print_every, save_draws, diff_deltas, diag_opts) {

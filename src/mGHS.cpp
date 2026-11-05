@@ -63,17 +63,19 @@ struct DiffAcc
 
 
 // reason: 1 local-scale guard (alpha), 5 local-scale guard (beta),
-// 2 local-scale draw, 3 global-scale guard, 4 global-scale draw
-static Rcpp::List stuck_result (const int& b, const int& reason)
+// 2 local-scale draw, 3 global-scale guard, 4 global-scale draw.
+// mu_min: smallest mu(h) = 1 - r_h' R_{-h}^{-1} r_h; near 0 when R is near singular.
+static Rcpp::List stuck_result (const int& b, const int& reason, const double& mu_min)
 {
   return Rcpp::List::create(Rcpp::Named("stuck") = 1, Rcpp::Named("stuck_iter") = b + 1,
                             Rcpp::Named("stuck_reason") = reason,
+                            Rcpp::Named("stuck_mu") = mu_min,
                             Rcpp::Named("reject_tries") = mghs_reject_tries);
 }
 
 
 // [[Rcpp::export]]
-Rcpp::List mghs_engine_cpp (const int& burnin, const int& nsave, const int& thin, const Eigen::VectorXd& n, const Rcpp::List& S, const int& p, const Eigen::VectorXd hyp_ta, const bool& save_draws, const Rcpp::NumericVector& diff_deltas, const bool& verbose, const int& print_every, const bool& save_weights = false, Rcpp::Nullable<Rcpp::List> diag_opts = R_NilValue) 
+Rcpp::List mghs_engine_cpp (const int& burnin, const int& nsave, const int& thin, const Eigen::VectorXd& n, const Rcpp::List& S, const int& p, const Eigen::VectorXd hyp_ta, const bool& save_draws, const Rcpp::NumericVector& diff_deltas, const bool& verbose, const int& print_every, const bool& save_weights = false, Rcpp::Nullable<Rcpp::List> diag_opts = R_NilValue, const double& R_eta = 1.0) 
 {
   // multiGGM: derived from upstream mGHS_chain(). The sampling steps are
   // unchanged, so for thin = 1 the draws match upstream for the same seed.
@@ -284,11 +286,11 @@ Rcpp::List mghs_engine_cpp (const int& burnin, const int& nsave, const int& thin
             beta_l = temp_1(c) * tmp1 / mth2;
             
             if (!std::isfinite(alpha_l) || !std::isfinite(beta_l) || alpha_l > 1e+06 || beta_l > 1e+06) {
-              return stuck_result(b, (!std::isfinite(alpha_l) || alpha_l > 1e+06) ? 1 : 5);
+              return stuck_result(b, (!std::isfinite(alpha_l) || alpha_l > 1e+06) ? 1 : 5, mu.minCoeff());
             }
             
             tmp1 = rg3p_c1(alpha_l, beta_l);
-            if (!(tmp1 > 0.0) || !std::isfinite(1.0 / (tmp1 * tmp1))) return stuck_result(b, 2);
+            if (!(tmp1 > 0.0) || !std::isfinite(1.0 / (tmp1 * tmp1))) return stuck_result(b, 2, mu.minCoeff());
             tmp1 = 1.0 / (tmp1 * tmp1);
             Lambda[js][j][h] = tmp1;  
             Lambda[j][js][h] = tmp1;  
@@ -357,11 +359,11 @@ Rcpp::List mghs_engine_cpp (const int& burnin, const int& nsave, const int& thin
       alpha_t = std::sqrt(0.5 / mu(h) * alpha_t + 1.0 / zeta(h));
       
       if (!std::isfinite(alpha_t) || !std::isfinite(beta_t / mu(h)) || alpha_t > 1e+06 || beta_t / mu(h) > 1e+06) {
-        return stuck_result(b, 3);
+        return stuck_result(b, 3, mu.minCoeff());
       }
       
       tau(h) = 1.0 / std::pow(rg3p_approx(alpha_t, beta_t / mu(h), (int)IW_df), 2);
-      if (!(tau(h) > 0.0) || !std::isfinite(tau(h))) return stuck_result(b, 4);
+      if (!(tau(h) > 0.0) || !std::isfinite(tau(h))) return stuck_result(b, 4, mu.minCoeff());
       // tau(h) = 1.0 / std::pow(rg3p(alpha_t, beta_t / mu(h), (int)IW_df), 2);
       zeta(h) = 1.0 / R::rgamma(1.0, 1.0 / (1.0 + 1.0 / tau(h)));
     }
@@ -386,6 +388,10 @@ Rcpp::List mghs_engine_cpp (const int& burnin, const int& nsave, const int& thin
     R_s = e_ij.asDiagonal() * Psi * e_ij.asDiagonal();
     
     a_MH = exp((K+1) * 0.5 * (std::log(R_s.determinant()) - std::log(R.determinant())));
+    // multiGGM: optional LKJ(R_eta) prior, pi(R) propto |R|^(R_eta - 1). R_eta = 1 is
+    // the paper's uniform prior, and then this step is skipped entirely.
+    if (R_eta != 1.0)
+      a_MH *= exp((R_eta - 1.0) * (std::log(R_s.determinant()) - std::log(R.determinant())));
     
     if (R::runif(0, 1) < a_MH)
     {

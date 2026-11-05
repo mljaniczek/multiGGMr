@@ -1,3 +1,29 @@
+# multiGGM 0.8.0
+
+## mGHS: small-sample failures and an optional prior on R
+
+* **Diagnosis.** With few observations per group (for example K = 2,
+  n = 100, p = 28 on TCGA data, or simulated data with n = 100), mGHS chains
+  stopped with "global-scale parameter above 1e6". The global scales tau
+  were finite. The correlation of edge scales across groups, R, ran to
+  +-1, so 1 - R12^2 went to 0 and the global-scale parameters, which divide
+  by it, crossed the guard. This is a property of the posterior under the
+  paper's uniform prior on R, not a numerical error: the per-group local
+  scales can align the groups' scaled edges, and with small n the null edges'
+  signs are free, so only concordant strong edges inform R and they favour
+  +-1. Rescaling all groups by a common constant did not help; n = 1000 per
+  group did.
+* **New `hyper$R_eta`** (mGHS): an LKJ(eta) prior on R, pi(R) propto
+  |R|^(eta - 1). The default, 1, is the paper's uniform prior and leaves the
+  sampler unchanged (default fits are bit-identical to 0.7.0, tested at
+  p = 50, n = 1000). On the TCGA example, eta = 5 and eta = 10 ran 20,000 +
+  20,000 iterations on 2 chains for all 5 seeds with R-hat <= 1.01 for tau
+  and R; eta = 3 failed in 8 of 10 chains.
+* The error for a chain stuck at the boundary of R now says so and points to
+  `R_eta`; a stuck chain reports `stuck_mu`. A warning is given when a chain
+  had to be restarted, since restarted chains report only runs that avoided
+  the failure.
+
 # multiGGM 0.7.0
 
 * New `posterior_predictive_check()` and `plot_ppc()`. Replicate data are

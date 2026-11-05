@@ -8,6 +8,8 @@
   if (!is.numeric(mu) || mu <= 0 || mu >= 1) stop("hyper$t_mean must lie in (0, 1).")
   if (!is.numeric(v) || v <= 0 || v >= mu * (1 - mu))
     stop("hyper$t_var must lie in (0, t_mean * (1 - t_mean)).")
+  if (!is.numeric(h$R_eta) || length(h$R_eta) != 1L || !is.finite(h$R_eta) || h$R_eta <= 0)
+    stop("hyper$R_eta must be a single positive number.")
   a <- mu^2 * (1 - mu) / v - mu
   h$hyp_ta <- c(a, a * (1 - mu) / mu)
   h
@@ -31,7 +33,8 @@
       n = as.numeric(n_vec), S = lapply(S_list, as.matrix), p = as.integer(p),
       hyp_ta = h$hyp_ta, save_draws = isTRUE(save_draws),
       diff_deltas = diff_deltas, verbose = isTRUE(disp), print_every = 500L,
-      save_weights = isTRUE(save_weights), diag_opts = diag_opts)
+      save_weights = isTRUE(save_weights), diag_opts = diag_opts,
+      R_eta = as.numeric(h$R_eta))
     if (res$stuck == 0L) break
     if (isTRUE(disp))
       message(sprintf("mghs attempt %d stuck at iteration %d; restarting.",
@@ -43,9 +46,22 @@
              "global-scale parameter above 1e6 or non-finite",
              "global-scale draw non-finite",
              "local-scale parameter beta above 1e6 or non-finite")[res$stuck_reason]
-    stop(sprintf("mGHS sampler got stuck in all %d attempts (last at iteration %d: %s).",
-                 max_attempts, res$stuck_iter, why), call. = FALSE)
+    near_one <- isTRUE(res$stuck_mu < 0.01)
+    stop(sprintf("mGHS sampler got stuck in all %d attempts (last at iteration %d: %s).%s",
+                 max_attempts, res$stuck_iter, why,
+                 if (near_one) sprintf(paste0(
+                   " The correlation of edge scales R was at the boundary (1 - R^2 = %.1e): ",
+                   "with few observations its posterior under the uniform prior piles up ",
+                   "at +-1. Use an LKJ prior on R, e.g. hyper = list(R_eta = 10); see the mGHS ",
+                   "section of ?multiggm_mcmc."), res$stuck_mu) else ""),
+         call. = FALSE)
   }
+  if (attempt > 1L)
+    warning(sprintf(paste0(
+      "The mGHS chain was restarted %d time(s) before it ran to the end. A restarted ",
+      "chain only reports runs that avoided the failure, so its draws can be biased; ",
+      "if the failures were at the boundary of R, refit with e.g. hyper = list(R_eta = 10)."),
+      attempt - 1L), call. = FALSE)
 
   structure(list(
     K = K, p = p, method = "mghs",
