@@ -11,7 +11,7 @@ posterior_ci(pcor, probs = c(0.025, 0.975))
 as returned by \code{\link{posterior_pcor}}.}
 
 \item{probs}{Numeric vector of length 2 giving the lower and upper
-quantile probabilities. Default \code{c(0.025, 0.975)} for 95\\%
+quantile probabilities. Default \code{c(0.025, 0.975)} for 95\%
 credible intervals.}
 }
 \value{

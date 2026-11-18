@@ -125,6 +125,60 @@ below $c$ as nulls. Choose it on the scale of the question:
   `seq(0.02, 0.3, by = 0.02)`) if you want to choose $c$ afterwards. With
   `save_draws = TRUE`, any other $c$ can be computed from the draws.
 
+### Choosing c from a permutation null
+
+The noise level of $D$ depends on the data, the sample sizes and the prior, so
+no fixed $c$ is safe. In simulations with no true differences, $c = 0.05$
+(precision scale) gave at least one false call in about two thirds of datasets
+at $n = 1000$, and $c = 0.10$ gave achieved FDRs of 0.37 to 0.67 at
+$n \le 100$. `calibrate_c()` estimates the smallest $c$ these data can tell
+from noise. It shuffles the group labels, refits each shuffled dataset with the
+settings of your analysis, and finds the $c$ at which at most 5% of shuffled
+datasets (where every call is false) produce any call.
+
+```{r calibrate}
+# Two groups (60 and 40 samples) that share one network
+sim0 <- simulate_multiggm(K = 2, p = 8, n = 60, seed = 3)
+set.seed(4)
+X0 <- list(sim0$data_list[[1]],
+           matrix(rnorm(40 * 8), 40) %*% chol(solve(sim0$Omega_list[[1]])))
+fit0 <- multiggm_mcmc(data_list = X0, method = "ssvs", burnin = 150, nsave = 150,
+                      seed = 1, diff_deltas = seq(0.01, 0.8, by = 0.01))
+cal <- calibrate_c(X0, fit = fit0, n_perm = 20, verbose = FALSE)
+cal
+```
+
+```{r calibrate-plot, fig.width = 6, fig.height = 3.5}
+plot(cal)
+```
+
+The points are the share of shuffled datasets with any call at each $c$; the
+curve is a Weibull fit to each dataset's largest $c$ with a call, which
+borrows strength across datasets, so 20 to 50 shuffles suffice. Then select
+with
+
+```{r calibrate-use}
+select_diff_edges(fit0, c = max(0.10, cal$suggested_c))
+```
+
+Three points matter:
+
+* **$c_{null}$ is a noise floor, not a scientific threshold.** It is the
+  smallest difference these data can distinguish from noise. Use
+  $c = \max(c_{scientific}, c_{null})$.
+* **Use the analysis settings.** Pass the fit (`fit = `), so the shuffled data
+  are fitted with the same prior, chain length and number of chains. The
+  posterior spread of $D$, and the resolution of its probabilities, depend on
+  them. Fit the analysis with `diff_deltas` covering the grid (as above) so
+  that the chosen $c$ is available without saved draws. For mGHS at small
+  $n$, use the same `hyper$R_eta` (see `?multiggm_mcmc`).
+* **Cost.** Each shuffle is a full fit (here 20 small fits). They are
+  independent: use `parallel = TRUE`. Early stopping ends the run when the
+  estimate is precise enough.
+
+Each original group is centred on its own means before the samples are
+pooled, as `multiggm_mcmc()` centres the data it fits; nothing is rescaled.
+
 ## mGHS
 
 Following Busatto & Stingo (2025), the shrinkage weight

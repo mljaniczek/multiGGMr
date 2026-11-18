@@ -87,7 +87,7 @@ posterior_pcor <- function(fit, use = c("C_save", "Sig_save"), chain = NULL) {
 #' @param pcor A numeric array of dimension \code{[p, p, K, nsave]},
 #'   as returned by \code{\link{posterior_pcor}}.
 #' @param probs Numeric vector of length 2 giving the lower and upper
-#'   quantile probabilities. Default \code{c(0.025, 0.975)} for 95\%
+#'   quantile probabilities. Default \code{c(0.025, 0.975)} for 95%
 #'   credible intervals.
 #'
 #' @return A list with four components:

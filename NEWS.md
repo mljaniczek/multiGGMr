@@ -1,3 +1,32 @@
+# multiGGM 0.9.0
+
+* New `calibrate_c()` chooses the minimum-difference threshold c for the
+  magnitude rule (`select_diff_edges(rule = "magnitude")`) from a permutation
+  null. The two groups' labels are shuffled (group sizes kept, each original
+  group centred on its own means, nothing rescaled), each shuffled dataset is
+  refitted with the analysis settings, and every call it makes is false.
+  - Default target: at most `alpha` of null datasets with any call, which is
+    the FDR of the rule under the null. c is the (1 - alpha) quantile of a
+    censored Weibull fitted to each permutation's largest c with a call, so
+    20 to 50 permutations suffice. In permutation studies (SSVS, p = 10-30,
+    n = 70-400 per group) the c chosen from 20 permutations gave an achieved
+    null rate of 0.02-0.05 (target 0.05). `target = "mean_false_calls"` is
+    also available.
+  - Settings come from the analysis fit (`fit =`) or `mcmc_args`; failed
+    fits are recorded and skipped; permutations are reproducible and
+    identical in parallel; early stopping when the confidence interval for
+    c is within `c_tol`.
+  - `print()`, `plot()` and `as.data.frame()` methods.
+* `select_diff_edges()` accepts the result of `calibrate_c()` as `c`.
+* `multiggm_mcmc()` records its settings in `fit$settings` (not read by the
+  samplers), so they can be reused. For older fits `calibrate_c()`
+  reconstructs them, asking for `burnin` when it cannot be recovered.
+* Fine c grids need no change: `diff_deltas` (any grid, both scales) has
+  worked for every sampler since 0.5.0. At p = 100, a 40-value grid takes
+  about 28 MB of running sums (16 MB with `mcse_batches = 0`) and adds about
+  10% to run time.
+* Edge-selection vignette: new section on choosing c from a permutation null.
+
 # multiGGM 0.8.0
 
 ## mGHS: small-sample failures and an optional prior on R

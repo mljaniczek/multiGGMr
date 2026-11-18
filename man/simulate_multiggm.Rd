@@ -32,7 +32,7 @@ approximately \code{2p - 3} edges. Matches Peterson et al. Section
 \item \code{random}: Erdos-Renyi random graph where each edge is
 included independently with probability \code{edge_prob}.
 \item \code{hub}: Star/hub graph with \code{floor(p/5)} hub nodes,
-each connected to approximately 40\\% of other nodes.
+each connected to approximately 40\% of other nodes.
 }}
 
 \item{edge_prob}{Numeric; probability of each edge in the base graph

@@ -339,6 +339,10 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
 
   engine <- match.arg(engine)
   if (!is.null(seed)) seed <- as.integer(seed)
+  # Everything needed to rerun the fit with the same settings (calibrate_c());
+  # recorded only, never read by the samplers.
+  settings <- list(method = method, burnin = burnin, nsave = nsave, thin = thin,
+                   nchains = nchains, hyper = hyper, engine = engine, dots = list(...))
 
   chain_fun <- function(chain_id) {
     if (!is.null(seed)) set.seed(seed + 1000L * (chain_id - 1L))
@@ -350,6 +354,7 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
 
   if (nchains == 1L) {
     fit <- chain_fun(1L)
+    fit$settings <- settings
     class(fit) <- c("multiggm_fit", class(fit))
     return(fit)
   }
@@ -375,7 +380,8 @@ multiggm_mcmc <- function(data_list = NULL, S_list = NULL, n_vec = NULL,
   out <- list(chains = fits,
               call = match.call(),
               K = K,
-              nchains = nchains)
+              nchains = nchains,
+              settings = settings)
   class(out) <- "multiggm_fit_list"
   out
 }

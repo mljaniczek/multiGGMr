@@ -288,7 +288,10 @@ bayes_fdr <- function(prob, alpha = 0.05) {
 #'   See [edge_probs()] for the exact definitions.
 #' @param delta,c Threshold \eqn{c} for the magnitude and union rules, on the
 #'   scale given by \code{scale}: the smallest difference worth detecting.
-#'   \code{c} is an alias of \code{delta} (default 0.05).
+#'   \code{c} is an alias of \code{delta} (default 0.05). \code{c} may also be
+#'   the result of [calibrate_c()], whose \code{suggested_c} is then used
+#'   (pcor scale only). A fixed \code{c} that is not well above the sampling
+#'   noise of \eqn{D} gives many false calls; see [calibrate_c()].
 #' @param decision \code{"bfdr"} (default) selects the largest set with
 #'   posterior expected FDR at most \code{alpha} ([bayes_fdr()], keeping tied
 #'   probabilities together); \code{"median"} selects probability > 0.5.
@@ -322,6 +325,11 @@ select_diff_edges <- function(fit, groups = c(1, 2), alpha = 0.05,
   rule <- match.arg(rule)
   scale <- match.arg(scale)
   decision <- match.arg(decision)
+  if (inherits(c, "multiggm_c_calibration")) {
+    if (scale != "pcor") stop("calibrate_c() calibrates c on the pcor scale.", call. = FALSE)
+    c <- c$suggested_c
+    if (!is.finite(c)) stop("The calibration suggested no c.", call. = FALSE)
+  }
   chains <- .fit_chains(fit, chain)
   p <- chains[[1]]$p
   groups <- .check_groups(groups, chains[[1]]$K)

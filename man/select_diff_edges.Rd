@@ -45,7 +45,10 @@ See \code{\link[=edge_probs]{edge_probs()}} for the exact definitions.}
 
 \item{delta, c}{Threshold \eqn{c} for the magnitude and union rules, on the
 scale given by \code{scale}: the smallest difference worth detecting.
-\code{c} is an alias of \code{delta} (default 0.05).}
+\code{c} is an alias of \code{delta} (default 0.05). \code{c} may also be
+the result of \code{\link[=calibrate_c]{calibrate_c()}}, whose \code{suggested_c} is then used
+(pcor scale only). A fixed \code{c} that is not well above the sampling
+noise of \eqn{D} gives many false calls; see \code{\link[=calibrate_c]{calibrate_c()}}.}
 
 \item{scale}{\code{"pcor"} (default) for partial correlations or
 \code{"precision"} for precision-matrix entries.}

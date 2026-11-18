@@ -18,7 +18,7 @@
 #' * `random`: Erdos-Renyi random graph where each edge is
 #'       included independently with probability \code{edge_prob}.
 #' * `hub`: Star/hub graph with \code{floor(p/5)} hub nodes,
-#'       each connected to approximately 40\% of other nodes.
+#'       each connected to approximately 40% of other nodes.
 #' @param edge_prob Numeric; probability of each edge in the base graph
 #'   (used only for \code{graph_type = "random"}). Default 0.1.
 #' @param perturb_prob Numeric; for groups \code{k = 2, ..., K}, the

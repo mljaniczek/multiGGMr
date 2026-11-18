@@ -494,7 +494,7 @@ node_diff_summary <- function(fit, groups = c(1, 2),
 #'
 #' @return An object of class \code{"multiggm_diff_count"}: a list with
 #'   \code{draws} (the count at every iteration, chains concatenated),
-#'   \code{mean}, \code{sd}, \code{quantiles} (2.5\%, 50\%, 97.5\%),
+#'   \code{mean}, \code{sd}, \code{quantiles} (2.5%, 50%, 97.5%),
 #'   \code{p_any}, \code{groups}, \code{rule}, \code{c} and \code{scale}.
 #'
 #' @examples
