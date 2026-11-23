@@ -9,9 +9,12 @@
 # S_list / n_vec and X_list.
 .diag_from_draws <- function(C_save, adj_save = NULL, deltas, weight_save = NULL,
                              cut_save = NULL, n_batch = 0L, S_list = NULL,
-                             n_vec = NULL, X_list = NULL) {
+                             n_vec = NULL, X_list = NULL, tau_save = NULL,
+                             R_save = NULL) {
   d <- dim(C_save); p <- d[1]; K <- d[3]; ns <- d[4]
   shrink <- !is.null(weight_save)
+  # mGHS 1 - kappa needs tau, R and the data's S (see src/mGHS.cpp)
+  kap <- shrink && !is.null(tau_save) && !is.null(R_save) && !is.null(S_list)
   ut <- which(upper.tri(diag(p)), arr.ind = TRUE)
   ii <- ut[, 1]; jj <- ut[, 2]; npe <- nrow(ut); nd <- length(deltas)
   pairs <- if (K > 1) t(utils::combn(K, 2)) else matrix(integer(0), 0, 2)
@@ -22,7 +25,8 @@
   blen <- if (n_batch > 0L) ns %/% n_batch else 0L
   m2 <- function(r, c) matrix(0, r, c)
   a3 <- function(a, b, c) array(0, c(a, b, c))
-  gsc <- function() list(sum = m2(npe, K), sumsq = m2(npe, K), n_exceed = a3(npe, nd, K))
+  gsc <- function() list(sum = m2(npe, K), sumsq = m2(npe, K), n_exceed = a3(npe, nd, K),
+                         n_pos = m2(npe, K), n_neg = m2(npe, K))
   psc <- function() list(sum = m2(npe, ngp), sumsq = m2(npe, ngp), n_pos = m2(npe, ngp),
                          n_neg = m2(npe, ngp), n_exceed = a3(npe, nd, ngp),
                          n_union = a3(npe, nd, ngp), n_up = a3(npe, nd, ngp))
@@ -43,7 +47,9 @@
                                                  n_union = a3(npe, nd, ngp)),
                                      n_struct = m2(npe, ngp)))
   if (shrink) {
-    grp$w_sum <- m2(npe, K); grp$n_cut <- m2(npe, K); pr$n_cut <- m2(npe, ngp)
+    grp$w_sum <- m2(npe, K); grp$n_cut <- m2(npe, K)
+    if (kap) { grp$kappa_sum <- m2(npe, K); grp$n_kappa <- m2(npe, K) }
+    pr$n_cut <- m2(npe, ngp)
     node$deg_cut <- m2(p, ngp); node$n_any_cut <- m2(p, ngp)
   }
   bsq <- bcur <- NULL
@@ -51,6 +57,7 @@
     bsq <- bcur <- bsc()
     if (shrink) {
       bsq$group$n_cut <- bcur$group$n_cut <- m2(npe, K)
+      if (kap) bsq$group$n_kappa <- bcur$group$n_kappa <- m2(npe, K)
       bsq$pair$n_cut <- bcur$pair$n_cut <- m2(npe, ngp)
     }
   }
@@ -81,6 +88,20 @@
         Z[, k] <- cut_save[, , k, s][ut] != 0
         grp$n_cut[, k] <- grp$n_cut[, k] + Z[, k]
         if (n_batch > 0L) bcur$group$n_cut[, k] <- bcur$group$n_cut[, k] + Z[, k]
+        if (kap) {
+          Rs <- R_save[, , s]
+          mu <- if (K == 1) 1 else 1 - drop(Rs[k, -k] %*% solve(Rs[-k, -k], Rs[-k, k]))
+          Lam <- weight_save[, , k, s] / (1 - weight_save[, , k, s])
+          Sg <- solve(om); sd2 <- diag(Sg); Sk <- diag(S_list[[k]])
+          v <- mu * tau_save[k, s] * Lam[ut]
+          s2 <- Sg[ut]^2
+          a1 <- v * Sk[jj] * (sd2[ii] - s2 / sd2[jj])
+          a2 <- v * Sk[ii] * (sd2[jj] - s2 / sd2[ii])
+          km <- 0.5 * (a1 / (1 + a1) + a2 / (1 + a2))
+          grp$kappa_sum[, k] <- grp$kappa_sum[, k] + km
+          grp$n_kappa[, k] <- grp$n_kappa[, k] + (km > 0.5)
+          if (n_batch > 0L) bcur$group$n_kappa[, k] <- bcur$group$n_kappa[, k] + (km > 0.5)
+        }
       } else {
         S[, k] <- adj_save[, , k, s][ut] != 0
       }
@@ -91,6 +112,8 @@
         x <- X[[sc]][, k]
         grp[[sc]]$sum[, k] <- grp[[sc]]$sum[, k] + x
         grp[[sc]]$sumsq[, k] <- grp[[sc]]$sumsq[, k] + x * x
+        grp[[sc]]$n_pos[, k] <- grp[[sc]]$n_pos[, k] + (x > 0)
+        grp[[sc]]$n_neg[, k] <- grp[[sc]]$n_neg[, k] + (x < 0)
         for (t in seq_len(nd)) {
           ex <- abs(x) > deltas[t]
           grp[[sc]]$n_exceed[, t, k] <- grp[[sc]]$n_exceed[, t, k] + ex
@@ -290,9 +313,17 @@
            "needed to compute it were not saved. Refit with diff_deltas including it.",
            call. = FALSE)
     nb <- length(ch$edge_acc$batch$length)
-    if (shrink) .edge_acc_from_draws(ch$C_save, NULL, c, ch$weight_save, ch$cut_save,
-                                     n_batch = nb)
-    else .edge_acc_from_draws(ch$C_save, ch$adj_save, c, n_batch = nb)
+    if (!shrink) return(.edge_acc_from_draws(ch$C_save, ch$adj_save, c, n_batch = nb))
+    a <- .edge_acc_from_draws(ch$C_save, NULL, c, ch$weight_save, ch$cut_save, n_batch = nb)
+    # 1 - kappa does not depend on c and needs the data: take it from the fit
+    g <- ch$edge_acc$group
+    if (!is.null(g$kappa_sum)) {
+      a$group$kappa_sum <- g$kappa_sum; a$group$n_kappa <- g$n_kappa
+      if (!is.null(a$batch) && !is.null(ch$edge_acc$batch$group$n_kappa) &&
+          identical(a$batch$length, ch$edge_acc$batch$length))
+        a$batch$group$n_kappa <- ch$edge_acc$batch$group$n_kappa
+    }
+    a
   })
   .pool_acc(accs)
 }
@@ -347,9 +378,18 @@
 #'   \item{\code{p_union_<c>}}{Pair rows: \eqn{P(\textrm{structural difference
 #'     or } |D| > c)}, counted per iteration. The structural part is the edge
 #'     indicator for G-Wishart and SSVS and the cut-model indicator for mGHS.}
-#'   \item{\code{p_sign}}{Pair rows: \eqn{\max\{P(D > 0), P(D < 0)\}}. This is
-#'     \strong{not} a probability that the edge differs (see
-#'     [diff_summary()]); it is reported for description only.}
+#'   \item{\code{p_sign}}{\eqn{\max\{P(x > 0), P(x < 0)\}} (group rows) or
+#'     \eqn{\max\{P(D > 0), P(D < 0)\}} (pair rows). A central credible
+#'     interval at level \eqn{L} excludes zero exactly when \code{p_sign}
+#'     \eqn{> (1 + L) / 2}; the graphical horseshoe's published rule (Li,
+#'     Craig & Bhadra 2019) is \eqn{L = 0.5}, i.e. \code{p_sign > 0.75}
+#'     (\code{select_edges(rule = "interval")}). For pairs it is \strong{not} a
+#'     probability that the edge differs (see [diff_summary()]).}
+#'   \item{\code{mean_shrinkage}, \code{p_shrinkage}, \code{mcse_shrinkage}}{mGHS
+#'     group rows: \eqn{E[1 - \kappa]}, \eqn{P(1 - \kappa > 0.5)} and the
+#'     Monte Carlo SE of the latter, where \eqn{\kappa} is the edge's shrinkage
+#'     factor with the global scale included (see [select_edges()],
+#'     \code{rule = "shrinkage"}).}
 #'   \item{\code{p_up_<c>}, \code{p_down_<c>}}{Pair rows: \eqn{P(D > c)} and
 #'     \eqn{P(D < -c)}, the direction of a difference: with \eqn{D =
 #'     x_{group1} - x_{group2}}, \code{p_up} means the entry is larger in
@@ -422,7 +462,9 @@ edge_probs <- function(fit, scale = c("precision", "pcor"), c = NULL, chain = NU
                      p_struct = g$n_struct[, k] / n,
                      mean_weight = if (shrink) g$w_sum[, k] / n else NA_real_,
                      p_cut = if (shrink) g$n_cut[, k] / n else NA_real_,
-                     p_sign = NA_real_, stringsAsFactors = FALSE)
+                     p_sign = if (is.null(gs$n_pos)) NA_real_
+                              else pmax(gs$n_pos[, k], gs$n_neg[, k]) / n,
+                     stringsAsFactors = FALSE)
     for (t in seq_along(cs)) df[[paste0("p_exceed_", cs[t])]] <- gs$n_exceed[, t, k] / n
     for (t in seq_along(cs)) df[[paste0("p_union_", cs[t])]] <- NA_real_
     for (t in seq_along(cs)) df[[paste0("p_up_", cs[t])]] <- NA_real_
@@ -432,6 +474,10 @@ edge_probs <- function(fit, scale = c("precision", "pcor"), c = NULL, chain = NU
     for (t in seq_along(cs))
       df[[paste0("mcse_exceed_", cs[t])]] <- mcse(bv$group[[scale]]$n_exceed[, t, k])
     for (t in seq_along(cs)) df[[paste0("mcse_union_", cs[t])]] <- NA_real_
+    has_k <- shrink && !is.null(g$kappa_sum)
+    df$mean_shrinkage <- if (has_k) g$kappa_sum[, k] / n else NA_real_
+    df$p_shrinkage <- if (has_k) g$n_kappa[, k] / n else NA_real_
+    df$mcse_shrinkage <- if (has_k) mcse(bv$group$n_kappa[, k]) else NA_real_
     rows[[length(rows) + 1]] <- df
   }
   pr <- acc$pair; ps <- pr[[scale]]
@@ -456,6 +502,7 @@ edge_probs <- function(fit, scale = c("precision", "pcor"), c = NULL, chain = NU
       df[[paste0("mcse_exceed_", cs[t])]] <- mcse(bv$pair[[scale]]$n_exceed[, t, q])
     for (t in seq_along(cs))
       df[[paste0("mcse_union_", cs[t])]] <- mcse(bv$pair[[scale]]$n_union[, t, q])
+    df$mean_shrinkage <- df$p_shrinkage <- df$mcse_shrinkage <- NA_real_
     rows[[length(rows) + 1]] <- df
   }
   out <- do.call(rbind, rows)
@@ -503,7 +550,8 @@ edge_probs <- function(fit, scale = c("precision", "pcor"), c = NULL, chain = NU
 edge_prob_matrix <- function(fit, quantity = c("p_struct", "p_cut", "mean_weight", "mean",
                                                "sd", "p_sign", "p_exceed", "p_union",
                                                "p_up", "p_down", "mcse_struct", "mcse_cut",
-                                               "mcse_exceed", "mcse_union"),
+                                               "mcse_exceed", "mcse_union", "mean_shrinkage",
+                                               "p_shrinkage", "mcse_shrinkage"),
                              group = NULL, pair = NULL, c = NULL,
                              scale = c("precision", "pcor"), chain = NULL) {
   quantity <- match.arg(quantity)
@@ -584,12 +632,39 @@ edge_prob_matrix <- function(fit, quantity = c("p_struct", "p_cut", "mean_weight
 #'   \item{\code{"median_shrinkage"}}{mGHS only: the authors' median rule
 #'     \eqn{E[w_{k,ij}] > 0.5}. \eqn{E[w]} is not a probability, so only
 #'     \code{decision = "median"} applies and no FDR is estimated.}
+#'   \item{\code{"shrinkage"}}{mGHS only: \eqn{E[1 - \kappa_{k,ij}]}, where
+#'     \eqn{\kappa} is the edge's shrinkage factor in its column update with
+#'     the global scale included: with \eqn{a = \mu \tau_k \lambda^2_{ij,k}
+#'     s_{jj} (\Omega_{-j}^{-1})_{ii}} (prior variance times likelihood
+#'     precision), \eqn{1 - \kappa = a / (1 + a)}, averaged over the two
+#'     column updates of the edge and over iterations. In horseshoe
+#'     regression \eqn{1 - \kappa} is read as a pseudo inclusion
+#'     probability (Carvalho, Polson & Scott 2010). It measures how much the
+#'     data dominate the prior for the edge, not whether the edge is nonzero,
+#'     so it grows with \eqn{n} for null edges too. With correlated groups an
+#'     edge is shrunk towards the value the other groups predict, and the
+#'     approximation ignores coupling between edges. \code{decision =
+#'     "median"} (\eqn{E[1 - \kappa] > 0.5}) is the default; \code{"bfdr"}
+#'     treats it as a probability. In simulations (p = 8 and 20, n = 100 to
+#'     1000) it ranked edges as well as \eqn{E[w]}, but neither 0.5 rule
+#'     controlled false edges: at p = 20, n = 100, \eqn{E[1 - \kappa] > 0.5}
+#'     selected 3 null edges against 65 for \eqn{E[w] > 0.5}; at p = 8,
+#'     n = 300, 17 against 0. For selection with error control use
+#'     \code{rule = "magnitude"}.}
+#'   \item{\code{"interval"}}{The central credible interval at level
+#'     \code{level} excludes zero, i.e. \code{p_sign} \eqn{> (1 + }
+#'     \code{level}\eqn{) / 2}. With \code{level = 0.5} this is the
+#'     graphical horseshoe's published rule (Li, Craig & Bhadra 2019). It is
+#'     a sign rule: as \eqn{n} grows it selects null edges whose small
+#'     estimates are well determined, so it is offered for comparison, with
+#'     no FDR estimate.}
 #' }
 #' @param c Threshold for \code{rule = "magnitude"}.
+#' @param level Credible level for \code{rule = "interval"} (default 0.5).
 #' @param decision \code{"bfdr"} (default; \code{"median"} for
-#'   \code{rule = "median_shrinkage"}) selects the largest set with posterior
-#'   expected FDR at most \code{alpha}, keeping tied probabilities together;
-#'   \code{"median"} selects probability > 0.5.
+#'   \code{rule = "median_shrinkage"} and \code{"shrinkage"}) selects the
+#'   largest set with posterior expected FDR at most \code{alpha}, keeping
+#'   tied probabilities together; \code{"median"} selects probability > 0.5.
 #' @param alpha Target posterior expected FDR for \code{decision = "bfdr"}.
 #'
 #' @return An object of class \code{"multiggm_edge_selection"}: a list with
@@ -608,33 +683,52 @@ edge_prob_matrix <- function(fit, quantity = c("p_struct", "p_cut", "mean_weight
 #' @seealso [edge_probs()], [select_diff_edges()], [bayes_fdr()]
 #' @export
 select_edges <- function(fit, group = 1, rule = c("structural", "magnitude", "cut",
-                                                  "median_shrinkage"),
+                                                  "median_shrinkage", "shrinkage", "interval"),
                          c = NULL, decision = NULL, alpha = 0.05,
-                         scale = c("precision", "pcor"), chain = NULL) {
+                         scale = c("precision", "pcor"), chain = NULL, level = 0.5) {
   if (identical(rule, "union"))
     stop("rule = \"union\" compares two groups; use select_diff_edges().", call. = FALSE)
   rule <- match.arg(rule)
   scale <- match.arg(scale)
   decision <- if (is.null(decision)) {
-    if (rule == "median_shrinkage") "median" else "bfdr"
+    if (rule %in% c("median_shrinkage", "shrinkage")) "median" else "bfdr"
   } else match.arg(decision, c("bfdr", "median"))
   is_mghs <- identical(.fit_chains(fit, chain)[[1]]$method, "mghs")
-  if (rule %in% c("cut", "median_shrinkage") && !is_mghs)
+  if (rule %in% c("cut", "median_shrinkage", "shrinkage") && !is_mghs)
     stop("rule = \"", rule, "\" needs the mGHS sampler's shrinkage weights; this fit ",
          "has edge indicators, so use rule = \"structural\".", call. = FALSE)
   if (rule == "median_shrinkage" && decision != "median")
     stop("rule = \"median_shrinkage\" uses E[w], which is not a probability; ",
          "use decision = \"median\".", call. = FALSE)
   if (rule == "magnitude" && is.null(c)) stop("rule = \"magnitude\" needs c.")
-  qty <- switch(rule, structural = "p_struct", magnitude = "p_exceed",
-                cut = "p_cut", median_shrinkage = "mean_weight")
-  prob <- edge_prob_matrix(fit, qty, group = group, c = if (rule == "magnitude") c,
-                           scale = scale, chain = chain)
-  s <- .select_by_prob(prob, decision, alpha, is_prob = rule != "median_shrinkage")
-  structure(list(selected = s$selected, prob = prob, edges = .edge_table(prob, s$selected,
-                                                                    qvalue = rule != "median_shrinkage"),
+  if (rule == "interval" &&
+      (!is.numeric(level) || length(level) != 1L || level <= 0 || level >= 1))
+    stop("level must be a single number in (0, 1).", call. = FALSE)
+  qty <- switch(rule, structural = "p_struct", magnitude = "p_exceed", cut = "p_cut",
+                median_shrinkage = "mean_weight", shrinkage = "mean_shrinkage",
+                interval = "p_sign")
+  prob <- tryCatch(edge_prob_matrix(fit, qty, group = group, c = if (rule == "magnitude") c,
+                                    scale = scale, chain = chain),
+                   error = function(e) {
+                     if (rule %in% c("shrinkage", "interval"))
+                       stop("rule = \"", rule, "\" needs a fit from multiGGM >= 0.10.0.",
+                            call. = FALSE)
+                     stop(e)
+                   })
+  if (rule == "interval") {
+    sel <- prob > (1 + level) / 2
+    diag(sel) <- FALSE
+    s <- list(selected = sel, expected_fdr = NA_real_, n_selected = sum(sel[upper.tri(sel)]))
+    decision <- "interval"
+  } else {
+    s <- .select_by_prob(prob, decision, alpha, is_prob = rule != "median_shrinkage")
+  }
+  structure(list(selected = s$selected, prob = prob,
+                 edges = .edge_table(prob, s$selected,
+                                     qvalue = !rule %in% c("median_shrinkage", "interval")),
                  expected_fdr = s$expected_fdr, n_selected = s$n_selected,
                  alpha = alpha, rule = rule, c = if (rule == "magnitude") c else NA_real_,
+                 level = if (rule == "interval") level else NA_real_,
                  decision = decision, scale = scale, group = as.integer(group)),
             class = "multiggm_edge_selection")
 }
@@ -644,12 +738,76 @@ print.multiggm_edge_selection <- function(x, ...) {
   cat("<multiggm_edge_selection>\n")
   cat(sprintf("  Group %d, rule: %s", x$group, x$rule))
   if (x$rule == "magnitude") cat(sprintf(" (P(|x| > %g), %s scale)", x$c, x$scale))
+  if (identical(x$rule, "interval"))
+    cat(sprintf(" (%g%% credible interval excludes 0)", 100 * x$level))
   cat(sprintf(", decision: %s\n", x$decision))
   if (x$decision == "bfdr")
     cat(sprintf("  Selected %d edges at target FDR %g", x$n_selected, x$alpha))
+  else if (x$decision == "interval") cat(sprintf("  Selected %d edges", x$n_selected))
   else cat(sprintf("  Selected %d edges with value > 0.5", x$n_selected))
   if (!is.na(x$expected_fdr)) cat(sprintf(" (posterior expected FDR %.3f)", x$expected_fdr))
   cat("\n")
   if (x$n_selected > 0) print(utils::head(x$edges, 10))
   invisible(x)
+}
+
+#' Mask small partial correlations to zero
+#'
+#' Posterior mean partial correlations of each group, with the edges that
+#' [select_edges()] does not select set to zero: by default the magnitude
+#' rule \eqn{P(|\rho_{ij}| > c)} with Bayesian FDR control. Use it to report
+#' or draw each group's network.
+#'
+#' \strong{Not for differential analysis.} Comparing masked networks
+#' turns "selected in one group, not in the other" into a difference, even
+#' when the two partial correlations are almost equal (one just above
+#' \eqn{c}, one just below). Call differences with [select_diff_edges()] on
+#' the unmasked posterior, with \eqn{c} from [calibrate_c()].
+#'
+#' @param fit A \code{multiggm_fit} or \code{multiggm_fit_list}.
+#' @param c Threshold on the partial-correlation scale (one value, or one per
+#'   group), for \code{rule = "magnitude"}.
+#' @param rule,alpha,decision,level Passed to [select_edges()]. Any rule of
+#'   [select_edges()] can be used, e.g. \code{"structural"} (G-Wishart,
+#'   SSVS) or \code{"shrinkage"} (mGHS).
+#' @param groups Groups to mask (default all).
+#' @param chain \code{NULL} (default) pools chains.
+#'
+#' @return An array \code{[p, p, K]} of masked posterior mean partial
+#'   correlations (unit diagonal), with attributes \code{c} (per group),
+#'   \code{rule} and \code{n_selected}.
+#'
+#' @examples
+#' sim <- simulate_multiggm(K = 2, p = 6, n = 80, seed = 1)
+#' fit <- multiggm_mcmc(data_list = sim$data_list, method = "ssvs",
+#'                      burnin = 100, nsave = 100, save_draws = FALSE)
+#' m <- mask_pcor(fit, c = 0.1)
+#' round(m[, , 1], 2)
+#'
+#' @seealso [select_edges()], [select_diff_edges()]
+#' @export
+mask_pcor <- function(fit, c = NULL, rule = "magnitude", alpha = 0.05, decision = NULL,
+                      level = 0.5, groups = NULL, chain = NULL) {
+  chains <- .fit_chains(fit, chain)
+  K <- chains[[1]]$K
+  groups <- if (is.null(groups)) seq_len(K) else as.integer(groups)
+  acc <- .pooled_edge_acc(chains)
+  P <- .acc_means(acc)$pcor_mean
+  cs <- rep(NA_real_, K)
+  nsel <- rep(NA_integer_, K)
+  for (k in groups) {
+    ck <- if (length(c) > 1L) c[k] else c
+    sel <- select_edges(fit, group = k, rule = rule, c = ck, decision = decision,
+                        alpha = alpha, scale = "pcor", chain = chain, level = level)
+    m <- P[, , k]
+    m[!sel$selected] <- 0
+    diag(m) <- 1
+    P[, , k] <- m
+    cs[k] <- sel$c
+    nsel[k] <- sel$n_selected
+  }
+  attr(P, "c") <- cs
+  attr(P, "rule") <- rule
+  attr(P, "n_selected") <- nsel
+  P
 }

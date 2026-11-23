@@ -247,14 +247,16 @@
 #'   }
 #'
 #' @examples
-#' sim <- simulate_multiggm(K = 2, p = 10, n = 100, seed = 42)
-#' fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 500, nsave = 200)
+#' # Short runs to keep the example fast; real analyses need far more
+#' # iterations (see mcmc_diagnostics()).
+#' sim <- simulate_multiggm(K = 2, p = 8, n = 100, seed = 42)
+#' fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 200, nsave = 100)
 #' summary(fit)
 #'
 #' # Multiple chains (parallel on Unix/macOS, sequential on Windows)
 #' fit_mc <- multiggm_mcmc(
-#'   data_list = sim$data_list, burnin = 500, nsave = 200,
-#'   nchains = 2, parallel = TRUE, seed = 42
+#'   data_list = sim$data_list, burnin = 200, nsave = 100,
+#'   nchains = 2, parallel = TRUE, ncores = 2, seed = 42
 #' )
 #' fit_mc                          # prints chain count and K
 #' summary(fit_mc$chains[[1]])     # summarize first chain

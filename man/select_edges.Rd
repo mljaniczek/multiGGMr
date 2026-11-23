@@ -7,12 +7,13 @@
 select_edges(
   fit,
   group = 1,
-  rule = c("structural", "magnitude", "cut", "median_shrinkage"),
+  rule = c("structural", "magnitude", "cut", "median_shrinkage", "shrinkage", "interval"),
   c = NULL,
   decision = NULL,
   alpha = 0.05,
   scale = c("precision", "pcor"),
-  chain = NULL
+  chain = NULL,
+  level = 0.5
 )
 }
 \arguments{
@@ -29,14 +30,40 @@ indicator.}
 \item{\code{"median_shrinkage"}}{mGHS only: the authors' median rule
 \eqn{E[w_{k,ij}] > 0.5}. \eqn{E[w]} is not a probability, so only
 \code{decision = "median"} applies and no FDR is estimated.}
+\item{\code{"shrinkage"}}{mGHS only: \eqn{E[1 - \kappa_{k,ij}]}, where
+\eqn{\kappa} is the edge's shrinkage factor in its column update with
+the global scale included: with \eqn{a = \mu \tau_k \lambda^2_{ij,k}
+    s_{jj} (\Omega_{-j}^{-1})_{ii}} (prior variance times likelihood
+precision), \eqn{1 - \kappa = a / (1 + a)}, averaged over the two
+column updates of the edge and over iterations. In horseshoe
+regression \eqn{1 - \kappa} is read as a pseudo inclusion
+probability (Carvalho, Polson & Scott 2010). It measures how much the
+data dominate the prior for the edge, not whether the edge is nonzero,
+so it grows with \eqn{n} for null edges too. With correlated groups an
+edge is shrunk towards the value the other groups predict, and the
+approximation ignores coupling between edges. \code{decision =
+    "median"} (\eqn{E[1 - \kappa] > 0.5}) is the default; \code{"bfdr"}
+treats it as a probability. In simulations (p = 8 and 20, n = 100 to
+1000) it ranked edges as well as \eqn{E[w]}, but neither 0.5 rule
+controlled false edges: at p = 20, n = 100, \eqn{E[1 - \kappa] > 0.5}
+selected 3 null edges against 65 for \eqn{E[w] > 0.5}; at p = 8,
+n = 300, 17 against 0. For selection with error control use
+\code{rule = "magnitude"}.}
+\item{\code{"interval"}}{The central credible interval at level
+\code{level} excludes zero, i.e. \code{p_sign} \eqn{> (1 + }
+\code{level}\eqn{) / 2}. With \code{level = 0.5} this is the
+graphical horseshoe's published rule (Li, Craig & Bhadra 2019). It is
+a sign rule: as \eqn{n} grows it selects null edges whose small
+estimates are well determined, so it is offered for comparison, with
+no FDR estimate.}
 }}
 
 \item{c}{Threshold for \code{rule = "magnitude"}.}
 
 \item{decision}{\code{"bfdr"} (default; \code{"median"} for
-\code{rule = "median_shrinkage"}) selects the largest set with posterior
-expected FDR at most \code{alpha}, keeping tied probabilities together;
-\code{"median"} selects probability > 0.5.}
+\code{rule = "median_shrinkage"} and \code{"shrinkage"}) selects the
+largest set with posterior expected FDR at most \code{alpha}, keeping
+tied probabilities together; \code{"median"} selects probability > 0.5.}
 
 \item{alpha}{Target posterior expected FDR for \code{decision = "bfdr"}.}
 
@@ -46,6 +73,8 @@ expected FDR at most \code{alpha}, keeping tied probabilities together;
 
 \item{chain}{\code{NULL} (default) pools all chains; an integer selects
 chains.}
+
+\item{level}{Credible level for \code{rule = "interval"} (default 0.5).}
 }
 \value{
 An object of class \code{"multiggm_edge_selection"}: a list with

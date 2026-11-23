@@ -62,6 +62,7 @@ export(fdr_calibration)
 export(posterior_predictive_check)
 export(plot_ppc)
 export(calibrate_c)
+export(mask_pcor)
 
 # Visualization
 export(plot_pip_heatmap)

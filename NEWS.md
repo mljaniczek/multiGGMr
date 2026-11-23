@@ -1,3 +1,34 @@
+# multiGGM 0.10.0
+
+## Within-group edge rules and masking
+
+* `select_edges(rule = "shrinkage")` (mGHS): E[1 - kappa], where kappa is the
+  edge's shrinkage factor in its column update with the global scale
+  included (new `edge_probs()` columns `mean_shrinkage`, `p_shrinkage`,
+  `mcse_shrinkage`). It ranks edges as well as the paper's E[w], but, like
+  E[w] > 0.5, its 0.5 rule does not control false edges (better than E[w] at
+  p = 20, n = 100; worse at p = 8, n = 300). For selection with error control
+  use the magnitude rule.
+* `select_edges(rule = "interval", level = 0.5)`: the credible interval
+  excludes zero, the graphical horseshoe's published rule (Li, Craig &
+  Bhadra 2019), for comparison. `edge_probs()` group rows now have `p_sign`
+  for every sampler.
+* New `mask_pcor()`: posterior mean partial correlations with unselected
+  edges set to zero, for reporting each group's network (not for finding
+  differences, which should use `select_diff_edges()`).
+* `calibrate_c()` falls back to the raw share when fewer than three
+  permutations make a call (`c_method = "empirical"`).
+* All of the above is kept as running sums without random draws: chains are
+  unchanged for a given seed.
+
+## Preparing for CRAN
+
+* Vignettes build in about 1.5 minutes instead of 12 (shorter illustrative
+  chains; the tutorial's multi-chain section uses SSVS), and the
+  `multiggm_mcmc()` example is shorter.
+* DESCRIPTION: references with DOIs, acronyms spelled out.
+* Removed an unused C++ function.
+
 # multiGGM 0.9.0
 
 * New `calibrate_c()` chooses the minimum-difference threshold c for the

@@ -11,3 +11,4 @@
 ^dev$
 ^[^/]*\.pdf$
 ^[^/]*\.html$
+^cran-comments\.md$

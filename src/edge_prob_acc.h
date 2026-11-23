@@ -11,7 +11,10 @@
 //   sum, sum of squares, and count of |x| > c for each c in deltas;
 //   count of the structural indicator (edge indicator G, or for the
 //   horseshoe S = 1(w > 0.5) with w = lambda^2 / (1 + lambda^2));
-//   horseshoe only: sum of w and count of the cut-model indicator Z.
+//   counts of x > 0 and x < 0 (for credible-interval rules);
+//   horseshoe only: sum of w and count of the cut-model indicator Z, and
+//   (add_kappa) the sum of 1 - kappa and the count of 1 - kappa > 0.5,
+//   where kappa is the edge's shrinkage factor including the global scale.
 // Per pair (k, m), for D = x_k - x_m on each scale:
 //   sum, sum of squares, counts of D > 0, D < 0 and D > c, of |D| > c, and
 //   of (structural difference OR |D| > c), the "union" event; counts of
@@ -62,8 +65,8 @@ public:
   std::vector<double> deltas;
   std::vector<int> gp1, gp2;
 
-  std::vector<double> g_sum[2], g_sumsq[2], g_wsum, g_diag;
-  BatchCount g_exceed[2], g_struct, g_cut;
+  std::vector<double> g_sum[2], g_sumsq[2], g_pos[2], g_neg[2], g_wsum, g_diag, g_ksum;
+  BatchCount g_exceed[2], g_struct, g_cut, g_kappa;
   std::vector<double> d_sum[2], d_sumsq[2], d_pos[2], d_neg[2], d_up[2];
   BatchCount d_exceed[2], d_union[2], d_struct, d_cut;
 
@@ -89,6 +92,8 @@ public:
       g_sum[s].assign(npe * K, 0.0);
       g_sumsq[s].assign(npe * K, 0.0);
       g_exceed[s].init(npe * nd * K, bt);
+      g_pos[s].assign(npe * K, 0.0);
+      g_neg[s].assign(npe * K, 0.0);
       d_sum[s].assign(npe * ngp, 0.0);
       d_sumsq[s].assign(npe * ngp, 0.0);
       d_pos[s].assign(npe * ngp, 0.0);
@@ -111,6 +116,8 @@ public:
     if (shrink) {
       g_wsum.assign(npe * K, 0.0);
       g_cut.init(npe * K, bt);
+      g_ksum.assign(npe * K, 0.0);
+      g_kappa.init(npe * K, bt);
       d_cut.init(npe * ngp, bt);
       nd_deg_cut.assign(p * ngp, 0.0);
       nd_any_cut.assign(p * ngp, 0.0);
@@ -204,6 +211,8 @@ public:
             double x = xs[sc][idx];
             g_sum[sc][idx] += x;
             g_sumsq[sc][idx] += x * x;
+            if (x > 0.0) g_pos[sc][idx] += 1.0;
+            else if (x < 0.0) g_neg[sc][idx] += 1.0;
             double ax = std::abs(x);
             for (int tt = 0; tt < nd; tt++)
               if (ax > deltas[tt]) g_exceed[sc].inc(e + npe * (tt + nd * k));
@@ -296,10 +305,28 @@ public:
           g_exceed[s].flush(len); d_exceed[s].flush(len); d_union[s].flush(len);
         }
         g_struct.flush(len); d_struct.flush(len);
-        if (shrink) { g_cut.flush(len); d_cut.flush(len); }
+        if (shrink) { g_cut.flush(len); d_cut.flush(len); g_kappa.flush(len); }
       }
     }
     t++;
+  }
+
+  // Horseshoe only, called before add() in the same iteration: one_minus_kappa
+  // (i, j, k) is 1 - kappa for edge (i, j) of group k, in [0, 1].
+  template <class FK>
+  void add_kappa(FK one_minus_kappa) {
+    if (!shrink) return;
+    for (int k = 0; k < K; k++) {
+      int e = 0;
+      for (int j = 1; j < p; j++)
+        for (int i = 0; i < j; i++) {
+          int idx = e + npe * k;
+          double v = one_minus_kappa(i, j, k);
+          g_ksum[idx] += v;
+          if (v > 0.5) g_kappa.inc(idx);
+          e++;
+        }
+    }
   }
 
   Rcpp::List to_list() const {
@@ -311,7 +338,9 @@ public:
       grp[scale_names[sc]] = Rcpp::List::create(
         Rcpp::_["sum"] = mat(g_sum[sc], npe, K),
         Rcpp::_["sumsq"] = mat(g_sumsq[sc], npe, K),
-        Rcpp::_["n_exceed"] = arr3(g_exceed[sc].tot, npe, nd, K));
+        Rcpp::_["n_exceed"] = arr3(g_exceed[sc].tot, npe, nd, K),
+        Rcpp::_["n_pos"] = mat(g_pos[sc], npe, K),
+        Rcpp::_["n_neg"] = mat(g_neg[sc], npe, K));
       pr[scale_names[sc]] = Rcpp::List::create(
         Rcpp::_["sum"] = mat(d_sum[sc], npe, ngp),
         Rcpp::_["sumsq"] = mat(d_sumsq[sc], npe, ngp),
@@ -346,11 +375,14 @@ public:
     if (shrink) {
       grp["w_sum"] = mat(g_wsum, npe, K);
       grp["n_cut"] = mat(g_cut.tot, npe, K);
+      grp["kappa_sum"] = mat(g_ksum, npe, K);
+      grp["n_kappa"] = mat(g_kappa.tot, npe, K);
       pr["n_cut"] = mat(d_cut.tot, npe, ngp);
       node["deg_cut"] = mat(nd_deg_cut, p, ngp);
       node["n_any_cut"] = mat(nd_any_cut, p, ngp);
       if (n_batch > 0) {
         bg["n_cut"] = mat(g_cut.sq, npe, K);
+        bg["n_kappa"] = mat(g_kappa.sq, npe, K);
         bp["n_cut"] = mat(d_cut.sq, npe, ngp);
       }
     }

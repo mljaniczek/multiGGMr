@@ -165,6 +165,9 @@ number of calls at every \eqn{c} are reported as well. With
 \code{target = "mean_false_calls"}, \code{suggested_c} is the smallest grid
 value from which the mean number of calls stays at or below
 \code{target_value}.
+When fewer than three permutations make a call, the tail cannot be fitted
+and \code{suggested_c} is the smallest grid value from which the raw share
+stays at or below the target (\code{c_method = "empirical"}).
 
 \strong{How to use it.} \eqn{c_{null}} is the smallest difference these
 data can distinguish from noise, not the smallest difference that matters

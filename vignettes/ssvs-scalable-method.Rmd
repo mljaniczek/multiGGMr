@@ -255,7 +255,8 @@ fit <- multiggm_mcmc(
 ## Comparing both methods on the same data
 
 When $p$ is small enough to run both, comparing results provides a
-useful robustness check.
+useful robustness check. (The chains below are kept short so the vignette
+builds quickly; use longer runs in practice.)
 
 ```{r compare, results='hide'}
 sim_small <- simulate_multiggm(K = 2, p = 15, n = 100, seed = 42, graph_type = "hub")
@@ -263,8 +264,8 @@ sim_small <- simulate_multiggm(K = 2, p = 15, n = 100, seed = 42, graph_type = "
 fit_gw <- multiggm_mcmc(
   data_list = sim_small$data_list,
   method    = "gwishart",
-  burnin    = 2000,
-  nsave     = 1000,
+  burnin    = 500,
+  nsave     = 500,
   seed      = 123
 )
 
@@ -279,8 +280,8 @@ fit_ssvs <- multiggm_mcmc(
     alpha = 2, beta = 5,
     w = 0.9,           # less certain groups are related
     alpha_prop = 1, beta_prop = 1),
-  burnin    = 2000,
-  nsave     = 1000,
+  burnin    = 500,
+  nsave     = 500,
   seed      = 123
 )
 ```
@@ -327,10 +328,11 @@ running multiple chains is more practical at larger dimensions:
 fit_mc <- multiggm_mcmc(
   data_list = sim$data_list,
   method    = "ssvs",
-  burnin    = 2000,
-  nsave     = 1000,
+  burnin    = 1000,
+  nsave     = 500,
   nchains   = 3,
   parallel  = TRUE,
+  ncores    = 2,
   seed      = 42
 )
 ```

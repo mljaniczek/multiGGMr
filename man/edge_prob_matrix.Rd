@@ -7,7 +7,8 @@
 edge_prob_matrix(
   fit,
   quantity = c("p_struct", "p_cut", "mean_weight", "mean", "sd", "p_sign", "p_exceed",
-    "p_union", "p_up", "p_down", "mcse_struct", "mcse_cut", "mcse_exceed", "mcse_union"),
+    "p_union", "p_up", "p_down", "mcse_struct", "mcse_cut", "mcse_exceed", "mcse_union",
+    "mean_shrinkage", "p_shrinkage", "mcse_shrinkage"),
   group = NULL,
   pair = NULL,
   c = NULL,

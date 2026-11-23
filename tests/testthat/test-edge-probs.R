@@ -86,7 +86,9 @@ test_that("running sums equal the draw-based values (mGHS, incl. weights and cut
     ref <- multiGGM:::.diag_from_draws(f$C_save, NULL, f$edge_acc$deltas,
                                        f$weight_save, f$cut_save, n_batch = 20,
                                        S_list = lapply(X, crossprod),
-                                       n_vec = vapply(X, nrow, 1), X_list = X)
+                                       n_vec = vapply(X, nrow, 1), X_list = X,
+                                       tau_save = f$tau_save, R_save = f$R_save)
+    expect_false(is.null(f$edge_acc$group$kappa_sum))
     expect_equal(f$edge_acc, ref$edge_acc, tolerance = 1e-12)
     expect_equal(f$trace, ref$trace, tolerance = 1e-10)
     expect_equal(f$waic_acc, ref$waic_acc, tolerance = 1e-10)

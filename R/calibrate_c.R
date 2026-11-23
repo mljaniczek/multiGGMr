@@ -248,6 +248,9 @@
 #' \code{target = "mean_false_calls"}, \code{suggested_c} is the smallest grid
 #' value from which the mean number of calls stays at or below
 #' \code{target_value}.
+#' When fewer than three permutations make a call, the tail cannot be fitted
+#' and \code{suggested_c} is the smallest grid value from which the raw share
+#' stays at or below the target (\code{c_method = "empirical"}).
 #'
 #' \strong{How to use it.} \eqn{c_{null}} is the smallest difference these
 #' data can distinguish from noise, not the smallest difference that matters
@@ -466,14 +469,20 @@ calibrate_c <- function(data_list, fit = NULL, method = c("ssvs", "mghs", "gwish
                      share_any_upper = ci[, 2], p_any_fitted = p_fit, row.names = NULL)
 
   c_null <- c_lo <- c_hi <- NA_real_
+  c_method <- if (target == "any_call") NA_character_ else "mean_calls"
   if (target == "any_call") {
     if (n_ok < 5L) {
       warning("Fewer than 5 successful permutations: no c suggested.", call. = FALSE)
       suggested <- NA_real_
+    } else if (!is.finite(fitT$c) || !is.finite(fitT$loc)) {
+      # Too few permutations with a call to fit the tail: use the raw share.
+      suggested <- .first_stable(c_grid, summ$share_any <= target_value)
+      c_method <- "empirical"
     } else {
       c_null <- fitT$c; c_lo <- fitT$lower; c_hi <- fitT$upper
       suggested <- if (is.finite(c_null) && c_null <= max(c_grid))
         c_grid[which(c_grid >= c_null - 1e-12)[1]] else NA_real_
+      c_method <- "weibull"
     }
     summ$meets_target <- if (is.finite(suggested)) summ$c >= suggested else FALSE
   } else {
@@ -487,7 +496,7 @@ calibrate_c <- function(data_list, fit = NULL, method = c("ssvs", "mghs", "gwish
 
   structure(list(summary = summ, calls = calls, suggested_c = suggested,
                  c_null = c_null, c_null_lower = c_lo, c_null_upper = c_hi,
-                 last_call = Tl, weibull = fitT[c("loc", "scale")],
+                 last_call = Tl, weibull = fitT[c("loc", "scale")], c_method = c_method,
                  noise_ref = if (length(am)) unname(stats::quantile(am, 0.99)) else NA_real_,
                  perms = perms_df, n_perm_run = nrow(perms_df), n_ok = n_ok, stopped = stopped,
                  target = target, target_value = target_value, alpha = alpha,
@@ -515,7 +524,10 @@ print.multiggm_c_calibration <- function(x, ...) {
   cat("  Target:", tgt, sprintf("(selection: P(|D| > c), Bayesian FDR %g, pcor scale)\n", x$alpha))
   if (x$target == "any_call" && is.finite(x$c_null))
     cat(sprintf("  c_null = %.3f (95%% CI %.3f to %.3f)\n", x$c_null, x$c_null_lower, x$c_null_upper))
-  cat(sprintf("  Suggested c: %s\n", if (is.finite(x$suggested_c)) format(x$suggested_c) else "none in grid"))
+  cat(sprintf("  Suggested c: %s%s\n",
+              if (is.finite(x$suggested_c)) format(x$suggested_c) else "none in grid",
+              if (identical(x$c_method, "empirical"))
+                " (raw share: too few null calls to fit the tail)" else ""))
   cat(sprintf("  Noise reference (0.99 quantile of |E[D]| under the null): %.3f\n", x$noise_ref))
   if (is.finite(x$suggested_c)) {
     r <- x$summary[match(x$suggested_c, x$summary$c), ]

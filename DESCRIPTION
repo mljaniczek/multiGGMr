@@ -1,21 +1,25 @@
 Package: multiGGM
 Type: Package
 Title: Bayesian Inference of Multiple Gaussian Graphical Models
-Version: 0.9.0
+Version: 0.10.0
 Authors@R: c(
     person(given = "Margaret", family = "Janiczek", role = c("aut", "cre"), email = "mjaniczek@umass.edu"),
     person(given = "Claudio", family = "Busatto", role = c("ctb", "cph"),
            comment = "Author of the mGHS sampler adapted in src/; see inst/mghs/UPSTREAM.md"))
-Description: Utilities and MCMC implementation for Bayesian inference of multiple
-    Gaussian graphical models. Supports G-Wishart (Peterson, Stingo, and
-    Vannucci, 2015, JASA), scalable spike-and-slab (Shaddox et al., 2018,
-    Stat Biosci), and multi-platform spike-and-slab (Shaddox et al., 2020,
-    Biostatistics) methods, and the multiple graphical horseshoe (mGHS;
-    Busatto and Stingo, 2025, JCGS). The multi-platform extension jointly models networks
-    across multiple data types with a hierarchical MRF coupling group similarity
-    across platforms. Includes MRF-coupled edge priors for borrowing strength
-    across groups, parallel multi-chain orchestration, and helpers to convert
-    precision matrices to partial correlations.
+Description: Bayesian inference of multiple Gaussian graphical models, one
+    network per group, with Markov chain Monte Carlo (MCMC) samplers that
+    borrow strength across groups. Supports the G-Wishart prior with a Markov
+    random field (MRF) prior on the graphs (Peterson, Stingo and Vannucci
+    (2015) <doi:10.1080/01621459.2014.896806>), a scalable spike-and-slab
+    prior (Shaddox et al. (2018) <doi:10.1007/s12561-016-9176-6>), its
+    extension to multiple data platforms (Shaddox et al. (2020)
+    <doi:10.1093/biostatistics/kxy078>), and the multiple graphical horseshoe
+    (Busatto and Stingo (2025) <doi:10.1080/10618600.2024.2435480>). Edge and
+    differential-edge probabilities are kept as running sums during sampling,
+    so large networks can be analysed without storing draws. Includes Bayesian
+    false discovery rate selection, a permutation null for choosing the
+    minimum difference of interest, convergence diagnostics, posterior
+    predictive checks and parallel multi-chain runs.
 Depends:
     R (>= 4.0.0)
 License: GPL-3

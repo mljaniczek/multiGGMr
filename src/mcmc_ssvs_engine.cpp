@@ -10,17 +10,6 @@
 
 // [[Rcpp::depends(RcppArmadillo)]]
 
-// Helper: stable logistic sigmoid
-static inline double stable_sigmoid(double x) {
-  if (x > 0.0) {
-    double ex = std::exp(-x);
-    return ex / (1.0 + ex);
-  } else {
-    double ex = std::exp(x);
-    return 1.0 / (1.0 + ex);
-  }
-}
-
 // Helper: sum over all edges of [logC(Theta_old, nu_ij) - logC(Theta_new, nu_ij)
 //   + 2*(theta_new - theta_old) * g_{k,ij} * g_{m,ij}]
 static double sum_logC_diff_edges(const arma::mat& Theta_old, const arma::mat& Theta_new,

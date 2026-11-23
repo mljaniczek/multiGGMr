@@ -59,9 +59,18 @@ Section 5).}
 \item{\code{p_union_<c>}}{Pair rows: \eqn{P(\textrm{structural difference
     or } |D| > c)}, counted per iteration. The structural part is the edge
 indicator for G-Wishart and SSVS and the cut-model indicator for mGHS.}
-\item{\code{p_sign}}{Pair rows: \eqn{\max\{P(D > 0), P(D < 0)\}}. This is
-\strong{not} a probability that the edge differs (see
-\code{\link[=diff_summary]{diff_summary()}}); it is reported for description only.}
+\item{\code{p_sign}}{\eqn{\max\{P(x > 0), P(x < 0)\}} (group rows) or
+\eqn{\max\{P(D > 0), P(D < 0)\}} (pair rows). A central credible
+interval at level \eqn{L} excludes zero exactly when \code{p_sign}
+\eqn{> (1 + L) / 2}; the graphical horseshoe's published rule (Li,
+Craig & Bhadra 2019) is \eqn{L = 0.5}, i.e. \code{p_sign > 0.75}
+(\code{select_edges(rule = "interval")}). For pairs it is \strong{not} a
+probability that the edge differs (see \code{\link[=diff_summary]{diff_summary()}}).}
+\item{\code{mean_shrinkage}, \code{p_shrinkage}, \code{mcse_shrinkage}}{mGHS
+group rows: \eqn{E[1 - \kappa]}, \eqn{P(1 - \kappa > 0.5)} and the
+Monte Carlo SE of the latter, where \eqn{\kappa} is the edge's shrinkage
+factor with the global scale included (see \code{\link[=select_edges]{select_edges()}},
+\code{rule = "shrinkage"}).}
 \item{\code{p_up_<c>}, \code{p_down_<c>}}{Pair rows: \eqn{P(D > c)} and
 \eqn{P(D < -c)}, the direction of a difference: with \eqn{D =
     x_{group1} - x_{group2}}, \code{p_up} means the entry is larger in

@@ -37,13 +37,14 @@ This vignette walks through:
 ## 1. Simulate data
 
 We generate data from two groups with $p = 15$ variables and $n = 100$
-observations each, using a banded (AR-2) graph structure.
+observations each, using a random graph structure that differs slightly
+between the groups.
 
 ```{r simulate}
 library(multiGGM)
 
 sim <- simulate_multiggm(
-  K = 2, p = 20, n = 100,
+  K = 2, p = 15, n = 100,
   graph_type = "random",
   perturb_prob = 0.1,
   seed = 42
@@ -225,17 +226,22 @@ prior-versus-posterior comparisons, node-level summaries and WAIC.
 Running multiple MCMC chains from different starting points is important
 for assessing convergence. The `multiggm_mcmc()` function supports this
 via the `nchains` argument. Chains can be run in parallel with
-`parallel = TRUE`.
+`parallel = TRUE`. The multi-chain tools work the same for every sampler;
+to keep this vignette quick we use the faster SSVS sampler here, and short
+chains (real analyses need far longer runs; check them with
+`mcmc_diagnostics()`).
 
 ### Fitting multiple chains
 
 ```{r multi-chain-fit, results='hide'}
 fit_mc <- multiggm_mcmc(
   data_list = sim$data_list,
-  burnin    = 2000,
+  method    = "ssvs",
+  burnin    = 1000,
   nsave     = 1000,
   nchains   = 3,
   parallel  = TRUE,
+  ncores    = 2,
   seed      = 42
 )
 ```

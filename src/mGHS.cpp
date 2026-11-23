@@ -459,6 +459,18 @@ Rcpp::List mghs_engine_cpp (const int& burnin, const int& nsave, const int& thin
     if (b >= bn)
     {
       n_post += 1;
+      // multiGGM: 1 - kappa for each edge, kappa being the shrinkage factor of
+      // its column update with the global scale included. Updating column j,
+      // omega_ij has prior precision 1 / (mu tau Lambda) and likelihood
+      // precision s_jj (Omega_{-j}^{-1})_ii = s_jj (Sigma_ii - Sigma_ij^2 / Sigma_jj),
+      // so 1 - kappa = a / (1 + a) with a their ratio; averaged over the two
+      // columns that update the edge. Ignores coupling between coordinates.
+      edge_acc.add_kappa([&](int i, int j, int k) {
+        const double v = mu(k) * tau(k) * Lambda[i][j][k], sij2 = Sigma[i][j][k] * Sigma[i][j][k];
+        const double a1 = v * S1[j][j][k] * (Sigma[i][i][k] - sij2 / Sigma[j][j][k]);
+        const double a2 = v * S1[i][i][k] * (Sigma[j][j][k] - sij2 / Sigma[i][i][k]);
+        return 0.5 * (a1 / (1.0 + a1) + a2 / (1.0 + a2));
+      });
       edge_acc.add([&](int i, int j, int k) { return Omega[i][j][k]; },
                    [](int, int, int) { return false; },
                    [&](int i, int j, int k) { return Lambda[i][j][k] / (1.0 + Lambda[i][j][k]); },
