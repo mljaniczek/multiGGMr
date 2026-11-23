@@ -51,6 +51,10 @@ sim <- simulate_multiggm(K = 2, p = 12, n = 60, perturb_prob = 0.2, seed = 1)
 
 fit <- multiggm_mcmc(data_list = sim$data_list, method = "mghs",
                      burnin = 500, nsave = 500, seed = 1)
+#> Warning: The mGHS chain was restarted 1 time(s) before it ran to the end. A
+#> restarted chain only reports runs that avoided the failure, so its draws can be
+#> biased; if the failures were at the boundary of R, refit with e.g. hyper =
+#> list(R_eta = 10).
 fit
 #> <multiggm_fit>
 #>   K groups: 2 
@@ -122,10 +126,10 @@ discovery rate is at most `alpha`:
 sel <- select_diff_edges(fit, alpha = 0.05, delta = 0.1)
 sel
 #> <multiggm_diff_selection>
-#>   Groups 1 vs 2, rule: magnitude (P(|D| > 0.1), pcor scale)
+#>   Groups 1 vs 2, rule: magnitude (c = 0.1, pcor scale), decision: bfdr
 #>   Selected 1 edges at target FDR 0.05 (posterior expected FDR 0.032)
-#>   i j  prob      mean
-#> 1 3 4 0.968 -0.352797
+#>   i j  prob q_value      mean
+#> 1 3 4 0.968   0.032 -0.352797
 ```
 
 ### Calibration caveat: do not use “the interval excludes zero”
@@ -177,10 +181,10 @@ lean <- multiggm_mcmc(data_list = sim$data_list, method = "mghs",
                       save_draws = FALSE, diff_deltas = c(0.05, 0.1))
 select_diff_edges(lean, alpha = 0.05, delta = 0.1)
 #> <multiggm_diff_selection>
-#>   Groups 1 vs 2, rule: magnitude (P(|D| > 0.1), pcor scale)
+#>   Groups 1 vs 2, rule: magnitude (c = 0.1, pcor scale), decision: bfdr
 #>   Selected 1 edges at target FDR 0.05 (posterior expected FDR 0.019)
-#>   i j  prob       mean
-#> 1 3 4 0.981 -0.3619992
+#>   i j  prob q_value       mean
+#> 1 3 4 0.981   0.019 -0.3619992
 ```
 
 Chains are pooled by default in

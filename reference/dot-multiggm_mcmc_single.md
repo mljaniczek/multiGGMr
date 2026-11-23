@@ -20,6 +20,12 @@ Thin R wrapper that calls the C++ MCMC engine. Falls back to pure R if
   method = "gwishart",
   hyper = NULL,
   engine = "cpp",
+  save_draws = TRUE,
+  diff_deltas = .default_deltas,
+  mcse_batches = 20L,
+  waic = FALSE,
+  prior_only = FALSE,
+  X_list = NULL,
   ...
 )
 ```

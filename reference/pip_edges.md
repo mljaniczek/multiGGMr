@@ -37,8 +37,8 @@ posterior probability that edge (i,j) is present in the graph of group
 ## See also
 
 [`pip_diff_edge()`](https://mljaniczek.github.io/multiGGMr/reference/pip_diff_edge.md),
-[`confusion_at_threshold()`](https://rdrr.io/pkg/ggmtools/man/confusion_at_threshold.html),
-[`roc_auc()`](https://rdrr.io/pkg/ggmtools/man/roc_auc.html)
+[`confusion_at_threshold()`](https://mljaniczek.github.io/ggmtools/reference/confusion_at_threshold.html),
+[`roc_auc()`](https://mljaniczek.github.io/ggmtools/reference/roc_auc.html)
 
 ## Examples
 

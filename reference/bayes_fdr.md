@@ -36,7 +36,8 @@ The guarantee is only as good as the calibration of `prob`. For
 differential edges, pass a probability of a real difference such as
 \\P(\|D\| \> c)\\ or \\P(g_k \ne g_m)\\, not a sign probability (see
 [`diff_summary()`](https://mljaniczek.github.io/multiGGMr/reference/diff_summary.md)).
-Ties at the cutoff are broken by input order.
+Tied probabilities are kept together: the cutoff falls only between
+distinct values, so tied hypotheses are all selected or all rejected.
 
 ## References
 

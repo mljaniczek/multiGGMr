@@ -5,10 +5,10 @@ to see their documentation.
 
 - ggmtools:
 
-  [`confusion_at_threshold`](https://rdrr.io/pkg/ggmtools/man/confusion_at_threshold.html),
-  [`edge_index`](https://rdrr.io/pkg/ggmtools/man/edge_index.html),
-  [`pcor_estimate`](https://rdrr.io/pkg/ggmtools/man/pcor_estimate.html),
-  [`pip_table`](https://rdrr.io/pkg/ggmtools/man/pip_table.html),
-  [`plot_roc`](https://rdrr.io/pkg/ggmtools/man/plot_roc.html),
-  [`precision_to_pcor`](https://rdrr.io/pkg/ggmtools/man/precision_to_pcor.html),
-  [`roc_auc`](https://rdrr.io/pkg/ggmtools/man/roc_auc.html)
+  [`confusion_at_threshold`](https://mljaniczek.github.io/ggmtools/reference/confusion_at_threshold.html),
+  [`edge_index`](https://mljaniczek.github.io/ggmtools/reference/edge_index.html),
+  [`pcor_estimate`](https://mljaniczek.github.io/ggmtools/reference/pcor_estimate.html),
+  [`pip_table`](https://mljaniczek.github.io/ggmtools/reference/pip_table.html),
+  [`plot_roc`](https://mljaniczek.github.io/ggmtools/reference/plot_roc.html),
+  [`precision_to_pcor`](https://mljaniczek.github.io/ggmtools/reference/precision_to_pcor.html),
+  [`roc_auc`](https://mljaniczek.github.io/ggmtools/reference/roc_auc.html)

@@ -19,7 +19,7 @@ posterior_ci(pcor, probs = c(0.025, 0.975))
 - probs:
 
   Numeric vector of length 2 giving the lower and upper quantile
-  probabilities. Default `c(0.025, 0.975)` for 95\\ credible intervals.
+  probabilities. Default `c(0.025, 0.975)` for 95% credible intervals.
 
 ## Value
 

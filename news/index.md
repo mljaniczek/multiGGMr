@@ -1,42 +1,297 @@
 # Changelog
 
-## multiGGM (development version)
+## multiGGM 0.10.0
+
+### Within-group edge rules and masking
+
+- `select_edges(rule = "shrinkage")` (mGHS): E\[1 - kappa\], where kappa
+  is the edge’s shrinkage factor in its column update with the global
+  scale included (new
+  [`edge_probs()`](https://mljaniczek.github.io/multiGGMr/reference/edge_probs.md)
+  columns `mean_shrinkage`, `p_shrinkage`, `mcse_shrinkage`). It ranks
+  edges as well as the paper’s E\[w\], but, like E\[w\] \> 0.5, its 0.5
+  rule does not control false edges (better than E\[w\] at p = 20, n =
+  100; worse at p = 8, n = 300). For selection with error control use
+  the magnitude rule.
+- `select_edges(rule = "interval", level = 0.5)`: the credible interval
+  excludes zero, the graphical horseshoe’s published rule (Li, Craig &
+  Bhadra 2019), for comparison.
+  [`edge_probs()`](https://mljaniczek.github.io/multiGGMr/reference/edge_probs.md)
+  group rows now have `p_sign` for every sampler.
+- New
+  [`mask_pcor()`](https://mljaniczek.github.io/multiGGMr/reference/mask_pcor.md):
+  posterior mean partial correlations with unselected edges set to zero,
+  for reporting each group’s network (not for finding differences, which
+  should use
+  [`select_diff_edges()`](https://mljaniczek.github.io/multiGGMr/reference/select_diff_edges.md)).
+- [`calibrate_c()`](https://mljaniczek.github.io/multiGGMr/reference/calibrate_c.md)
+  falls back to the raw share when fewer than three permutations make a
+  call (`c_method = "empirical"`).
+- All of the above is kept as running sums without random draws: chains
+  are unchanged for a given seed.
+
+### Preparing for CRAN
+
+- Vignettes build in about 1.5 minutes instead of 12 (shorter
+  illustrative chains; the tutorial’s multi-chain section uses SSVS),
+  and the
+  [`multiggm_mcmc()`](https://mljaniczek.github.io/multiGGMr/reference/multiggm_mcmc.md)
+  example is shorter.
+- DESCRIPTION: references with DOIs, acronyms spelled out.
+- Removed an unused C++ function.
+
+## multiGGM 0.9.0
+
+- New
+  [`calibrate_c()`](https://mljaniczek.github.io/multiGGMr/reference/calibrate_c.md)
+  chooses the minimum-difference threshold c for the magnitude rule
+  (`select_diff_edges(rule = "magnitude")`) from a permutation null. The
+  two groups’ labels are shuffled (group sizes kept, each original group
+  centred on its own means, nothing rescaled), each shuffled dataset is
+  refitted with the analysis settings, and every call it makes is false.
+  - Default target: at most `alpha` of null datasets with any call,
+    which is the FDR of the rule under the null. c is the (1 - alpha)
+    quantile of a censored Weibull fitted to each permutation’s largest
+    c with a call, so 20 to 50 permutations suffice. In permutation
+    studies (SSVS, p = 10-30, n = 70-400 per group) the c chosen from 20
+    permutations gave an achieved null rate of 0.02-0.05 (target 0.05).
+    `target = "mean_false_calls"` is also available.
+  - Settings come from the analysis fit (`fit =`) or `mcmc_args`; failed
+    fits are recorded and skipped; permutations are reproducible and
+    identical in parallel; early stopping when the confidence interval
+    for c is within `c_tol`.
+  - [`print()`](https://rdrr.io/r/base/print.html),
+    [`plot()`](https://rdrr.io/r/graphics/plot.default.html) and
+    [`as.data.frame()`](https://rdrr.io/r/base/as.data.frame.html)
+    methods.
+- [`select_diff_edges()`](https://mljaniczek.github.io/multiGGMr/reference/select_diff_edges.md)
+  accepts the result of
+  [`calibrate_c()`](https://mljaniczek.github.io/multiGGMr/reference/calibrate_c.md)
+  as `c`.
+- [`multiggm_mcmc()`](https://mljaniczek.github.io/multiGGMr/reference/multiggm_mcmc.md)
+  records its settings in `fit$settings` (not read by the samplers), so
+  they can be reused. For older fits
+  [`calibrate_c()`](https://mljaniczek.github.io/multiGGMr/reference/calibrate_c.md)
+  reconstructs them, asking for `burnin` when it cannot be recovered.
+- Fine c grids need no change: `diff_deltas` (any grid, both scales) has
+  worked for every sampler since 0.5.0. At p = 100, a 40-value grid
+  takes about 28 MB of running sums (16 MB with `mcse_batches = 0`) and
+  adds about 10% to run time.
+- Edge-selection vignette: new section on choosing c from a permutation
+  null.
+
+## multiGGM 0.8.0
+
+### mGHS: small-sample failures and an optional prior on R
+
+- **Diagnosis.** With few observations per group (for example K = 2, n =
+  100, p = 28 on TCGA data, or simulated data with n = 100), mGHS chains
+  stopped with “global-scale parameter above 1e6”. The global scales tau
+  were finite. The correlation of edge scales across groups, R, ran to
+  +-1, so 1 - R12^2 went to 0 and the global-scale parameters, which
+  divide by it, crossed the guard. This is a property of the posterior
+  under the paper’s uniform prior on R, not a numerical error: the
+  per-group local scales can align the groups’ scaled edges, and with
+  small n the null edges’ signs are free, so only concordant strong
+  edges inform R and they favour +-1. Rescaling all groups by a common
+  constant did not help; n = 1000 per group did.
+- **New `hyper$R_eta`** (mGHS): an LKJ(eta) prior on R, pi(R) propto
+  \|R\|^(eta - 1). The default, 1, is the paper’s uniform prior and
+  leaves the sampler unchanged (default fits are bit-identical to 0.7.0,
+  tested at p = 50, n = 1000). On the TCGA example, eta = 5 and eta = 10
+  ran 20,000 + 20,000 iterations on 2 chains for all 5 seeds with R-hat
+  \<= 1.01 for tau and R; eta = 3 failed in 8 of 10 chains.
+- The error for a chain stuck at the boundary of R now says so and
+  points to `R_eta`; a stuck chain reports `stuck_mu`. A warning is
+  given when a chain had to be restarted, since restarted chains report
+  only runs that avoided the failure.
+
+## multiGGM 0.7.0
+
+- New
+  [`posterior_predictive_check()`](https://mljaniczek.github.io/multiGGMr/reference/posterior_predictive_check.md)
+  and
+  [`plot_ppc()`](https://mljaniczek.github.io/multiGGMr/reference/plot_ppc.md).
+  Replicate data are drawn from posterior precision draws with the
+  observed group sizes and compared with the data, giving posterior
+  predictive p-values:
+  - per group: dependence strength (`max_abs_cor`, `sum_sq_cor`), and
+    outliers and heavy tails (`max_mahal`, `kurtosis`, as realized
+    discrepancies);
+  - per pair of groups: the total difference between groups
+    (`sum_sq_diff`), which shows whether differences are over-shrunk;
+  - per edge: each group’s sample partial correlation (or correlation)
+    and its difference between groups. Works for G-Wishart, SSVS and
+    mGHS. It needs saved draws (thinning to about 200 is enough);
+    `use = "mean"` gives an approximate check for fits without draws.
+    Runs in R after fitting, so chains are unaffected.
+- The “Checking and Evaluating a Fit” vignette gains a section on
+  posterior predictive checks.
+
+### To do
+
+- Edge probabilities, diagnostics and posterior predictive checks for
+  `method = "ssvs_platform"` (currently an error).
+
+## multiGGM 0.6.0
+
+### Diagnostics and evaluation without saving draws
+
+Everything below works with `save_draws = FALSE` for the G-Wishart, SSVS
+and mGHS samplers. The samplers keep the extra traces and running sums
+without drawing random numbers, so chains and all existing outputs are
+unchanged for a given seed (tested against 0.4.0 and 0.5.0).
+
+- **Convergence.** New
+  [`mcmc_diagnostics()`](https://mljaniczek.github.io/multiGGMr/reference/mcmc_diagnostics.md)
+  reports rank-normalized split R-hat and bulk/tail ESS (Vehtari et
+  al. 2021) for whole-chain summaries recorded at every iteration
+  (`fit$trace`): edges per group, differential edges per pair
+  (structural, `|D| > c`, union), the log-likelihood of each group, and
+  `theta` (mGHS: `R`, `tau`). It also reports the Monte Carlo error of
+  edge probabilities, the largest disagreement between chains and the
+  acceptance rates, with flags. New
+  [`plot_chain_agreement()`](https://mljaniczek.github.io/multiGGMr/reference/plot_chain_agreement.md)
+  plots each chain’s edge probabilities against chain 1.
+- **[`plot_trace()`](https://mljaniczek.github.io/multiGGMr/reference/plot_trace.md)**
+  gains `"loglik"` and `"diff"` and now works without saved draws and
+  for mGHS (`"edges"` counts edges with `w > 0.5`).
+  [`edge_counts()`](https://mljaniczek.github.io/multiGGMr/reference/edge_counts.md)
+  uses the trace when draws were not saved.
+- **Monte Carlo SEs of edge probabilities.** Every count used for
+  selection is also kept in batches (`mcse_batches`, default 20);
+  [`edge_probs()`](https://mljaniczek.github.io/multiGGMr/reference/edge_probs.md)
+  gains `mcse_struct`, `mcse_cut`, `mcse_exceed_<c>` and
+  `mcse_union_<c>`, pooled correctly over chains.
+- **Direction of differences.**
+  [`edge_probs()`](https://mljaniczek.github.io/multiGGMr/reference/edge_probs.md)
+  gains `p_up_<c>` = P(D \> c) and `p_down_<c>` = P(D \< -c).
+- **Node level.** New
+  [`node_diff_summary()`](https://mljaniczek.github.io/multiGGMr/reference/node_diff_summary.md):
+  per node, the posterior mean number of differential edges, the
+  probability of at least one, and the rewiring score `sum_j |D_ij|`,
+  all counted per iteration.
+- **Network level.** New
+  [`diff_count_posterior()`](https://mljaniczek.github.io/multiGGMr/reference/diff_count_posterior.md):
+  the posterior of the number of differential edges and P(at least one).
+- **q-values.** New
+  [`bfdr_qvalues()`](https://mljaniczek.github.io/multiGGMr/reference/bfdr_qvalues.md);
+  the edge tables of
+  [`select_edges()`](https://mljaniczek.github.io/multiGGMr/reference/select_edges.md)
+  and
+  [`select_diff_edges()`](https://mljaniczek.github.io/multiGGMr/reference/select_diff_edges.md)
+  gain a `q_value` column.
+- **Prior versus posterior.** New `prior_only = TRUE` samples the prior
+  (G-Wishart and SSVS; mGHS’s flat diagonal prior is improper), and
+  [`edge_bayes_factors()`](https://mljaniczek.github.io/multiGGMr/reference/edge_bayes_factors.md)
+  compares each edge probability with its prior value.
+- **WAIC.** New `waic = TRUE` keeps per-observation sums and
+  [`compute_waic()`](https://mljaniczek.github.io/multiGGMr/reference/compute_waic.md)
+  returns WAIC with standard errors, overall and per group.
+- **Calibration.** New
+  [`fdr_calibration()`](https://mljaniczek.github.io/multiGGMr/reference/fdr_calibration.md)
+  compares the posterior expected FDR with the achieved FDR and power
+  against a known truth, for simulation studies.
+- New vignette “Checking and Evaluating a Fit”.
+- Cost: no measurable change in run time at p = 100 (SSVS and mGHS, with
+  or without WAIC). The batch counts roughly double `edge_acc` (an SSVS
+  fit without draws grows from 2.7 to 4.9 MB at p = 100, K = 2; set
+  `mcse_batches = 0` to drop them). The traces are a few numbers per
+  iteration.
+
+## multiGGM 0.5.0
+
+### Posterior edge probabilities without saving draws
+
+- Every sampler except `"ssvs_platform"` now keeps running sums over all
+  post-burn-in iterations (`fit$edge_acc`) for a common family of
+  per-edge posterior probabilities. Each is counted per iteration and
+  averaged, never assembled from the groups’ marginal summaries. They do
+  not draw random numbers: chains, and every existing output, are
+  unchanged for a given seed (mGHS outputs are bit-identical to 0.4.0;
+  tested).
+  - Per group: posterior mean and SD (precision and partial
+    correlation), `P(|x| > c)`, and the structural probability: the PIP
+    for G-Wishart and SSVS; for mGHS `P(w > 0.5)` and `E[w]` with
+    `w = lambda^2/(1 + lambda^2)`, plus the cut-model `P(Z = 1)`.
+  - Per pair of groups: `P(G_s != G_t)` (mGHS: `P(S_s != S_t)` and
+    `P(Z_s != Z_t)`), `P(|D| > c)`, the union
+    `P(structural difference or |D| > c)`, the mean and SD of `D`, and
+    the sign probability (labelled as not a probability of difference).
+- New
+  [`edge_probs()`](https://mljaniczek.github.io/multiGGMr/reference/edge_probs.md)
+  (tidy data frame),
+  [`edge_prob_matrix()`](https://mljaniczek.github.io/multiGGMr/reference/edge_prob_matrix.md)
+  (one p x p matrix) and
+  [`select_edges()`](https://mljaniczek.github.io/multiGGMr/reference/select_edges.md)
+  (per-group selection, rules `"structural"`, `"magnitude"`, `"cut"`,
+  `"median_shrinkage"`).
+- [`select_diff_edges()`](https://mljaniczek.github.io/multiGGMr/reference/select_diff_edges.md)
+  gains rules `"union"` and `"cut"`, a `decision` argument (`"bfdr"` or
+  `"median"`) and `c` (alias of `delta`, whose default is unchanged).
+  The structural rule now also works for mGHS (it used to stop with an
+  error) and for fits without saved draws.
+- `save_draws = FALSE` now works for the G-Wishart and SSVS samplers
+  too: only the running sums, posterior means and the `Theta` trace are
+  kept, which makes fits at p = 100-250 practical.
+  [`pip_edges()`](https://mljaniczek.github.io/multiGGMr/reference/pip_edges.md),
+  [`pip_diff_edge()`](https://mljaniczek.github.io/multiGGMr/reference/pip_diff_edge.md),
+  [`coef()`](https://rdrr.io/r/stats/coef.html),
+  [`fitted()`](https://rdrr.io/r/stats/fitted.values.html),
+  [`diff_summary()`](https://mljaniczek.github.io/multiGGMr/reference/diff_summary.md)
+  and [`summary()`](https://rdrr.io/r/base/summary.html) use the running
+  sums when draws are missing.
+- `diff_deltas` (the thresholds `c`) applies to every sampler.
+  Thresholds outside the grid can be computed after fitting when draws
+  were saved.
+- [`bayes_fdr()`](https://mljaniczek.github.io/multiGGMr/reference/bayes_fdr.md)
+  keeps tied probabilities together: the cutoff falls only between
+  distinct values.
+- The G-Wishart engine no longer allocates three unused draw-sized
+  arrays.
+- Documented (not changed): mGHS’s structural and cut-model
+  probabilities are weak for null edges, because the paper’s weight `w`
+  excludes the global scale `tau` and the upstream cut model draws
+  `Z ~ Bernoulli(Phi(w - t))` rather than the paper’s closed form. Use
+  the magnitude rule for mGHS.
 
 ### Shared tools: ggmtools
 
-- [`precision_to_pcor()`](https://rdrr.io/pkg/ggmtools/man/precision_to_pcor.html),
-  [`confusion_at_threshold()`](https://rdrr.io/pkg/ggmtools/man/confusion_at_threshold.html),
-  [`roc_auc()`](https://rdrr.io/pkg/ggmtools/man/roc_auc.html) and
-  [`plot_roc()`](https://rdrr.io/pkg/ggmtools/man/plot_roc.html) now
-  come from the new package ggmtools and are re-exported. spikeyglass
-  re-exports the same functions, so attaching both packages no longer
-  gives conflicting versions.
-- **[`roc_auc()`](https://rdrr.io/pkg/ggmtools/man/roc_auc.html) now
-  handles tied scores correctly.** The previous version accumulated one
-  edge at a time in sorted order, so tied edges (e.g. PIPs of exactly 0
-  or 1) were ordered by matrix position. That made the AUC depend on
-  variable order and could bias it by several hundredths. The curve now
-  steps only at distinct scores, and the AUC equals the Mann-Whitney
-  statistic. With no tied scores, the AUC is unchanged.
-- [`roc_auc()`](https://rdrr.io/pkg/ggmtools/man/roc_auc.html) returns
-  `NA` for `auc` (instead of an error) when the truth has no edges or no
-  non-edges.
-- [`confusion_at_threshold()`](https://rdrr.io/pkg/ggmtools/man/confusion_at_threshold.html)
+- [`precision_to_pcor()`](https://mljaniczek.github.io/ggmtools/reference/precision_to_pcor.html),
+  [`confusion_at_threshold()`](https://mljaniczek.github.io/ggmtools/reference/confusion_at_threshold.html),
+  [`roc_auc()`](https://mljaniczek.github.io/ggmtools/reference/roc_auc.html)
+  and
+  [`plot_roc()`](https://mljaniczek.github.io/ggmtools/reference/plot_roc.html)
+  now come from the new package ggmtools and are re-exported.
+  spikeyglass re-exports the same functions, so attaching both packages
+  no longer gives conflicting versions.
+- **[`roc_auc()`](https://mljaniczek.github.io/ggmtools/reference/roc_auc.html)
+  now handles tied scores correctly.** The previous version accumulated
+  one edge at a time in sorted order, so tied edges (e.g. PIPs of
+  exactly 0 or 1) were ordered by matrix position. That made the AUC
+  depend on variable order and could bias it by several hundredths. The
+  curve now steps only at distinct scores, and the AUC equals the
+  Mann-Whitney statistic. With no tied scores, the AUC is unchanged.
+- [`roc_auc()`](https://mljaniczek.github.io/ggmtools/reference/roc_auc.html)
+  returns `NA` for `auc` (instead of an error) when the truth has no
+  edges or no non-edges.
+- [`confusion_at_threshold()`](https://mljaniczek.github.io/ggmtools/reference/confusion_at_threshold.html)
   returns a list (was a named numeric vector) with `precision` and `F1`
   added, and its third argument is now called `threshold` (was `thr`),
   with default 0.5. Use `cm$TPR` rather than `cm["TPR"]`.
   [`plot_recovery()`](https://mljaniczek.github.io/multiGGMr/reference/plot_recovery.md)
   returns these lists.
-- [`plot_roc()`](https://rdrr.io/pkg/ggmtools/man/plot_roc.html) now
-  uses base graphics and returns the ROC list invisibly (it previously
-  returned a ggplot object). It gains `add = TRUE` to overlay curves.
-- [`precision_to_pcor()`](https://rdrr.io/pkg/ggmtools/man/precision_to_pcor.html)
+- [`plot_roc()`](https://mljaniczek.github.io/ggmtools/reference/plot_roc.html)
+  now uses base graphics and returns the ROC list invisibly (it
+  previously returned a ggplot object). It gains `add = TRUE` to overlay
+  curves.
+- [`precision_to_pcor()`](https://mljaniczek.github.io/ggmtools/reference/precision_to_pcor.html)
   returns a matrix of `NA` with a warning (instead of an error) for a
   non-positive diagonal, and keeps dimnames.
 - New methods for the ggmtools generics
-  [`pip_table()`](https://rdrr.io/pkg/ggmtools/man/pip_table.html) (PIPs
-  as a long edge table) and
-  [`pcor_estimate()`](https://rdrr.io/pkg/ggmtools/man/pcor_estimate.html)
+  [`pip_table()`](https://mljaniczek.github.io/ggmtools/reference/pip_table.html)
+  (PIPs as a long edge table) and
+  [`pcor_estimate()`](https://mljaniczek.github.io/ggmtools/reference/pcor_estimate.html)
   (posterior-mean partial correlations, one matrix per group). Scripts
   written with these work on spikeyglass fits too.
 

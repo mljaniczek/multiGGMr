@@ -23,14 +23,15 @@ This vignette walks through:
 ## 1. Simulate data
 
 We generate data from two groups with $`p = 15`$ variables and
-$`n = 100`$ observations each, using a banded (AR-2) graph structure.
+$`n = 100`$ observations each, using a random graph structure that
+differs slightly between the groups.
 
 ``` r
 
 library(multiGGM)
 
 sim <- simulate_multiggm(
-  K = 2, p = 20, n = 100,
+  K = 2, p = 15, n = 100,
   graph_type = "random",
   perturb_prob = 0.1,
   seed = 42
@@ -42,8 +43,8 @@ for (k in 1:sim$K) {
   adj_k <- sim$adj_list[[k]]
   cat(sprintf("  Group %d: %d edges\n", k, sum(adj_k[upper.tri(adj_k)])))
 }
-#>   Group 1: 15 edges
-#>   Group 2: 32 edges
+#>   Group 1: 11 edges
+#>   Group 2: 15 edges
 ```
 
 ## 2. Fit the model
@@ -67,7 +68,7 @@ fit <- multiggm_mcmc(
 fit
 #> <multiggm_fit>
 #>   K groups: 2 
-#>   p nodes : 20 
+#>   p nodes : 15 
 #>   Posterior draws: 100
 ```
 
@@ -84,19 +85,19 @@ generally healthy.
 summary(fit, pip_threshold = .3)
 #> multiGGM MCMC Summary
 #> =====================
-#> Groups (K): 2   |  Nodes (p): 20   |  Posterior draws: 100 
+#> Groups (K): 2   |  Nodes (p): 15   |  Posterior draws: 100 
 #> 
 #> Acceptance rates:
 #>   gamma (edge toggle): 1.0% 
-#>   theta (within-model): 10.1% 
-#>   nu (edge log-odds): 54.8% 
+#>   theta (within-model): 47.2% 
+#>   nu (edge log-odds): 48.9% 
 #> 
 #> Selected edges (PIP >= 0.3 ):
-#>   Group 1 : 128 edges
-#>   Group 2 : 130 edges
+#>   Group 1 : 17 edges
+#>   Group 2 : 22 edges
 #> 
 #> Graph similarity (theta):
-#>   theta[1,2]: mean = 1.264, P(nonzero) = 100.0%
+#>   theta[1,2]: mean = 0.422, P(nonzero) = 100.0%
 ```
 
 ### Trace plots
@@ -117,6 +118,8 @@ plot(fit, type = "trace_theta")
 ``` r
 
 plot(fit, type = "trace_edges")
+#> Ignoring unknown labels:
+#> • colour : "Chain"
 ```
 
 ![](multiGGMr-tutorial_files/figure-html/trace-edges-1.png)
@@ -153,12 +156,12 @@ omega_hat <- coef(fit)
 cat("Posterior mean precision (Group 1, first 5x5 block):\n")
 #> Posterior mean precision (Group 1, first 5x5 block):
 round(omega_hat[[1]][1:5, 1:5], 3)
-#>        [,1]   [,2]   [,3]   [,4]  [,5]
-#> [1,]  1.325 -0.010 -0.074 -0.053 0.013
-#> [2,] -0.010  1.019 -0.001  0.025 0.109
-#> [3,] -0.074 -0.001  1.124 -0.093 0.001
-#> [4,] -0.053  0.025 -0.093  1.696 0.671
-#> [5,]  0.013  0.109  0.001  0.671 1.413
+#>        [,1]   [,2]   [,3]   [,4]   [,5]
+#> [1,]  1.358 -0.001  0.011  0.006  0.005
+#> [2,] -0.001  1.077 -0.002  0.000 -0.001
+#> [3,]  0.011 -0.002  1.088 -0.014 -0.001
+#> [4,]  0.006  0.000 -0.014  0.916 -0.009
+#> [5,]  0.005 -0.001 -0.001 -0.009  1.257
 ```
 
 ``` r
@@ -167,12 +170,12 @@ pcor_hat <- fitted(fit)
 cat("Posterior mean partial correlations (Group 1, first 5x5 block):\n")
 #> Posterior mean partial correlations (Group 1, first 5x5 block):
 round(pcor_hat[[1]][1:5, 1:5], 3)
-#>        [,1]   [,2]   [,3]   [,4]   [,5]
-#> [1,]  1.000  0.009  0.060  0.035 -0.009
-#> [2,]  0.009  1.000  0.001 -0.018 -0.091
-#> [3,]  0.060  0.001  1.000  0.064 -0.002
-#> [4,]  0.035 -0.018  0.064  1.000 -0.432
-#> [5,] -0.009 -0.091 -0.002 -0.432  1.000
+#>        [,1]  [,2]   [,3]   [,4]   [,5]
+#> [1,]  1.000 0.001 -0.010 -0.005 -0.004
+#> [2,]  0.001 1.000  0.002  0.000  0.001
+#> [3,] -0.010 0.002  1.000  0.014  0.001
+#> [4,] -0.005 0.000  0.014  1.000  0.008
+#> [5,] -0.004 0.001  0.001  0.008  1.000
 ```
 
 ### Credible intervals
@@ -185,7 +188,7 @@ ci <- posterior_ci(pcor_draws)
 # Example: 95% CI for edge (1,2) in group 1
 cat(sprintf("pcor[1,2] Group 1: %.3f (%.3f, %.3f)\n",
             ci$median[1, 2, 1], ci$lower[1, 2, 1], ci$upper[1, 2, 1]))
-#> pcor[1,2] Group 1: -0.000 (-0.026, 0.112)
+#> pcor[1,2] Group 1: -0.000 (-0.000, 0.003)
 ```
 
 ## 5. Compare to ground truth
@@ -212,8 +215,8 @@ for (k in seq_along(cm)) {
               k, cm[[k]]$TP, cm[[k]]$FP, cm[[k]]$FN, cm[[k]]$TN,
               cm[[k]]$TPR, cm[[k]]$FPR))
 }
-#> Group 1: TP=15, FP=70, FN=0, TN=105, TPR=1.00, FPR=0.40
-#> Group 2: TP=30, FP=59, FN=2, TN=99, TPR=0.94, FPR=0.37
+#> Group 1: TP=11, FP=2, FN=0, TN=92, TPR=1.00, FPR=0.02
+#> Group 2: TP=15, FP=2, FN=0, TN=88, TPR=1.00, FPR=0.02
 ```
 
 ### ROC curve
@@ -251,7 +254,7 @@ For $`K = 2`$ groups, we can identify edges that differ between groups.
 pip_diff <- pip_diff_edge(fit)
 cat("Edges with P(differential) > 0.5:",
     sum(pip_diff[upper.tri(pip_diff)] > 0.5), "\n")
-#> Edges with P(differential) > 0.5: 0
+#> Edges with P(differential) > 0.5: 6
 ```
 
 ``` r
@@ -260,7 +263,7 @@ pcor_draws <- posterior_pcor(fit)
 diff_prob <- diff_prob_pcor(pcor_draws, delta = 0.1)
 cat("Edges with P(|pcor diff| > 0.1) > 0.5:",
     sum(diff_prob[upper.tri(diff_prob)] > 0.5), "\n")
-#> Edges with P(|pcor diff| > 0.1) > 0.5: 56
+#> Edges with P(|pcor diff| > 0.1) > 0.5: 17
 ```
 
 ### Bayesian FDR on differential edges
@@ -275,28 +278,34 @@ it is $`P(|\rho_{1,ij} - \rho_{2,ij}| > \delta)`$.
 
 select_diff_edges(fit, rule = "structural", alpha = 0.1)
 #> <multiggm_diff_selection>
-#>   Groups 1 vs 2, rule: structural
+#>   Groups 1 vs 2, rule: structural, decision: bfdr
 #>   Selected 0 edges at target FDR 0.1 (posterior expected FDR 0.000)
 select_diff_edges(fit, rule = "magnitude", delta = 0.1, alpha = 0.1)
 #> <multiggm_diff_selection>
-#>   Groups 1 vs 2, rule: magnitude (P(|D| > 0.1), pcor scale)
-#>   Selected 37 edges at target FDR 0.1 (posterior expected FDR 0.100)
-#>     i  j prob       mean
-#> 1   5 12    1 -0.4300717
-#> 2   5 15    1 -0.6889741
-#> 3  12 16    1  0.8587079
-#> 4   3 17    1 -0.3913595
-#> 5  10 17    1  0.5163019
-#> 6   2 18    1  0.4567602
-#> 7   7 18    1  0.7165580
-#> 8  11 18    1 -0.7105095
-#> 9   8 20    1 -0.4123171
-#> 10 17 20    1 -0.3882922
+#>   Groups 1 vs 2, rule: magnitude (c = 0.1, pcor scale), decision: bfdr
+#>   Selected 14 edges at target FDR 0.1 (posterior expected FDR 0.094)
+#>     i  j prob q_value       mean
+#> 1   4  8 1.00   0.000 -1.0378726
+#> 2   3 11 1.00   0.000  0.6238238
+#> 3  10 12 1.00   0.000 -0.9582806
+#> 4   1 13 1.00   0.000 -0.3287330
+#> 5   2 13 1.00   0.000  0.8208254
+#> 6   9 13 1.00   0.000 -0.6333491
+#> 7   9 14 1.00   0.000  0.7401484
+#> 8   1  6 0.99   0.003 -0.3989599
+#> 9   3 13 0.99   0.003  0.3223887
+#> 10  7 15 0.99   0.003  0.3229436
 ```
 
 Avoid calling differences by whether a credible interval for the
-difference excludes zero: see the calibration caveat in
-[`vignette("mghs-horseshoe")`](https://mljaniczek.github.io/multiGGMr/articles/mghs-horseshoe.md).
+difference excludes zero.
+[`vignette("edge-selection")`](https://mljaniczek.github.io/multiGGMr/articles/edge-selection.md)
+explains the structural, magnitude and union rules, when each applies,
+and how to choose `c`; all of them are available without saving draws
+(`save_draws = FALSE`).
+[`vignette("diagnostics")`](https://mljaniczek.github.io/multiGGMr/articles/diagnostics.md)
+covers convergence checks, Monte Carlo error, prior-versus-posterior
+comparisons, node-level summaries and WAIC.
 
 ## 8. Running multiple chains
 
@@ -304,7 +313,11 @@ Running multiple MCMC chains from different starting points is important
 for assessing convergence. The
 [`multiggm_mcmc()`](https://mljaniczek.github.io/multiGGMr/reference/multiggm_mcmc.md)
 function supports this via the `nchains` argument. Chains can be run in
-parallel with `parallel = TRUE`.
+parallel with `parallel = TRUE`. The multi-chain tools work the same for
+every sampler; to keep this vignette quick we use the faster SSVS
+sampler here, and short chains (real analyses need far longer runs;
+check them with
+[`mcmc_diagnostics()`](https://mljaniczek.github.io/multiGGMr/reference/mcmc_diagnostics.md)).
 
 ### Fitting multiple chains
 
@@ -312,10 +325,12 @@ parallel with `parallel = TRUE`.
 
 fit_mc <- multiggm_mcmc(
   data_list = sim$data_list,
-  burnin    = 2000,
+  method    = "ssvs",
+  burnin    = 1000,
   nsave     = 1000,
   nchains   = 3,
   parallel  = TRUE,
+  ncores    = 2,
   seed      = 42
 )
 ```
@@ -340,19 +355,19 @@ Each chain is a full `multiggm_fit` object. Access them via `$chains`:
 summary(fit_mc$chains[[1]], pip_threshold = 0.3)
 #> multiGGM MCMC Summary
 #> =====================
-#> Groups (K): 2   |  Nodes (p): 20   |  Posterior draws: 1000 
+#> Groups (K): 2   |  Nodes (p): 15   |  Posterior draws: 1000 
 #> 
 #> Acceptance rates:
-#>   gamma (edge toggle): 0.2% 
-#>   theta (within-model): 3.6% 
-#>   nu (edge log-odds): 61.7% 
+#>   gamma (edge toggle): 6.1% 
+#>   theta (within-model): 34.6% 
+#>   nu (edge log-odds): 44.4% 
 #> 
 #> Selected edges (PIP >= 0.3 ):
-#>   Group 1 : 186 edges
-#>   Group 2 : 186 edges
+#>   Group 1 : 12 edges
+#>   Group 2 : 16 edges
 #> 
 #> Graph similarity (theta):
-#>   theta[1,2]: mean = 1.868, P(nonzero) = 100.0%
+#>   theta[1,2]: mean = 0.296, P(nonzero) = 95.6%
 ```
 
 Most utility functions accept a `chain` argument to select which chain
@@ -367,7 +382,7 @@ pip_c2 <- pip_edges(fit_mc, chain = 2)
 idx <- upper.tri(pip_c1[, , 1])
 cat(sprintf("PIP correlation between chain 1 and 2 (Group 1): %.3f\n",
             cor(pip_c1[, , 1][idx], pip_c2[, , 1][idx])))
-#> PIP correlation between chain 1 and 2 (Group 1): 0.832
+#> PIP correlation between chain 1 and 2 (Group 1): 0.991
 ```
 
 ### Comparing trace plots across chains
@@ -443,65 +458,65 @@ summary(fit_mc, pip_threshold = 0.5)
 #> multiGGM MCMC Summary: 3 chains, K = 2
 #> ==========================================
 #> Pooled selected edges (PIP >= 0.5 ):
-#>   Group 1: 170 edges
-#>   Group 2: 170 edges
+#>   Group 1: 10 edges
+#>   Group 2: 13 edges
 #> 
 #> Largest difference in PIP between chains:
-#>   Group 1: 0.676
-#>   Group 2: 0.665
+#>   Group 1: 0.240
+#>   Group 2: 0.197
 #> 
 #> --- Chain 1 ---
 #> multiGGM MCMC Summary
 #> =====================
-#> Groups (K): 2   |  Nodes (p): 20   |  Posterior draws: 1000 
+#> Groups (K): 2   |  Nodes (p): 15   |  Posterior draws: 1000 
 #> 
 #> Acceptance rates:
-#>   gamma (edge toggle): 0.2% 
-#>   theta (within-model): 3.6% 
-#>   nu (edge log-odds): 61.7% 
+#>   gamma (edge toggle): 6.1% 
+#>   theta (within-model): 34.6% 
+#>   nu (edge log-odds): 44.4% 
 #> 
 #> Selected edges (PIP >= 0.5 ):
-#>   Group 1 : 167 edges
-#>   Group 2 : 168 edges
+#>   Group 1 : 10 edges
+#>   Group 2 : 13 edges
 #> 
 #> Graph similarity (theta):
-#>   theta[1,2]: mean = 1.868, P(nonzero) = 100.0%
+#>   theta[1,2]: mean = 0.296, P(nonzero) = 95.6%
 #> 
 #> 
 #> --- Chain 2 ---
 #> multiGGM MCMC Summary
 #> =====================
-#> Groups (K): 2   |  Nodes (p): 20   |  Posterior draws: 1000 
+#> Groups (K): 2   |  Nodes (p): 15   |  Posterior draws: 1000 
 #> 
 #> Acceptance rates:
-#>   gamma (edge toggle): 0.2% 
-#>   theta (within-model): 2.4% 
-#>   nu (edge log-odds): 66.0% 
+#>   gamma (edge toggle): 6.1% 
+#>   theta (within-model): 34.0% 
+#>   nu (edge log-odds): 43.7% 
 #> 
 #> Selected edges (PIP >= 0.5 ):
-#>   Group 1 : 149 edges
-#>   Group 2 : 151 edges
+#>   Group 1 : 11 edges
+#>   Group 2 : 13 edges
 #> 
 #> Graph similarity (theta):
-#>   theta[1,2]: mean = 1.706, P(nonzero) = 100.0%
+#>   theta[1,2]: mean = 0.312, P(nonzero) = 95.3%
 #> 
 #> 
 #> --- Chain 3 ---
 #> multiGGM MCMC Summary
 #> =====================
-#> Groups (K): 2   |  Nodes (p): 20   |  Posterior draws: 1000 
+#> Groups (K): 2   |  Nodes (p): 15   |  Posterior draws: 1000 
 #> 
 #> Acceptance rates:
-#>   gamma (edge toggle): 0.0% 
-#>   theta (within-model): 1.9% 
-#>   nu (edge log-odds): 66.8% 
+#>   gamma (edge toggle): 6.4% 
+#>   theta (within-model): 33.7% 
+#>   nu (edge log-odds): 43.1% 
 #> 
 #> Selected edges (PIP >= 0.5 ):
-#>   Group 1 : 173 edges
-#>   Group 2 : 175 edges
+#>   Group 1 : 10 edges
+#>   Group 2 : 14 edges
 #> 
 #> Graph similarity (theta):
-#>   theta[1,2]: mean = 1.988, P(nonzero) = 100.0%
+#>   theta[1,2]: mean = 0.299, P(nonzero) = 94.9%
 ```
 
 To work with the raw draws yourself, concatenate the saved arrays along
@@ -527,7 +542,7 @@ pip_pooled <- apply(pool_adj, c(1, 2, 3), mean)
 
 cat(sprintf("Pooled edges (PIP > 0.5, Group 1): %d\n",
             sum(pip_pooled[, , 1][upper.tri(pip_pooled[, , 1])] > 0.5)))
-#> Pooled edges (PIP > 0.5, Group 1): 170
+#> Pooled edges (PIP > 0.5, Group 1): 10
 ```
 
 ### Summary of multi-chain functions

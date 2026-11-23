@@ -2,10 +2,12 @@ pandoc: 3.8.3
 pkgdown: 2.2.1
 pkgdown_sha: ~
 articles:
+  diagnostics: diagnostics.html
+  edge-selection: edge-selection.html
   mghs-horseshoe: mghs-horseshoe.html
   multiGGMr-tutorial: multiGGMr-tutorial.html
   ssvs-scalable-method: ssvs-scalable-method.html
-last_built: 2026-10-21T19:18Z
+last_built: 2026-11-23T18:53Z
 urls:
   reference: https://mljaniczek.github.io/multiGGMr/reference
   article: https://mljaniczek.github.io/multiGGMr/articles

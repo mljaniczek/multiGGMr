@@ -48,7 +48,7 @@ simulate_multiggm(
     independently with probability `edge_prob`.
 
   - `hub`: Star/hub graph with `floor(p/5)` hub nodes, each connected to
-    approximately 40\\
+    approximately 40% of other nodes.
 
 - edge_prob:
 

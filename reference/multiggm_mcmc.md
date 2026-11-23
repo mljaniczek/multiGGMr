@@ -114,10 +114,19 @@ multiggm_mcmc(
 - ...:
 
   Additional arguments forwarded to the single-chain engine. For
-  `method = "mghs"`: `save_draws` (default `TRUE`; `FALSE` keeps only
-  running summaries, see Details), `diff_deltas` (thresholds `c` for the
-  running counts of \\\|D\| \> c\\, default
-  `c(0.01, 0.02, 0.03, 0.05, 0.10)`) and `max_attempts` (restarts
+  `method = "gwishart"`, `"ssvs"` and `"mghs"`: `save_draws` (default
+  `TRUE`; `FALSE` keeps only the running summaries, see "Edge
+  probabilities and memory") and `diff_deltas` (the thresholds `c` for
+  the running probabilities \\P(\|x\| \> c)\\, \\P(\|D\| \> c)\\ and the
+  union rule, default `c(0.01, 0.02, 0.03, 0.05, 0.10)`), `mcse_batches`
+  (number of batches for the Monte Carlo SEs of edge probabilities,
+  default 20; 0 turns them off), `waic` (`TRUE` keeps the
+  per-observation sums for
+  [`compute_waic()`](https://mljaniczek.github.io/multiGGMr/reference/compute_waic.md);
+  needs `data_list`) and `prior_only` (`TRUE` ignores the data and
+  samples the prior, for
+  [`edge_bayes_factors()`](https://mljaniczek.github.io/multiGGMr/reference/edge_bayes_factors.md);
+  not for mGHS). For `method = "mghs"` also `max_attempts` (restarts
   allowed when the chain gets stuck, default 3).
 
 ## Value
@@ -280,6 +289,24 @@ The `hyper` list may contain any of the following:
   Default 0.6 and 0.05, the values used by the authors' simulation
   scripts. The cut model does not feed back into the precision matrices.
 
+- `R_eta`:
+
+  Shape \\\eta\\ of an LKJ prior on the correlation of edge scales
+  across groups, \\\pi(R) \propto \|R\|^{\eta - 1}\\. Default 1, the
+  paper's uniform prior (the sampler is then unchanged). With few
+  observations per group, the posterior of \\R\\ under the uniform prior
+  piles up at \\\pm 1\\, because the per-group local scales can align
+  the scaled edges of the groups and null edges carry no sign
+  information; the chain then fails with "global-scale parameter above
+  1e6" and an error message naming `R_eta`. In that case use \\\eta \>
+  1\\: on a TCGA example (K = 2, n = 100, p = 28) \\\eta = 5\\ and
+  \\\eta = 10\\ ran without failure where \\\eta \le 3\\ failed, and
+  partial correlations and differential edge probabilities changed
+  little between them, while the posterior of \\R\\ itself moved with
+  \\\eta\\. Treat \\R\\ as a nuisance parameter in that regime. For K =
+  2, \\R\_{12}\\ has a Beta(\\\eta\\, \\\eta\\) distribution stretched
+  to (-1, 1).
+
 **mGHS sampler (`method = "mghs"`):** the horseshoe prior is continuous,
 so the sampler has no edge indicators: `adj_save` and `Sig_save` are
 `NULL`, and
@@ -308,6 +335,55 @@ or `save_draws = FALSE`, in which case
 summaries and draw-based functions stop with an error. A chain whose
 shrinkage parameters become non-finite is restarted from scratch, up to
 `max_attempts` times.
+
+**Edge probabilities and memory.** Every sampler except
+`"ssvs_platform"` keeps running sums over every post-burn-in iteration
+(`edge_acc`) from which
+[`edge_probs()`](https://mljaniczek.github.io/multiGGMr/reference/edge_probs.md),
+[`select_edges()`](https://mljaniczek.github.io/multiGGMr/reference/select_edges.md)
+and
+[`select_diff_edges()`](https://mljaniczek.github.io/multiGGMr/reference/select_diff_edges.md)
+compute per-group and per-pair posterior edge probabilities, and
+`C_mean` / `pcor_mean` (posterior means). They do not draw random
+numbers, so a chain is the same with or without them. Their size grows
+with the number of edges \\p(p-1)/2\\, the number of group pairs and the
+number of thresholds in `diff_deltas`: with K = 2 and the default 5
+thresholds, about 5 MB at p = 100 and 30 MB at p = 250, half of which
+are the batch counts for Monte Carlo SEs (`mcse_batches = 0` drops
+them). Saved draws take \\8 p^2 K\\ `nsave` bytes for the precision
+matrices alone (160 MB at p = 100, K = 2, `nsave` = 1000); G-Wishart and
+SSVS also save covariance, edge-indicator and \\\nu\\ draws of similar
+size. With `save_draws = FALSE` only the running sums and the small
+traces are kept; thresholds `c` must then come from `diff_deltas`, so
+choose a fine grid if you want to pick `c` after fitting.
+
+**Diagnostics.** Every sampler except `"ssvs_platform"` also keeps,
+without drawing random numbers:
+
+- `trace`: per post-burn-in iteration, the number of edges per group,
+  the number of differential edges per pair of groups (structural,
+  \\\|D\| \> c\\ and union, for each `c`) and the log-likelihood of each
+  group, used by
+  [`mcmc_diagnostics()`](https://mljaniczek.github.io/multiGGMr/reference/mcmc_diagnostics.md),
+  [`plot_trace()`](https://mljaniczek.github.io/multiGGMr/reference/plot_trace.md)
+  and
+  [`diff_count_posterior()`](https://mljaniczek.github.io/multiGGMr/reference/diff_count_posterior.md);
+
+- batch counts in `edge_acc$batch` for the Monte Carlo SE of every edge
+  probability (`mcse_*` columns of
+  [`edge_probs()`](https://mljaniczek.github.io/multiGGMr/reference/edge_probs.md)),
+  which roughly double the size of `edge_acc`;
+
+- node-level sums in `edge_acc$node` for
+  [`node_diff_summary()`](https://mljaniczek.github.io/multiGGMr/reference/node_diff_summary.md);
+
+- with `waic = TRUE`, `waic_acc` for
+  [`compute_waic()`](https://mljaniczek.github.io/multiGGMr/reference/compute_waic.md):
+  \\3 n_k\\ numbers per group, at a cost of \\O(n_k p^2)\\ per
+  iteration.
+
+The log-likelihood needs one Cholesky factorization per group and
+iteration (\\O(p^3)\\), small next to a sampler sweep.
 
 **Platform-level hyperparameters (`method = "ssvs_platform"` only):**
 
@@ -370,30 +446,32 @@ application to breast cancer data. In *SIS 2025*, 435-440. Springer.
 ## Examples
 
 ``` r
-sim <- simulate_multiggm(K = 2, p = 10, n = 100, seed = 42)
-fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 500, nsave = 200)
+# Short runs to keep the example fast; real analyses need far more
+# iterations (see mcmc_diagnostics()).
+sim <- simulate_multiggm(K = 2, p = 8, n = 100, seed = 42)
+fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 200, nsave = 100)
 summary(fit)
 #> multiGGM MCMC Summary
 #> =====================
-#> Groups (K): 2   |  Nodes (p): 10   |  Posterior draws: 200 
+#> Groups (K): 2   |  Nodes (p): 8   |  Posterior draws: 100 
 #> 
 #> Acceptance rates:
-#>   gamma (edge toggle): 7.9% 
-#>   theta (within-model): 57.8% 
-#>   nu (edge log-odds): 51.0% 
+#>   gamma (edge toggle): 3.0% 
+#>   theta (within-model): 44.3% 
+#>   nu (edge log-odds): 56.4% 
 #> 
 #> Selected edges (PIP >= 0.5 ):
-#>   Group 1 : 10 edges
+#>   Group 1 : 8 edges
 #>   Group 2 : 9 edges
 #> 
 #> Graph similarity (theta):
-#>   theta[1,2]: mean = 0.416, P(nonzero) = 94.0%
+#>   theta[1,2]: mean = 0.574, P(nonzero) = 99.0%
 #> 
 
 # Multiple chains (parallel on Unix/macOS, sequential on Windows)
 fit_mc <- multiggm_mcmc(
-  data_list = sim$data_list, burnin = 500, nsave = 200,
-  nchains = 2, parallel = TRUE, seed = 42
+  data_list = sim$data_list, burnin = 200, nsave = 100,
+  nchains = 2, parallel = TRUE, ncores = 2, seed = 42
 )
 fit_mc                          # prints chain count and K
 #> <multiggm_fit_list>
@@ -402,76 +480,68 @@ fit_mc                          # prints chain count and K
 summary(fit_mc$chains[[1]])     # summarize first chain
 #> multiGGM MCMC Summary
 #> =====================
-#> Groups (K): 2   |  Nodes (p): 10   |  Posterior draws: 200 
+#> Groups (K): 2   |  Nodes (p): 8   |  Posterior draws: 100 
 #> 
 #> Acceptance rates:
-#>   gamma (edge toggle): 5.0% 
-#>   theta (within-model): 50.3% 
-#>   nu (edge log-odds): 49.9% 
+#>   gamma (edge toggle): 2.3% 
+#>   theta (within-model): 32.8% 
+#>   nu (edge log-odds): 55.8% 
 #> 
 #> Selected edges (PIP >= 0.5 ):
-#>   Group 1 : 10 edges
-#>   Group 2 : 10 edges
+#>   Group 1 : 8 edges
+#>   Group 2 : 11 edges
 #> 
 #> Graph similarity (theta):
-#>   theta[1,2]: mean = 0.603, P(nonzero) = 98.5%
+#>   theta[1,2]: mean = 0.774, P(nonzero) = 100.0%
 #> 
 pip_edges(fit_mc, chain = 1)    # PIPs from chain 1
 #> , , 1
 #> 
-#>        [,1]  [,2]  [,3]  [,4]  [,5]  [,6]  [,7]  [,8]  [,9] [,10]
-#>  [1,] 0.000 0.840 0.065 0.355 0.045 0.050 0.065 0.060 0.150 0.090
-#>  [2,] 0.840 0.000 0.715 0.855 0.085 0.085 0.100 0.110 0.035 0.080
-#>  [3,] 0.065 0.715 0.000 0.230 0.295 0.090 0.365 0.140 0.060 0.025
-#>  [4,] 0.355 0.855 0.230 0.000 0.840 1.000 0.150 0.005 0.080 0.090
-#>  [5,] 0.045 0.085 0.295 0.840 0.000 0.620 0.230 0.050 0.115 0.170
-#>  [6,] 0.050 0.085 0.090 1.000 0.620 0.000 0.200 0.635 0.105 0.050
-#>  [7,] 0.065 0.100 0.365 0.150 0.230 0.200 0.000 0.215 0.475 0.130
-#>  [8,] 0.060 0.110 0.140 0.005 0.050 0.635 0.215 0.000 0.625 0.980
-#>  [9,] 0.150 0.035 0.060 0.080 0.115 0.105 0.475 0.625 0.000 1.000
-#> [10,] 0.090 0.080 0.025 0.090 0.170 0.050 0.130 0.980 1.000 0.000
+#>      [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8]
+#> [1,] 0.00 1.00 0.99 0.21 0.17 0.10 0.11 0.70
+#> [2,] 1.00 0.00 0.58 0.95 0.31 0.00 0.22 0.08
+#> [3,] 0.99 0.58 0.00 0.33 0.33 0.11 0.33 0.00
+#> [4,] 0.21 0.95 0.33 0.00 0.38 0.88 0.35 0.07
+#> [5,] 0.17 0.31 0.33 0.38 0.00 0.15 0.63 0.06
+#> [6,] 0.10 0.00 0.11 0.88 0.15 0.00 0.42 0.77
+#> [7,] 0.11 0.22 0.33 0.35 0.63 0.42 0.00 0.48
+#> [8,] 0.70 0.08 0.00 0.07 0.06 0.77 0.48 0.00
 #> 
 #> , , 2
 #> 
-#>        [,1]  [,2]  [,3]  [,4]  [,5]  [,6]  [,7]  [,8]  [,9] [,10]
-#>  [1,] 0.000 0.655 0.075 0.200 0.050 0.045 0.055 0.050 0.130 0.255
-#>  [2,] 0.655 0.000 0.615 1.000 0.160 0.035 0.055 0.090 0.015 0.105
-#>  [3,] 0.075 0.615 0.000 0.085 0.190 0.120 0.110 0.200 0.055 0.010
-#>  [4,] 0.200 1.000 0.085 0.000 0.355 0.715 0.085 0.005 0.095 0.080
-#>  [5,] 0.050 0.160 0.190 0.355 0.000 1.000 0.375 0.125 0.105 0.555
-#>  [6,] 0.045 0.035 0.120 0.715 1.000 0.000 0.245 0.285 0.090 0.145
-#>  [7,] 0.055 0.055 0.110 0.085 0.375 0.245 0.000 0.655 0.975 0.205
-#>  [8,] 0.050 0.090 0.200 0.005 0.125 0.285 0.655 0.000 0.255 0.965
-#>  [9,] 0.130 0.015 0.055 0.095 0.105 0.090 0.975 0.255 0.000 1.000
-#> [10,] 0.255 0.105 0.010 0.080 0.555 0.145 0.205 0.965 1.000 0.000
+#>      [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8]
+#> [1,] 0.00 0.42 1.00 0.07 0.13 0.04 0.12 0.79
+#> [2,] 0.42 0.00 0.68 1.00 0.23 0.00 0.08 0.10
+#> [3,] 1.00 0.68 0.00 0.59 0.99 0.09 0.53 0.00
+#> [4,] 0.07 1.00 0.59 0.00 0.28 1.00 0.20 0.07
+#> [5,] 0.13 0.23 0.99 0.28 0.00 0.12 0.34 0.27
+#> [6,] 0.04 0.00 0.09 1.00 0.12 0.00 0.98 0.96
+#> [7,] 0.12 0.08 0.53 0.20 0.34 0.98 0.00 0.57
+#> [8,] 0.79 0.10 0.00 0.07 0.27 0.96 0.57 0.00
 #> 
 pip_edges(fit_mc, chain = 2)    # PIPs from chain 2
 #> , , 1
 #> 
-#>        [,1]  [,2]  [,3]  [,4]  [,5]  [,6]  [,7]  [,8]  [,9] [,10]
-#>  [1,] 0.000 0.880 0.300 0.255 0.055 0.020 0.185 0.085 0.050 0.095
-#>  [2,] 0.880 0.000 0.795 0.815 0.025 0.085 0.025 0.040 0.085 0.055
-#>  [3,] 0.300 0.795 0.000 0.215 0.155 0.095 0.090 0.160 0.100 0.080
-#>  [4,] 0.255 0.815 0.215 0.000 0.895 1.000 0.105 0.065 0.030 0.055
-#>  [5,] 0.055 0.025 0.155 0.895 0.000 0.790 0.145 0.120 0.045 0.075
-#>  [6,] 0.020 0.085 0.095 1.000 0.790 0.000 0.280 0.600 0.035 0.150
-#>  [7,] 0.185 0.025 0.090 0.105 0.145 0.280 0.000 0.200 0.400 0.105
-#>  [8,] 0.085 0.040 0.160 0.065 0.120 0.600 0.200 0.000 0.525 0.960
-#>  [9,] 0.050 0.085 0.100 0.030 0.045 0.035 0.400 0.525 0.000 0.980
-#> [10,] 0.095 0.055 0.080 0.055 0.075 0.150 0.105 0.960 0.980 0.000
+#>      [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8]
+#> [1,] 0.00 1.00 0.96 0.14 0.07 0.13 0.02 0.86
+#> [2,] 1.00 0.00 0.49 0.63 0.53 0.07 0.25 0.16
+#> [3,] 0.96 0.49 0.00 0.37 0.23 0.08 0.31 0.12
+#> [4,] 0.14 0.63 0.37 0.00 0.50 0.85 0.49 0.11
+#> [5,] 0.07 0.53 0.23 0.50 0.00 0.06 0.26 0.09
+#> [6,] 0.13 0.07 0.08 0.85 0.06 0.00 0.33 0.61
+#> [7,] 0.02 0.25 0.31 0.49 0.26 0.33 0.00 0.38
+#> [8,] 0.86 0.16 0.12 0.11 0.09 0.61 0.38 0.00
 #> 
 #> , , 2
 #> 
-#>        [,1]  [,2]  [,3]  [,4]  [,5]  [,6]  [,7]  [,8]  [,9] [,10]
-#>  [1,] 0.000 0.770 0.205 0.185 0.070 0.095 0.060 0.080 0.090 0.170
-#>  [2,] 0.770 0.000 0.700 1.000 0.100 0.045 0.050 0.075 0.100 0.080
-#>  [3,] 0.205 0.700 0.000 0.080 0.110 0.105 0.025 0.205 0.105 0.100
-#>  [4,] 0.185 1.000 0.080 0.000 0.340 0.760 0.060 0.015 0.040 0.040
-#>  [5,] 0.070 0.100 0.110 0.340 0.000 1.000 0.295 0.195 0.030 0.350
-#>  [6,] 0.095 0.045 0.105 0.760 1.000 0.000 0.290 0.250 0.045 0.295
-#>  [7,] 0.060 0.050 0.025 0.060 0.295 0.290 0.000 0.535 0.985 0.130
-#>  [8,] 0.080 0.075 0.205 0.015 0.195 0.250 0.535 0.000 0.165 0.990
-#>  [9,] 0.090 0.100 0.105 0.040 0.030 0.045 0.985 0.165 0.000 1.000
-#> [10,] 0.170 0.080 0.100 0.040 0.350 0.295 0.130 0.990 1.000 0.000
+#>      [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8]
+#> [1,] 0.00 0.30 1.00 0.15 0.02 0.12 0.07 0.84
+#> [2,] 0.30 0.00 0.36 1.00 0.51 0.08 0.14 0.09
+#> [3,] 1.00 0.36 0.00 0.79 0.98 0.03 0.69 0.05
+#> [4,] 0.15 1.00 0.79 0.00 0.31 1.00 0.33 0.12
+#> [5,] 0.02 0.51 0.98 0.31 0.00 0.13 0.08 0.27
+#> [6,] 0.12 0.08 0.03 1.00 0.13 0.00 0.96 0.91
+#> [7,] 0.07 0.14 0.69 0.33 0.08 0.96 0.00 0.44
+#> [8,] 0.84 0.09 0.05 0.12 0.27 0.91 0.44 0.00
 #> 
 ```

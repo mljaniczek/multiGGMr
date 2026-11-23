@@ -77,7 +77,7 @@ are drawn as a side effect using igraph).
 [`plot_trace()`](https://mljaniczek.github.io/multiGGMr/reference/plot_trace.md),
 [`plot_pip_heatmap()`](https://mljaniczek.github.io/multiGGMr/reference/plot_pip_heatmap.md),
 [`plot_network()`](https://mljaniczek.github.io/multiGGMr/reference/plot_network.md),
-[`plot_roc()`](https://rdrr.io/pkg/ggmtools/man/plot_roc.html),
+[`plot_roc()`](https://mljaniczek.github.io/ggmtools/reference/plot_roc.html),
 [`plot_recovery()`](https://mljaniczek.github.io/multiGGMr/reference/plot_recovery.md)
 
 ## Examples
@@ -86,6 +86,8 @@ are drawn as a side effect using igraph).
 sim <- simulate_multiggm(K = 2, p = 8, n = 80, seed = 1)
 fit <- multiggm_mcmc(data_list = sim$data_list, burnin = 200, nsave = 100)
 plot(fit, type = "trace_edges")
+#> Ignoring unknown labels:
+#> • colour : "Chain"
 
 plot(fit, type = "pip")
 

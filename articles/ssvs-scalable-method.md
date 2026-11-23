@@ -270,7 +270,8 @@ fit <- multiggm_mcmc(
 ## Comparing both methods on the same data
 
 When $`p`$ is small enough to run both, comparing results provides a
-useful robustness check.
+useful robustness check. (The chains below are kept short so the
+vignette builds quickly; use longer runs in practice.)
 
 ``` r
 
@@ -279,8 +280,8 @@ sim_small <- simulate_multiggm(K = 2, p = 15, n = 100, seed = 42, graph_type = "
 fit_gw <- multiggm_mcmc(
   data_list = sim_small$data_list,
   method    = "gwishart",
-  burnin    = 2000,
-  nsave     = 1000,
+  burnin    = 500,
+  nsave     = 500,
   seed      = 123
 )
 
@@ -295,8 +296,8 @@ fit_ssvs <- multiggm_mcmc(
     alpha = 2, beta = 5,
     w = 0.9,           # less certain groups are related
     alpha_prop = 1, beta_prop = 1),
-  burnin    = 2000,
-  nsave     = 1000,
+  burnin    = 500,
+  nsave     = 500,
   seed      = 123
 )
 ```
@@ -310,13 +311,13 @@ pip_ssvs <- pip_edges(fit_ssvs)
 idx <- upper.tri(pip_gw[, , 1])
 cat(sprintf("Correlation of PIPs (Group 1): %.3f\n",
             cor(pip_gw[, , 1][idx], pip_ssvs[, , 1][idx])))
-#> Correlation of PIPs (Group 1): 0.929
+#> Correlation of PIPs (Group 1): 0.910
 cat(sprintf("G-Wishart edges (PIP > 0.5):   %d\n",
             sum(pip_gw[, , 1][idx] > 0.5)))
 #> G-Wishart edges (PIP > 0.5):   14
 cat(sprintf("SSVS edges (PIP > 0.5):        %d\n",
             sum(pip_ssvs[, , 1][idx] > 0.5)))
-#> SSVS edges (PIP > 0.5):        10
+#> SSVS edges (PIP > 0.5):        8
 ```
 
 ## Recovery comparison
@@ -345,10 +346,10 @@ for (method_name in c("G-Wishart", "SSVS")) {
                 method_name, k, cm[[k]]$TPR, cm[[k]]$FPR))
   }
 }
-#> G-Wishart Group 1: TPR=0.83, FPR=0.04
+#> G-Wishart Group 1: TPR=0.75, FPR=0.05
 #> G-Wishart Group 2: TPR=0.71, FPR=0.01
-#> SSVS Group 1: TPR=0.67, FPR=0.02
-#> SSVS Group 2: TPR=0.52, FPR=0.00
+#> SSVS Group 1: TPR=0.75, FPR=0.01
+#> SSVS Group 2: TPR=0.48, FPR=0.00
 ```
 
 ## Running multiple chains
@@ -362,10 +363,11 @@ running multiple chains is more practical at larger dimensions:
 fit_mc <- multiggm_mcmc(
   data_list = sim$data_list,
   method    = "ssvs",
-  burnin    = 2000,
-  nsave     = 1000,
+  burnin    = 1000,
+  nsave     = 500,
   nchains   = 3,
   parallel  = TRUE,
+  ncores    = 2,
   seed      = 42
 )
 ```
@@ -380,10 +382,10 @@ pip_c3 <- pip_edges(fit_mc, chain = 3)
 idx <- upper.tri(pip_c1[, , 1])
 cat(sprintf("PIP correlation (chains 1-2): %.3f\n",
             cor(pip_c1[, , 1][idx], pip_c2[, , 1][idx])))
-#> PIP correlation (chains 1-2): 0.948
+#> PIP correlation (chains 1-2): 0.959
 cat(sprintf("PIP correlation (chains 1-3): %.3f\n",
             cor(pip_c1[, , 1][idx], pip_c3[, , 1][idx])))
-#> PIP correlation (chains 1-3): 0.972
+#> PIP correlation (chains 1-3): 0.928
 ```
 
 See the [Getting Started

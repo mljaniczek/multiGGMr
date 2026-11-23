@@ -1,9 +1,9 @@
 # Shared-format accessors for multiGGMr fits
 
 Methods for the ggmtools generics
-[`ggmtools::pip_table()`](https://rdrr.io/pkg/ggmtools/man/pip_table.html)
+[`ggmtools::pip_table()`](https://mljaniczek.github.io/ggmtools/reference/pip_table.html)
 and
-[`ggmtools::pcor_estimate()`](https://rdrr.io/pkg/ggmtools/man/pcor_estimate.html),
+[`ggmtools::pcor_estimate()`](https://mljaniczek.github.io/ggmtools/reference/pcor_estimate.html),
 so that downstream code written for those generics works on multiGGMr
 fits as well as on fits from other packages (e.g. spikeyglass).
 
@@ -54,19 +54,19 @@ pcor_estimate(fit, platform, varnames = NULL, ...)
 
 ## Value
 
-[`pip_table()`](https://rdrr.io/pkg/ggmtools/man/pip_table.html): a data
-frame with columns `i`, `j`, `node1`, `node2`, `group`, `pip`.
-[`pcor_estimate()`](https://rdrr.io/pkg/ggmtools/man/pcor_estimate.html):
+[`pip_table()`](https://mljaniczek.github.io/ggmtools/reference/pip_table.html):
+a data frame with columns `i`, `j`, `node1`, `node2`, `group`, `pip`.
+[`pcor_estimate()`](https://mljaniczek.github.io/ggmtools/reference/pcor_estimate.html):
 a list of K partial-correlation matrices named `Group_1`, ...,
 `Group_K`.
 
 ## Details
 
-[`pip_table()`](https://rdrr.io/pkg/ggmtools/man/pip_table.html) returns
-each group's own posterior edge-inclusion probabilities (from
+[`pip_table()`](https://mljaniczek.github.io/ggmtools/reference/pip_table.html)
+returns each group's own posterior edge-inclusion probabilities (from
 [`pip_edges()`](https://mljaniczek.github.io/multiGGMr/reference/pip_edges.md))
 in long format. It needs edge indicators, so it stops for mGHS fits.
-[`pcor_estimate()`](https://rdrr.io/pkg/ggmtools/man/pcor_estimate.html)
+[`pcor_estimate()`](https://mljaniczek.github.io/ggmtools/reference/pcor_estimate.html)
 returns the posterior mean partial correlations (as
 [`fitted()`](https://rdrr.io/r/stats/fitted.values.html)). For
 multi-chain fits all chains are pooled unless `chain` selects one, as

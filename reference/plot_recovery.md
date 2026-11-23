@@ -33,14 +33,14 @@ plot_recovery(fit, true_adj, pip_threshold = 0.5, groups = NULL)
 
 A named list of confusion metric vectors per group (invisible). Each
 element is a named numeric vector as returned by
-[`confusion_at_threshold`](https://rdrr.io/pkg/ggmtools/man/confusion_at_threshold.html),
+[`confusion_at_threshold`](https://mljaniczek.github.io/ggmtools/reference/confusion_at_threshold.html),
 with components `TP`, `FP`, `TN`, `FN`, `TPR`, `FPR`.
 
 ## See also
 
-[`confusion_at_threshold()`](https://rdrr.io/pkg/ggmtools/man/confusion_at_threshold.html),
-[`roc_auc()`](https://rdrr.io/pkg/ggmtools/man/roc_auc.html),
-[`plot_roc()`](https://rdrr.io/pkg/ggmtools/man/plot_roc.html)
+[`confusion_at_threshold()`](https://mljaniczek.github.io/ggmtools/reference/confusion_at_threshold.html),
+[`roc_auc()`](https://mljaniczek.github.io/ggmtools/reference/roc_auc.html),
+[`plot_roc()`](https://mljaniczek.github.io/ggmtools/reference/plot_roc.html)
 
 ## Examples
 
@@ -73,5 +73,11 @@ cm$Group_1  # confusion metrics for group 1
 #> 
 #> $F1
 #> [1] 0.7619048
+#> 
+#> $FDR
+#> [1] 0
+#> 
+#> $MCC
+#> [1] 0.6793662
 #> 
 ```
